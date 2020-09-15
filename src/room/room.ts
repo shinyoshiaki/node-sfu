@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { RTCPeerConnection, RTCSessionDescription, Kind } from "werift";
 
 export class Room {
@@ -15,10 +16,24 @@ export class Room {
     await peer.setRemoteDescription(answer);
     peer.sctpTransport.channelByLabel("sfu").message.subscribe((msg) => {
       const { type, payload } = JSON.parse(msg as string);
+      switch (type) {
+        case "requestPublish":
+          //@ts-ignore
+          this.requestPublish(...payload);
+          break;
+        case "publish":
+          //@ts-ignore
+          this.publish(...payload);
+          break;
+        case "getTransceivers":
+          //@ts-ignore
+          this.getTransceivers(...payload);
+          break;
+      }
     });
   }
 
-  private async prePublish(peerId: string, kinds: Kind[]) {
+  private async requestPublish(peerId: string, kinds: Kind[]) {
     const peer = this.peers[peerId];
 
     kinds.forEach((kind) => {
@@ -28,6 +43,11 @@ export class Room {
     const offer = peer.createOffer();
     await peer.setLocalDescription(offer);
 
+    const msg = JSON.stringify({
+      type: "returnRequestPublish",
+      payload: { offer: peer.localDescription },
+    });
+    peer.sctpTransport.channelByLabel("sfu").send(msg);
     return offer;
   }
 
@@ -36,7 +56,7 @@ export class Room {
     await peer.setRemoteDescription(answer);
   }
 
-  private getTranseivers(peerId: string) {
+  private getTransceivers(peerId: string) {
     const peer = this.peers[peerId];
   }
 }
