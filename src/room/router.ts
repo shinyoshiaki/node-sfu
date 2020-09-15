@@ -2,14 +2,16 @@ import { RtpTrack } from "werift";
 
 type Route = { [ssrc_or_rid: string]: RtpTrack };
 
+export type TrackInfo = { id: string };
+
 export class Router {
   tracks: { [peerId: string]: Route };
 
-  get trackIDs() {
+  get trackInfos(): TrackInfo[] {
     const flat = Object.values(this.tracks)
       .map((route) => Object.values(route))
       .flatMap((v) => v);
-    return flat.map(this.getId);
+    return flat.map((t) => ({ id: this.getId(t) }));
   }
 
   addTrack(peerId: string, track: RtpTrack) {
@@ -17,6 +19,6 @@ export class Router {
   }
 
   private getId = (track: RtpTrack) => {
-    return track.ssrc || track.rid;
+    return (track.ssrc || track.rid).toString();
   };
 }

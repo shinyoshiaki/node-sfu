@@ -38,7 +38,7 @@ export class Room {
     await peer.setLocalDescription(offer);
 
     const msg = JSON.stringify({
-      type: "-RequestPublish",
+      type: "requestPublish",
       payload: { offer: peer.localDescription },
     });
     peer.sctpTransport.channelByLabel("sfu").send(msg);
@@ -53,8 +53,8 @@ export class Room {
   private getTracks(peerId: string) {
     const peer = this.peers[peerId];
     const msg = JSON.stringify({
-      type: "-GetTracks",
-      payload: { ids: this.router.trackIDs },
+      type: "getTracks",
+      payload: { infos: this.router.trackInfos },
     });
     peer.sctpTransport.channelByLabel("sfu").send(msg);
   }
