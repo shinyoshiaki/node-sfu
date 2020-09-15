@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { RTCPeerConnection, RTCSessionDescription, Kind } from "werift";
+import { Router } from "./router";
 
 export class Room {
+  router = new Router();
   peers: { [peerId: string]: RTCPeerConnection } = {};
 
   async requestJoin(peerId: string) {
@@ -16,35 +18,27 @@ export class Room {
     await peer.setRemoteDescription(answer);
     peer.sctpTransport.channelByLabel("sfu").message.subscribe((msg) => {
       const { type, payload } = JSON.parse(msg as string);
-      switch (type) {
-        case "requestPublish":
-          //@ts-ignore
-          this.requestPublish(...payload);
-          break;
-        case "publish":
-          //@ts-ignore
-          this.publish(...payload);
-          break;
-        case "getTransceivers":
-          //@ts-ignore
-          this.getTransceivers(...payload);
-          break;
-      }
+      //@ts-ignore
+      this[type](...payload);
     });
   }
 
   private async requestPublish(peerId: string, kinds: Kind[]) {
     const peer = this.peers[peerId];
 
-    kinds.forEach((kind) => {
-      peer.addTransceiver(kind, "recvonly");
-    });
+    kinds
+      .map((kind) => peer.addTransceiver(kind, "recvonly"))
+      .forEach((t) => {
+        t.onTrack.subscribe((track) => {
+          this.router.addTrack(peerId, track);
+        });
+      });
 
     const offer = peer.createOffer();
     await peer.setLocalDescription(offer);
 
     const msg = JSON.stringify({
-      type: "returnRequestPublish",
+      type: "-RequestPublish",
       payload: { offer: peer.localDescription },
     });
     peer.sctpTransport.channelByLabel("sfu").send(msg);
@@ -56,7 +50,12 @@ export class Room {
     await peer.setRemoteDescription(answer);
   }
 
-  private getTransceivers(peerId: string) {
+  private getTracks(peerId: string) {
     const peer = this.peers[peerId];
+    const msg = JSON.stringify({
+      type: "-GetTracks",
+      payload: { ids: this.router.trackIDs },
+    });
+    peer.sctpTransport.channelByLabel("sfu").send(msg);
   }
 }

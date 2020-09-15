@@ -5,8 +5,18 @@ type Route = { [ssrc_or_rid: string]: RtpTrack };
 export class Router {
   tracks: { [peerId: string]: Route };
 
-  addTrack(peerId: string, track: RtpTrack) {
-    const id = track.ssrc || track.rid;
-    this.tracks[peerId][id] = track;
+  get trackIDs() {
+    const flat = Object.values(this.tracks)
+      .map((route) => Object.values(route))
+      .flatMap((v) => v);
+    return flat.map(this.getId);
   }
+
+  addTrack(peerId: string, track: RtpTrack) {
+    this.tracks[peerId][this.getId(track)] = track;
+  }
+
+  private getId = (track: RtpTrack) => {
+    return track.ssrc || track.rid;
+  };
 }
