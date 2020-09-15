@@ -1,4 +1,4 @@
-import { RtpTrack } from "werift";
+import { RTCRtpTransceiver, RtpTrack } from "werift";
 
 type Route = { [ssrc_or_rid: string]: RtpTrack };
 
@@ -14,8 +14,18 @@ export class Router {
     return flat.map((t) => ({ id: this.getId(t) }));
   }
 
-  addTrack(peerId: string, track: RtpTrack) {
+  addTrack(peerId: string, track: RtpTrack, transceiver: RTCRtpTransceiver) {
     this.tracks[peerId][this.getId(track)] = track;
+
+    track.onRtp.once((rtp) => {
+      setInterval(() => {
+        transceiver.receiver.sendRtcpPLI(rtp.header.ssrc);
+      }, 3000);
+    });
+  }
+
+  getTrack(peerId: string, trackId: string) {
+    return this.tracks[peerId][trackId];
   }
 
   private getId = (track: RtpTrack) => {
