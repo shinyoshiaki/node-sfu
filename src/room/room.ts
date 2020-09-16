@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { v4 } from "uuid";
 import { RTCPeerConnection, RTCSessionDescription, Kind } from "werift";
+import { RTCIceCandidateJSON } from "werift/lib/rtc/transport/ice";
 import { Router } from "./router";
 
 type RPC = { type: string; payload: any };
@@ -8,42 +10,34 @@ export class Room {
   router = new Router();
   peers: { [peerId: string]: RTCPeerConnection } = {};
 
-  async requestJoin(peerId: string) {
-    const peer = (this.peers[peerId] = new RTCPeerConnection());
-    peer.createDataChannel("sfu");
-    await peer.setLocalDescription(peer.createOffer());
-    return peer.localDescription;
-  }
+  async join(): Promise<[string, RTCSessionDescription]> {
+    const peerId = v4();
+    const peer = (this.peers[peerId] = new RTCPeerConnection({
+      stunServer: ["stun.l.google.com", 19302],
+    }));
 
-  async join(peerId: string, answer: RTCSessionDescription) {
-    const peer = this.peers[peerId];
-    await peer.setRemoteDescription(answer);
-
-    peer.sctpTransport.channelByLabel("sfu").message.subscribe((msg) => {
-      const { type, payload } = JSON.parse(msg as string);
+    peer.createDataChannel("sfu").message.subscribe((msg) => {
+      const { type, payload } = JSON.parse(msg as string) as RPC;
       //@ts-ignore
       this[type](...payload);
     });
-  }
 
-  private async sendOffer(peer: RTCPeerConnection) {
     await peer.setLocalDescription(peer.createOffer());
-
-    this.sendRPC(
-      {
-        type: "handleOffer",
-        payload: { offer: peer.localDescription },
-      },
-      peer
-    );
-  }
-
-  private sendRPC(msg: RPC, peer: RTCPeerConnection) {
-    peer.sctpTransport.channelByLabel("sfu").send(JSON.stringify(msg));
+    return [peerId, peer.localDescription];
   }
 
   // --------------------------------------------------------------------
   // RPC
+
+  handleAnswer(peerId: string, answer: RTCSessionDescription) {
+    const peer = this.peers[peerId];
+    peer.setRemoteDescription(answer);
+  }
+
+  handleCandidate(peerId: string, candidate: RTCIceCandidateJSON) {
+    const peer = this.peers[peerId];
+    peer.addIceCandidate(candidate);
+  }
 
   requestPublish(peerId: string, kinds: Kind[]) {
     const peer = this.peers[peerId];
@@ -57,11 +51,6 @@ export class Room {
       });
 
     this.sendOffer(peer);
-  }
-
-  handleAnswer(peerId: string, answer: RTCSessionDescription) {
-    const peer = this.peers[peerId];
-    peer.setRemoteDescription(answer);
   }
 
   getTracks(peerId: string) {
@@ -88,5 +77,23 @@ export class Room {
       });
 
     this.sendOffer(peer);
+  }
+
+  // --------------------------------------------------------------------
+  // util
+  private async sendOffer(peer: RTCPeerConnection) {
+    await peer.setLocalDescription(peer.createOffer());
+
+    this.sendRPC(
+      {
+        type: "handleOffer",
+        payload: { offer: peer.localDescription },
+      },
+      peer
+    );
+  }
+
+  private sendRPC(msg: RPC, peer: RTCPeerConnection) {
+    peer.sctpTransport.channelByLabel("sfu").send(JSON.stringify(msg));
   }
 }
