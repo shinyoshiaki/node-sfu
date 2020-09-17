@@ -39,7 +39,7 @@ export class Room {
     peer.addIceCandidate(candidate);
   }
 
-  requestPublish(peerId: string, kinds: Kind[]) {
+  private requestPublish(peerId: string, kinds: Kind[]) {
     const peer = this.peers[peerId];
 
     kinds
@@ -53,7 +53,7 @@ export class Room {
     this.sendOffer(peer);
   }
 
-  getTracks(peerId: string) {
+  private getTracks(peerId: string) {
     const peer = this.peers[peerId];
     this.sendRPC(
       {
@@ -64,7 +64,7 @@ export class Room {
     );
   }
 
-  subscribe(peerId: string, trackIds: string[]) {
+  private subscribe(peerId: string, trackIds: string[]) {
     const peer = this.peers[peerId];
     trackIds
       .map((id) => this.router.getTrack(peerId, id))

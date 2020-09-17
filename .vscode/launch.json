@@ -31,6 +31,19 @@
       "internalConsoleOptions": "neverOpen"
     },
     {
+      "name": "server",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceRoot}/demo/server/node_modules/ts-node/dist/bin.js",
+      "protocol": "inspector",
+      "args": [
+        "--files",        
+        "${workspaceRoot}/demo/server/main.ts"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    }
+    {
       "name": "ts-node",
       "type": "node",
       "request": "launch",

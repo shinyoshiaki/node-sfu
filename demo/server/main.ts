@@ -21,13 +21,13 @@ console.log("start");
 const room = new Room();
 
 app.get("/join", async (req, res) => {
-  console.log("join", req.body);
+  console.log("join");
   const [peerId, offer] = await room.join();
   return res.send({ peerId, offer });
 });
 
 app.post("/answer", async (req, res) => {
-  console.log("answer", req.body);
+  console.log("answer");
   const { peerId, answer } = req.body;
   room.handleAnswer(peerId, answer);
   return res.send({});

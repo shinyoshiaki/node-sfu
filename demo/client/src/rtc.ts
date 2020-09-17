@@ -7,8 +7,9 @@ export class RTCManager {
 
   join = () =>
     new Promise(async (r) => {
+      console.log("join");
       const { peerId, offer } = (await http.get("/join")).data;
-      console.log("offer", offer.sdp);
+      console.log("offer", offer.sdp, peerId);
 
       const peer = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -16,7 +17,7 @@ export class RTCManager {
 
       peer.onicecandidate = ({ candidate }) => {
         if (candidate) {
-          //   console.log("candidate", candidate);
+          console.log(candidate.candidate);
           http.post("/candidate", { peerId, candidate });
         }
       };
@@ -32,7 +33,7 @@ export class RTCManager {
       await peer.setRemoteDescription(offer);
       const answer = await peer.createAnswer();
       await peer.setLocalDescription(answer);
-
-      await http.post("/answer", { peerId, answer: peer.localDescription });
+      console.log("answer", peer.localDescription?.sdp);
+      http.post("/answer", { peerId, answer: peer.localDescription });
     });
 }
