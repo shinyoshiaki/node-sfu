@@ -1,10 +1,14 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { v4 } from "uuid";
-import { RTCPeerConnection, RTCSessionDescription, Kind } from "werift";
-import { RTCIceCandidateJSON } from "werift/lib/rtc/transport/ice";
+import {
+  RTCPeerConnection,
+  RTCSessionDescription,
+  Kind,
+  RTCIceCandidateJSON,
+} from "werift";
 import { Router } from "./router";
 
-type RPC = { type: string; payload: any };
+type RPC = { type: string; payload: any[] };
 
 export class Room {
   router = new Router();
@@ -39,7 +43,8 @@ export class Room {
     peer.addIceCandidate(candidate);
   }
 
-  private requestPublish(peerId: string, kinds: Kind[]) {
+  private requestPublish = (peerId: string, kinds: Kind[]) => {
+    console.log("requestPublish", kinds);
     const peer = this.peers[peerId];
 
     kinds
@@ -51,20 +56,20 @@ export class Room {
       });
 
     this.sendOffer(peer);
-  }
+  };
 
-  private getTracks(peerId: string) {
+  private getTracks = (peerId: string) => {
     const peer = this.peers[peerId];
     this.sendRPC(
       {
         type: "handleTracks",
-        payload: { infos: this.router.trackInfos },
+        payload: [this.router.trackInfos],
       },
       peer
     );
-  }
+  };
 
-  private subscribe(peerId: string, trackIds: string[]) {
+  private subscribe = (peerId: string, trackIds: string[]) => {
     const peer = this.peers[peerId];
     trackIds
       .map((id) => this.router.getTrack(peerId, id))
@@ -77,7 +82,7 @@ export class Room {
       });
 
     this.sendOffer(peer);
-  }
+  };
 
   // --------------------------------------------------------------------
   // util
@@ -87,7 +92,7 @@ export class Room {
     this.sendRPC(
       {
         type: "handleOffer",
-        payload: { offer: peer.localDescription },
+        payload: [peer.localDescription],
       },
       peer
     );

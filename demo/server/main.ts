@@ -27,14 +27,12 @@ app.get("/join", async (req, res) => {
 });
 
 app.post("/answer", async (req, res) => {
-  console.log("answer");
   const { peerId, answer } = req.body;
   room.handleAnswer(peerId, answer);
   return res.send({});
 });
 
 app.post("/candidate", async (req, res) => {
-  console.log("candidate", req.body);
   const { peerId, candidate } = req.body;
   room.handleCandidate(peerId, candidate);
   return res.send({});

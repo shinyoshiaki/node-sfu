@@ -6,7 +6,17 @@ const App: FC = () => {
 
   useEffect(() => {
     const rtcManager = (rtcManagerRef.current = new RTCManager());
-    rtcManager.join();
+    (async () => {
+      await rtcManager.join();
+      const tracks = (
+        await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        })
+      ).getTracks();
+      await rtcManager.publish(tracks);
+      await rtcManager.getTracks();
+    })();
   }, []);
   return <div></div>;
 };

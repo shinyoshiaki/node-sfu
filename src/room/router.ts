@@ -5,7 +5,7 @@ type Route = { [ssrc_or_rid: string]: RtpTrack };
 export type TrackInfo = { id: string };
 
 export class Router {
-  tracks: { [peerId: string]: Route };
+  tracks: { [peerId: string]: Route } = {};
 
   get trackInfos(): TrackInfo[] {
     const flat = Object.values(this.tracks)
@@ -15,6 +15,8 @@ export class Router {
   }
 
   addTrack(peerId: string, track: RtpTrack, transceiver: RTCRtpTransceiver) {
+    console.log("addTrack", peerId, track.kind);
+    if (!this.tracks[peerId]) this.tracks[peerId] = {};
     this.tracks[peerId][this.getId(track)] = track;
 
     track.onRtp.once((rtp) => {
