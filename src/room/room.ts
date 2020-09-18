@@ -33,18 +33,21 @@ export class Room {
   // --------------------------------------------------------------------
   // RPC
 
-  handleAnswer(peerId: string, answer: RTCSessionDescription) {
+  async handleAnswer(peerId: string, answer: RTCSessionDescription) {
+    console.log("handleAnswer", peerId);
     const peer = this.peers[peerId];
-    peer.setRemoteDescription(answer);
+
+    await peer.setRemoteDescription(answer);
   }
 
   handleCandidate(peerId: string, candidate: RTCIceCandidateJSON) {
+    console.log("handleCandidate", peerId);
     const peer = this.peers[peerId];
     peer.addIceCandidate(candidate);
   }
 
   private requestPublish = (peerId: string, kinds: Kind[]) => {
-    console.log("requestPublish", kinds);
+    console.log("requestPublish", peerId, kinds);
     const peer = this.peers[peerId];
 
     kinds
@@ -72,11 +75,15 @@ export class Room {
   private subscribe = (peerId: string, trackIds: string[]) => {
     const peer = this.peers[peerId];
     trackIds
-      .map((id) => this.router.getTrack(peerId, id))
-      .map(async (track) => {
-        const transceiver = peer.addTransceiver(track.kind, "sendonly");
-        await transceiver.sender.onReady.asPromise();
-        track.onRtp.subscribe((rtp) => {
+      .map((trackId) => {
+        console.log({ trackId });
+        const [peerId, id] = trackId.split("_");
+        return this.router.getTrack(peerId, id);
+      })
+      .map(async (route) => {
+        const transceiver = peer.addTransceiver(route.track.kind, "sendonly");
+        route.track.onRtp.subscribe((rtp) => {
+          console.log(rtp);
           transceiver.sendRtp(rtp);
         });
       });
