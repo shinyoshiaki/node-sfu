@@ -27,6 +27,18 @@ export class Room {
       this[type](...payload);
     });
 
+    peer.iceConnectionStateChange.subscribe((state) => {
+      console.log(peerId, state);
+      if (state === "closed" || state === "disconnected") {
+        this.router.trackInfos
+          .filter((info) => info.peerId === peerId)
+          .forEach((info) => {
+            this.router.removeTrack(peerId, info.mediaId);
+          });
+        delete this.peers[peerId];
+      }
+    });
+
     await peer.setLocalDescription(peer.createOffer());
     return [peerId, peer.localDescription];
   }
@@ -56,13 +68,6 @@ export class Room {
       .forEach((transceiver) => {
         transceiver.onTrack.subscribe((track) => {
           const trackInfo = this.router.addTrack(peerId, track, transceiver);
-
-          peer.iceConnectionStateChange.subscribe((state) => {
-            console.log(peerId, state);
-            if (state === "closed" || state === "disconnected") {
-              this.router.removeTrack(peerId, trackInfo.mediaId);
-            }
-          });
 
           Object.values(this.peers).forEach((peer) => {
             this.sendRPC(
