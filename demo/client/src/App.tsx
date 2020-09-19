@@ -19,16 +19,19 @@ const App: FC = () => {
         };
         setStreams((streams) => [...streams, stream]);
       };
+      rtcManager.onPublish.subscribe((info) => {
+        if (info.peerId !== rtcManager.peerId) {
+          rtcManager.subscribe([info]);
+        }
+      });
 
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: true,
-        audio: true,
+        audio: false,
       });
-      await rtcManager.publish(mediaStream.getVideoTracks(), mediaStream);
-      await new Promise((r) => setTimeout(r, 500));
+      await rtcManager.publish(mediaStream.getTracks());
       const infos = await rtcManager.getTracks();
-      await new Promise((r) => setTimeout(r, 500));
-      // await rtcManager.subscribe(infos);
+      await rtcManager.subscribe(infos);
     })();
   }, []);
 
@@ -50,7 +53,6 @@ const App: FC = () => {
                 videos.current = arr;
               }}
               autoPlay
-              muted
             />
           </div>
         ))}

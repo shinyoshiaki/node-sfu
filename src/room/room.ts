@@ -20,6 +20,7 @@ export class Room {
       stunServer: ["stun.l.google.com", 19302],
     }));
 
+    peer.addTransceiver("video", "sendonly"); // dummy
     peer.createDataChannel("sfu").message.subscribe((msg) => {
       const { type, payload } = JSON.parse(msg as string) as RPC;
       //@ts-ignore
@@ -46,19 +47,29 @@ export class Room {
     peer.addIceCandidate(candidate);
   }
 
-  private requestPublish = (peerId: string, kinds: Kind[]) => {
-    console.log("requestPublish", peerId, kinds);
+  private publish = async (peerId: string, kinds: Kind[]) => {
+    console.log("publish", peerId, kinds);
     const peer = this.peers[peerId];
 
     kinds
       .map((kind) => peer.addTransceiver(kind, "recvonly"))
       .forEach((transceiver) => {
         transceiver.onTrack.subscribe((track) => {
-          this.router.addTrack(peerId, track, transceiver);
+          const trackInfo = this.router.addTrack(peerId, track, transceiver);
+
+          Object.values(this.peers).forEach((peer) => {
+            this.sendRPC(
+              {
+                type: "handlePublish",
+                payload: [trackInfo],
+              },
+              peer
+            );
+          });
         });
       });
 
-    this.sendOffer(peer);
+    await this.sendOffer(peer);
   };
 
   private getTracks = (peerId: string) => {
@@ -83,8 +94,11 @@ export class Room {
       .map(async (route) => {
         const transceiver = peer.addTransceiver(route.track.kind, "sendonly");
         route.track.onRtp.subscribe((rtp) => {
-          console.log(rtp);
-          transceiver.sendRtp(rtp);
+          try {
+            transceiver.sendRtp(rtp);
+          } catch (error) {
+            console.log("ice error", error);
+          }
         });
       });
 
@@ -106,6 +120,8 @@ export class Room {
   }
 
   private sendRPC(msg: RPC, peer: RTCPeerConnection) {
-    peer.sctpTransport.channelByLabel("sfu").send(JSON.stringify(msg));
+    const channel = peer.sctpTransport.channelByLabel("sfu");
+    if (!channel) return;
+    channel.send(JSON.stringify(msg));
   }
 }

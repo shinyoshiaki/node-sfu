@@ -10600,6 +10600,11 @@ run-queue@^1.0.0, run-queue@^1.0.3:
   dependencies:
     aproba "^1.1.1"
 
+rx.mini@^0.1.1:
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/rx.mini/-/rx.mini-0.1.1.tgz#86d648043b4e8debcf6e42b69ce20bdb568dad23"
+  integrity sha512-o8hudkWb3rxdJo46SiXdErQzM2dgu1e3q9eGEFIpADvt62mcIWxJCK1K+0ByXtpVbX+vsEYCFA4ZEKU1joX1CA==
+
 rxjs@^6.4.0, rxjs@^6.5.3:
   version "6.5.4"
   resolved "https://registry.yarnpkg.com/rxjs/-/rxjs-6.5.4.tgz#e0777fe0d184cec7872df147f303572d414e211c"
