@@ -57,6 +57,13 @@ export class Room {
         transceiver.onTrack.subscribe((track) => {
           const trackInfo = this.router.addTrack(peerId, track, transceiver);
 
+          peer.iceConnectionStateChange.subscribe((state) => {
+            console.log(peerId, state);
+            if (state === "closed" || state === "disconnected") {
+              this.router.removeTrack(peerId, trackInfo.mediaId);
+            }
+          });
+
           Object.values(this.peers).forEach((peer) => {
             this.sendRPC(
               {
@@ -88,18 +95,12 @@ export class Room {
     trackIds
       .map((trackId) => {
         console.log({ trackId });
-        const [peerId, id] = trackId.split("_");
-        return this.router.getTrack(peerId, id);
+        const [peerId, mediaId] = trackId.split("_");
+        return this.router.getTrack(peerId, mediaId);
       })
       .map(async (route) => {
         const transceiver = peer.addTransceiver(route.track.kind, "sendonly");
-        route.track.onRtp.subscribe((rtp) => {
-          try {
-            transceiver.sendRtp(rtp);
-          } catch (error) {
-            console.log("ice error", error);
-          }
-        });
+        route.subscribe(peerId, transceiver);
       });
 
     this.sendOffer(peer);

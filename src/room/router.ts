@@ -1,6 +1,9 @@
 import { RTCRtpTransceiver, RtpTrack } from "werift";
+import { Media } from "./media";
 
-type Route = { [mediaId: string]: { track: RtpTrack; peerId: string } };
+type Route = {
+  [mediaId: string]: Media;
+};
 
 export type TrackInfo = { mediaId: string; kind: string; peerId: string };
 
@@ -20,18 +23,13 @@ export class Router {
 
   addTrack(peerId: string, track: RtpTrack, transceiver: RTCRtpTransceiver) {
     console.log("addTrack", peerId, track.kind);
+    const mediaId = this.getMediaId(track);
     if (!this.tracks[peerId]) this.tracks[peerId] = {};
-    this.tracks[peerId][this.getMediaId(track)] = { track, peerId };
+    const route = this.tracks[peerId];
+    const media = (route[mediaId] = new Media({ track, peerId }));
 
     track.onRtp.once((rtp) => {
-      const id = setInterval(() => {
-        try {
-          transceiver.receiver.sendRtcpPLI(rtp.header.ssrc);
-        } catch (error) {
-          console.log("sendRtcpPLI", error);
-          clearInterval(id);
-        }
-      }, 3000);
+      media.startRtcp(rtp.header.ssrc, transceiver);
     });
 
     return {
@@ -39,6 +37,12 @@ export class Router {
       kind: track.kind,
       peerId: peerId,
     };
+  }
+
+  removeTrack(peerId: string, mediaId: string) {
+    const media = this.tracks[peerId][mediaId];
+    media.stopMedia();
+    delete this.tracks[peerId][mediaId];
   }
 
   getTrack(peerId: string, trackId: string) {
