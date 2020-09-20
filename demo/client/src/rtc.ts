@@ -1,6 +1,6 @@
 import axios from "axios";
 import Event from "rx.mini";
-const http = axios.create({ baseURL: "http://127.0.0.1:12222" });
+const http = axios.create({ baseURL: "http://35.185.16.232:12222" });
 
 export class RTCManager {
   channel?: RTCDataChannel;
