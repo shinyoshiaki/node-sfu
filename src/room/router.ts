@@ -42,8 +42,9 @@ export class Router {
   removeTrack(peerId: string, mediaId: string) {
     const media = this.tracks[peerId][mediaId];
     if (!media) return;
-    media.stopMedia();
+    const id = media.stopMedia();
     delete this.tracks[peerId][mediaId];
+    return id;
   }
 
   getTrack(peerId: string, trackId: string) {

@@ -107,14 +107,14 @@ export class Room {
   };
 
   private leave = (peerId: string) => {
-    this.router.trackInfos
+    const ids = this.router.trackInfos
       .filter((info) => info.peerId === peerId)
-      .forEach((info) => {
-        this.router.removeTrack(peerId, info.mediaId);
+      .map((info) => {
+        return this.router.removeTrack(peerId, info.mediaId);
       });
     delete this.peers[peerId];
     Object.values(this.peers).forEach((peer) => {
-      this.sendRPC({ type: "handleLeave", payload: [peerId] }, peer);
+      this.sendRPC({ type: "handleLeave", payload: [ids] }, peer);
     });
   };
 

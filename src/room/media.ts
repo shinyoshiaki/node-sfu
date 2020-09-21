@@ -24,6 +24,7 @@ export class Media {
   stopMedia() {
     clearInterval(this.rtcpId);
     Object.values(this.stopSubscribes).forEach((stop) => stop());
+    return this.track.id;
   }
 
   subscribe(peerId: string, transceiver: RTCRtpTransceiver) {
