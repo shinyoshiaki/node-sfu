@@ -4400,10 +4400,10 @@ webidl-conversions@^6.0.0:
   resolved "https://registry.yarnpkg.com/webidl-conversions/-/webidl-conversions-6.1.0.tgz#9111b4d7ea80acd40f5270d666621afa78b69514"
   integrity sha512-qBIvFLGiBpLjfwmYAaHPXsn+ho5xZnGvyGvsarywGNc8VyQJUMHJ8OBKGGrPER0okBeMDaan4mNBlgBROxuI8w==
 
-werift@^0.0.25:
-  version "0.0.25"
-  resolved "https://registry.yarnpkg.com/werift/-/werift-0.0.25.tgz#f60fe7c3612b12676c78f3fe8fa86bfc4e7bb6da"
-  integrity sha512-B+BvlQmCuTPwAlTJmNJXA/V2IpV0fvIaKMfs8Ouq2ODWZa5V03dqX1OHDz4gjy+WdYX/Vc04xqZFfNVHODGGQQ==
+werift@^0.0.26:
+  version "0.0.26"
+  resolved "https://registry.yarnpkg.com/werift/-/werift-0.0.26.tgz#f8c78aa183c2462fe0d249398f1df44f5437d590"
+  integrity sha512-ezlyvb60tpaU9GPHlqoBfX8jGOtcKuAXe+ylvD7LqpqiQtEEXNG4YmmuEmUNHcuKNrsoP5qbjgZPuvcuVcp6Jw==
   dependencies:
     "@fidm/x509" "^1.2.1"
     aes-js "^3.1.2"
