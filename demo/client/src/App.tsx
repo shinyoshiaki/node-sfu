@@ -43,7 +43,7 @@ const App: FC = () => {
 
   return (
     <div>
-      <div style={{ display: "flex", width: "100%" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", width: "100%" }}>
         {streams.map((_, i) => (
           <div key={i}>
             <video
@@ -53,6 +53,7 @@ const App: FC = () => {
                 videos.current = arr;
               }}
               autoPlay
+              style={{ maxWidth: 300, background: "black" }}
             />
           </div>
         ))}

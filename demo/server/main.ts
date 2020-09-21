@@ -37,3 +37,17 @@ app.post("/candidate", async (req, res) => {
   room.handleCandidate(peerId, candidate);
   return res.send({});
 });
+
+// startHeapDiff();
+// function startHeapDiff() {
+//   setInterval(function generateHeapDumpAndStats() {
+//     try {
+//       global.gc();
+//     } catch (e) {
+//       console.log("次のコマンドで実行して下さい: 'node --expose-gc leak.js");
+//       process.exit();
+//     }
+//     const heapUsed = process.memoryUsage().heapUsed;
+//     console.log(Math.floor(heapUsed / 1024) + " Kバイト使用中");
+//   }, 2000);
+// }
