@@ -6,36 +6,52 @@ const App: FC = () => {
   const videos = useRef<HTMLVideoElement[]>([]);
   const [streams, setStreams] = useState<MediaStream[]>([]);
 
-  useEffect(() => {
-    const rtcManager = (rtcManagerRef.current = new RTCManager());
-    (async () => {
-      await rtcManager.join();
+  const init = async (rtcManager: RTCManager) => {
+    await rtcManager.join();
 
-      rtcManager.peer!.ontrack = (e) => {
-        const stream = e.streams[0];
-        console.log("track", stream.id);
-        stream.onremovetrack = () => {
-          setStreams((streams) => streams.filter((s) => stream.id !== s.id));
-        };
-        setStreams((streams) => [...streams, stream]);
+    rtcManager.onPublish.subscribe((info) => {
+      if (info.peerId !== rtcManager.peerId) {
+        rtcManager.subscribe([info]);
+      }
+    });
+    rtcManager.peer!.ontrack = (e) => {
+      const stream = e.streams[0];
+      console.log("track", e.track);
+      console.log("track", stream.id);
+      stream.onremovetrack = () => {
+        setStreams((streams) => streams.filter((s) => stream.id !== s.id));
       };
-      rtcManager.onPublish.subscribe((info) => {
-        if (info.peerId !== rtcManager.peerId) {
-          rtcManager.subscribe([info]);
-        }
-      });
+      setStreams((streams) => [...streams, stream]);
+    };
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: false,
-      });
-      await rtcManager.publish(mediaStream.getTracks());
+    const mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: false,
+    });
+    await rtcManager.publish(mediaStream.getTracks());
+    const infos = await rtcManager.getTracks();
+    await rtcManager.subscribe(infos);
+  };
+
+  useEffect(() => {
+    const rtcManager = rtcManagerRef.current;
+
+    if (!rtcManager) {
+      rtcManagerRef.current = new RTCManager("http://localhost:12222");
+      init(rtcManagerRef.current);
+      return;
+    }
+
+    const { unSubscribe } = rtcManager.onLeave.subscribe(async (ids) => {
+      setStreams([]);
       const infos = await rtcManager.getTracks();
       await rtcManager.subscribe(infos);
-    })();
-  }, []);
+    });
 
-  React.useEffect(() => {
+    return unSubscribe;
+  }, [streams, rtcManagerRef]);
+
+  useEffect(() => {
     videos.current.forEach((v, i) => {
       if (streams[i]) v.srcObject = streams[i];
     });

@@ -1,6 +1,5 @@
 import axios from "axios";
 import Event from "rx.mini";
-const http = axios.create({ baseURL: "http://localhost:12222" });
 
 export class RTCManager {
   channel?: RTCDataChannel;
@@ -9,11 +8,15 @@ export class RTCManager {
   trackIds: string[] = [];
   private onmessage = new Event<string>();
   onPublish = new Event<TrackInfo>();
+  onLeave = new Event<string[]>();
+  http = axios.create({ baseURL: this.url });
+
+  constructor(private url: string) {}
 
   join = () =>
     new Promise(async (r) => {
       console.log("join");
-      const { peerId, offer } = (await http.get("/join")).data;
+      const { peerId, offer } = (await this.http.get("/join")).data;
 
       this.peerId = peerId;
 
@@ -24,7 +27,7 @@ export class RTCManager {
 
       peer.onicecandidate = ({ candidate }) => {
         if (candidate) {
-          http.post("/candidate", {
+          this.http.post("/candidate", {
             peerId,
             candidate,
           });
@@ -64,7 +67,7 @@ export class RTCManager {
       const answer = await peer.createAnswer();
       await peer.setLocalDescription(answer);
 
-      http.post("/answer", {
+      this.http.post("/answer", {
         peerId,
         answer: peer.localDescription,
       });
@@ -125,6 +128,11 @@ export class RTCManager {
   private handlePublish = (info: TrackInfo) => {
     console.log("handlePublish", info);
     this.onPublish.execute(info);
+  };
+
+  private handleLeave = (streamIds: string[]) => {
+    console.log("handleLeave", streamIds);
+    this.onLeave.execute(streamIds);
   };
 
   private waitRPC = (target: string) =>
