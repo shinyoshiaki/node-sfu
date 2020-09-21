@@ -27,7 +27,7 @@
     "type": "tsc --noEmit -p .",
     "unused": "organize-imports-cli src/**/*.ts",
     "client": "cd demo/client && yarn start",
-    "server": "cd demo/server && yarn start"
+    "server": "cd demo/server && yarn dev"
   },
   "dependencies": {
     "lodash": "^4.17.20",
