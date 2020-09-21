@@ -525,7 +525,7 @@ export class RTCPeerConnection {
     this.validateDescription(description, false);
 
     // # apply description
-    for (let [i, media] of enumerate(description.media)) {
+    for (const [i, media] of enumerate(description.media)) {
       let dtlsTransport: RTCDtlsTransport | undefined;
 
       if (["audio", "video"].includes(media.kind)) {
@@ -832,9 +832,8 @@ function addTransportDescription(
 }
 
 function allocateMid(mids: Set<string>) {
-  let i = 0;
   let mid = "";
-  while (true) {
+  for (let i = 0; ; ) {
     mid = (i++).toString();
     if (!mids.has(mid)) break;
   }
