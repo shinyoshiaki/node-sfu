@@ -38,6 +38,7 @@ const App: FC = () => {
     console.log("published");
     const infos = await rtcManager.getTracks();
     await rtcManager.subscribe(infos);
+    console.log("joined");
   };
 
   useEffect(() => {

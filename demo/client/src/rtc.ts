@@ -33,9 +33,6 @@ export class RTCManager {
           });
         }
       };
-      peer.oniceconnectionstatechange = () => {
-        console.log("oniceconnectionstatechange", peer.iceConnectionState);
-      };
       peer.ondatachannel = ({ channel }) => {
         this.channel = channel;
         peer.onicecandidate = ({ candidate }) => {
@@ -67,7 +64,7 @@ export class RTCManager {
       const answer = await peer.createAnswer();
       await peer.setLocalDescription(answer);
 
-      this.http.post("/answer", {
+      await this.http.post("/answer", {
         peerId,
         answer: peer.localDescription,
       });
@@ -101,14 +98,10 @@ export class RTCManager {
         sender.setParameters(params);
       });
 
-    const answer = await this.peer?.createAnswer();
-    await this.peer?.setLocalDescription(answer!);
-
-    this.sendRPC({
-      type: "handleAnswer",
-      payload: [this.peerId, this.peer?.localDescription],
-    });
-    await new Promise((r) => setTimeout(r, 100));
+    await this.peer?.setLocalDescription(await this.peer?.createAnswer());
+    console.log("sending answer");
+    await this.sendAnswer();
+    console.log("sending answer done");
   }
 
   async getTracks(): Promise<TrackInfo[]> {
@@ -124,16 +117,14 @@ export class RTCManager {
 
   async subscribe(infos: TrackInfo[]) {
     const trackIds = infos.map((v) => `${v.peerId}_${v.mediaId}`);
+
     this.sendRPC({ type: "subscribe", payload: [this.peerId, trackIds] });
     const [offer] = await this.waitRPC("handleOffer");
     await this.peer?.setRemoteDescription(offer);
     const answer = await this.peer?.createAnswer();
     await this.peer?.setLocalDescription(answer!);
 
-    this.sendRPC({
-      type: "handleAnswer",
-      payload: [this.peerId, this.peer?.localDescription],
-    });
+    await this.sendAnswer();
   }
 
   private handlePublish = (info: TrackInfo) => {
@@ -156,6 +147,14 @@ export class RTCManager {
         }
       });
     });
+
+  async sendAnswer() {
+    this.sendRPC({
+      type: "handleAnswer",
+      payload: [this.peerId, this.peer?.localDescription],
+    });
+    await this.waitRPC("handleAnswerDone");
+  }
 
   private sendRPC(msg: RPC) {
     this.channel?.send(JSON.stringify(msg));

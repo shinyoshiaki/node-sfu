@@ -47,6 +47,7 @@ export class Room {
     const peer = this.peers[peerId];
 
     await peer.setRemoteDescription(answer);
+    this.sendRPC({ type: "handleAnswerDone", payload: [] }, peer);
   }
 
   handleCandidate(peerId: string, candidate: RTCIceCandidateJSON) {
