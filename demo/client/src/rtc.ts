@@ -111,7 +111,6 @@ export class RTCManager {
     });
     const [infos] = await this.waitRPC("handleTracks");
     console.log("infos", infos);
-    await new Promise((r) => setTimeout(r, 100));
     return infos;
   }
 

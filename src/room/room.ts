@@ -125,31 +125,34 @@ export class Room {
     await this.sendOffer(peer);
   };
 
-  private leave = (publisherId: string) => {
+  private leave = async (publisherId: string) => {
     const infos = this.router.trackInfos.filter(
       (info) => info.publisherId === publisherId
     );
-    const subscribers = infos.map((info) => {
-      return this.router.removeTrack(publisherId, info.mediaId);
-    });
+    const subscribers = infos.map((info) =>
+      this.router.removeTrack(publisherId, info.mediaId)
+    );
 
     const targets: { [subscriberId: string]: RTCPeerConnection } = {};
 
     subscribers.forEach((subscriber) => {
       Object.entries(subscriber).forEach(([subscriberId, pair]) => {
         const peer = this.peers[subscriberId];
+        if (!peer) return;
         peer.removeTrack(pair.transceiver.sender);
         targets[subscriberId] = peer;
       });
     });
 
-    Object.values(targets).forEach(async (peer) => {
-      await peer.setLocalDescription(peer.createOffer());
-      this.sendRPC(
-        { type: "handleLeave", payload: [infos, peer.localDescription] },
-        peer
-      );
-    });
+    await Promise.all(
+      Object.values(targets).map(async (peer) => {
+        await peer.setLocalDescription(peer.createOffer());
+        this.sendRPC(
+          { type: "handleLeave", payload: [infos, peer.localDescription] },
+          peer
+        );
+      })
+    );
 
     delete this.peers[publisherId];
   };
