@@ -1,5 +1,6 @@
 import axios from "axios";
 import Event from "rx.mini";
+import { PromiseQueue } from "./util";
 
 export class RTCManager {
   channel?: RTCDataChannel;
@@ -115,16 +116,19 @@ export class RTCManager {
     return infos;
   }
 
+  subscribeQueue = new PromiseQueue();
   async subscribe(infos: TrackInfo[]) {
-    const trackIds = infos.map((v) => `${v.peerId}_${v.mediaId}`);
+    await this.subscribeQueue.push(async () => {
+      const trackIds = infos.map((v) => `${v.peerId}_${v.mediaId}`);
 
-    this.sendRPC({ type: "subscribe", payload: [this.peerId, trackIds] });
-    const [offer] = await this.waitRPC("handleOffer");
-    await this.peer?.setRemoteDescription(offer);
-    const answer = await this.peer?.createAnswer();
-    await this.peer?.setLocalDescription(answer!);
+      this.sendRPC({ type: "subscribe", payload: [this.peerId, trackIds] });
+      const [offer] = await this.waitRPC("handleOffer");
+      await this.peer?.setRemoteDescription(offer);
+      const answer = await this.peer?.createAnswer();
+      await this.peer?.setLocalDescription(answer!);
 
-    await this.sendAnswer();
+      await this.sendAnswer();
+    });
   }
 
   private handlePublish = (info: TrackInfo) => {
