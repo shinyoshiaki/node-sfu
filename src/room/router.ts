@@ -5,28 +5,37 @@ type Route = {
   [mediaId: string]: Media;
 };
 
-export type TrackInfo = { mediaId: string; kind: string; peerId: string };
+export type TrackInfo = { mediaId: string; kind: string; publisherId: string };
 
 export class Router {
-  tracks: { [peerId: string]: Route } = {};
+  tracks: { [publisherId: string]: Route } = {};
 
   get trackInfos(): TrackInfo[] {
-    const flat = Object.values(this.tracks)
+    const medias = Object.values(this.tracks)
       .map((route) => Object.values(route))
       .flatMap((v) => v);
-    return flat.map((route) => ({
-      mediaId: this.getMediaId(route.track),
-      kind: route.track.kind,
-      peerId: route.peerId,
+
+    return medias.map((media) => ({
+      mediaId: this.getMediaId(media.track),
+      kind: media.track.kind,
+      publisherId: media.publisherId,
     }));
   }
 
-  addTrack(peerId: string, track: RtpTrack, transceiver: RTCRtpTransceiver) {
-    console.log("addTrack", peerId, track.kind);
+  addTrack(
+    publisherId: string,
+    track: RtpTrack,
+    transceiver: RTCRtpTransceiver
+  ) {
+    console.log("addTrack", publisherId, track.kind);
+
     const mediaId = this.getMediaId(track);
-    if (!this.tracks[peerId]) this.tracks[peerId] = {};
-    const route = this.tracks[peerId];
-    const media = (route[mediaId] = new Media({ track, peerId }));
+    if (!this.tracks[publisherId]) this.tracks[publisherId] = {};
+    const route = this.tracks[publisherId];
+    const media = (route[mediaId] = new Media({
+      track,
+      publisherId: publisherId,
+    }));
 
     track.onRtp.once((rtp) => {
       media.startRtcp(rtp.header.ssrc, transceiver);
@@ -35,20 +44,26 @@ export class Router {
     return {
       mediaId: this.getMediaId(track),
       kind: track.kind,
-      peerId: peerId,
+      publisherId,
     };
   }
 
-  removeTrack(peerId: string, mediaId: string) {
-    const media = this.tracks[peerId][mediaId];
+  removeTrack(publisherId: string, mediaId: string) {
+    const media = this.tracks[publisherId][mediaId];
     if (!media) return;
-    const id = media.stopMedia();
-    delete this.tracks[peerId][mediaId];
-    return id;
+    const subscribers = media.stopMedia();
+    delete this.tracks[publisherId][mediaId];
+    return subscribers;
   }
 
-  getTrack(peerId: string, trackId: string) {
-    return this.tracks[peerId][trackId];
+  subscribe(
+    publisherId: string,
+    subscriberId: string,
+    trackId: string,
+    transceiver: RTCRtpTransceiver
+  ) {
+    const media = this.tracks[publisherId][trackId];
+    media.subscribe(subscriberId, transceiver);
   }
 
   private getMediaId = (track: RtpTrack) => {

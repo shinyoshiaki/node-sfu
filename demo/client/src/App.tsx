@@ -10,14 +10,9 @@ const App: FC = () => {
     await rtcManager.join();
 
     rtcManager.onPublish.subscribe((info) => {
-      if (info.peerId !== rtcManager.peerId) {
+      if (info.publisherId !== rtcManager.peerId) {
         rtcManager.subscribe([info]);
       }
-    });
-    rtcManager.onLeave.subscribe(async (ids) => {
-      setStreams([]);
-      const infos = await rtcManager.getTracks();
-      await rtcManager.subscribe(infos);
     });
     rtcManager.peer!.ontrack = (e) => {
       const stream = e.streams[0];

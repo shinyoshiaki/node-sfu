@@ -2,9 +2,15 @@ import { RTCRtpTransceiver, RtpTrack } from "../werift";
 
 export class Media {
   track: RtpTrack;
-  peerId: string;
+  publisherId: string;
   rtcpId: NodeJS.Timeout;
-  stopSubscribes?: { [peerId: string]: () => void } = {};
+
+  subscribers: {
+    [subscriberId: string]: {
+      transceiver: RTCRtpTransceiver;
+      stop: () => void;
+    };
+  } = {};
 
   constructor(props: Partial<Media> = {}) {
     Object.assign(this, props);
@@ -23,11 +29,12 @@ export class Media {
 
   stopMedia() {
     clearInterval(this.rtcpId);
-    Object.values(this.stopSubscribes).forEach((stop) => stop());
-    return this.track.id;
+    Object.values(this.subscribers).forEach(({ stop }) => stop());
+
+    return this.subscribers;
   }
 
-  subscribe(peerId: string, transceiver: RTCRtpTransceiver) {
+  subscribe(subscriberId: string, transceiver: RTCRtpTransceiver) {
     const { unSubscribe } = this.track.onRtp.subscribe((rtp) => {
       try {
         transceiver.sendRtp(rtp);
@@ -35,11 +42,6 @@ export class Media {
         console.log("ice error", error);
       }
     });
-    this.stopSubscribes[peerId] = unSubscribe;
-  }
-
-  unsubscribe(peerId: string) {
-    this.stopSubscribes[peerId]();
-    delete this.stopSubscribes[peerId];
+    this.subscribers[subscriberId] = { transceiver, stop: unSubscribe };
   }
 }

@@ -5,7 +5,9 @@ import { PromiseQueue } from "./util";
 export class RTCManager {
   channel?: RTCDataChannel;
   peerId?: string;
-  peer?: RTCPeerConnection;
+  peer: RTCPeerConnection = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  });
   trackIds: string[] = [];
   private onmessage = new Event<string>();
   onPublish = new Event<TrackInfo>();
@@ -21,10 +23,7 @@ export class RTCManager {
 
       this.peerId = peerId;
 
-      const peer = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-      });
-      this.peer = peer;
+      const peer = this.peer;
 
       peer.onicecandidate = ({ candidate }) => {
         if (candidate) {
@@ -78,10 +77,10 @@ export class RTCManager {
     });
     const [offer] = await this.waitRPC("handleOffer");
 
-    await this.peer?.setRemoteDescription(offer);
+    await this.peer.setRemoteDescription(offer);
 
     tracks
-      .map((track) => this.peer?.addTrack(track)!)
+      .map((track) => this.peer.addTrack(track)!)
       .map((sender) => {
         if (!simulcast) return;
         const params = sender.getParameters();
@@ -99,7 +98,7 @@ export class RTCManager {
         sender.setParameters(params);
       });
 
-    await this.peer?.setLocalDescription(await this.peer?.createAnswer());
+    await this.peer.setLocalDescription(await this.peer.createAnswer());
     console.log("sending answer");
     await this.sendAnswer();
     console.log("sending answer done");
@@ -119,13 +118,11 @@ export class RTCManager {
   subscribeQueue = new PromiseQueue();
   async subscribe(infos: TrackInfo[]) {
     await this.subscribeQueue.push(async () => {
-      const trackIds = infos.map((v) => `${v.peerId}_${v.mediaId}`);
-
-      this.sendRPC({ type: "subscribe", payload: [this.peerId, trackIds] });
+      this.sendRPC({ type: "subscribe", payload: [this.peerId, infos] });
       const [offer] = await this.waitRPC("handleOffer");
-      await this.peer?.setRemoteDescription(offer);
-      const answer = await this.peer?.createAnswer();
-      await this.peer?.setLocalDescription(answer!);
+      await this.peer.setRemoteDescription(offer);
+      const answer = await this.peer.createAnswer();
+      await this.peer.setLocalDescription(answer!);
 
       await this.sendAnswer();
     });
@@ -136,9 +133,15 @@ export class RTCManager {
     this.onPublish.execute(info);
   };
 
-  private handleLeave = (streamIds: string[]) => {
-    console.log("handleLeave", streamIds);
-    this.onLeave.execute(streamIds);
+  private handleLeave = async (
+    infos: TrackInfo[],
+    offer: RTCSessionDescription
+  ) => {
+    console.log("handleLeave", infos);
+    await this.peer.setRemoteDescription(offer);
+    const answer = await this.peer.createAnswer();
+    await this.peer.setLocalDescription(answer!);
+    await this.sendAnswer();
   };
 
   private waitRPC = (target: string) =>
@@ -155,7 +158,7 @@ export class RTCManager {
   async sendAnswer() {
     this.sendRPC({
       type: "handleAnswer",
-      payload: [this.peerId, this.peer?.localDescription],
+      payload: [this.peerId, this.peer.localDescription],
     });
     await this.waitRPC("handleAnswerDone");
   }
@@ -166,4 +169,4 @@ export class RTCManager {
 }
 
 type RPC = { type: string; payload: any[] };
-type TrackInfo = { mediaId: string; kind: string; peerId: string };
+type TrackInfo = { mediaId: string; kind: string; publisherId: string };

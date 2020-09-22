@@ -7,7 +7,7 @@ import {
   RTCIceCandidateJSON,
   useSdesRTPStreamID,
 } from "../werift";
-import { Router } from "./router";
+import { Router, TrackInfo } from "./router";
 
 type RPC = { type: string; payload: any[] };
 
@@ -57,12 +57,12 @@ export class Room {
   }
 
   private publish = async (
-    peerId: string,
+    publisherId: string,
     kinds: Kind[],
     simulcast: boolean
   ) => {
-    console.log("publish", peerId, kinds);
-    const peer = this.peers[peerId];
+    console.log("publish", publisherId, kinds);
+    const peer = this.peers[publisherId];
 
     kinds
       .map((kind) => {
@@ -79,7 +79,11 @@ export class Room {
       })
       .forEach((transceiver) => {
         transceiver.onTrack.subscribe((track) => {
-          const trackInfo = this.router.addTrack(peerId, track, transceiver);
+          const trackInfo = this.router.addTrack(
+            publisherId,
+            track,
+            transceiver
+          );
 
           Object.values(this.peers)
             .filter((others) => others.cname !== peer.cname)
@@ -110,32 +114,44 @@ export class Room {
     );
   };
 
-  private subscribe = (peerId: string, trackIds: string[]) => {
-    const peer = this.peers[peerId];
-    trackIds
-      .map((trackId) => {
-        console.log({ trackId });
-        const [peerId, mediaId] = trackId.split("_");
-        return this.router.getTrack(peerId, mediaId);
-      })
-      .map(async (route) => {
-        const transceiver = peer.addTransceiver(route.track.kind, "sendonly");
-        route.subscribe(peerId, transceiver);
-      });
+  private subscribe = async (subscriberId: string, infos: TrackInfo[]) => {
+    const peer = this.peers[subscriberId];
+    infos.map((info) => {
+      const { publisherId, mediaId, kind } = info;
+      const transceiver = peer.addTransceiver(kind as Kind, "sendonly");
+      this.router.subscribe(publisherId, subscriberId, mediaId, transceiver);
+    });
 
-    this.sendOffer(peer);
+    await this.sendOffer(peer);
   };
 
-  private leave = (peerId: string) => {
-    const ids = this.router.trackInfos
-      .filter((info) => info.peerId === peerId)
-      .map((info) => {
-        return this.router.removeTrack(peerId, info.mediaId);
-      });
-    delete this.peers[peerId];
-    Object.values(this.peers).forEach((peer) => {
-      this.sendRPC({ type: "handleLeave", payload: [ids] }, peer);
+  private leave = (publisherId: string) => {
+    const infos = this.router.trackInfos.filter(
+      (info) => info.publisherId === publisherId
+    );
+    const subscribers = infos.map((info) => {
+      return this.router.removeTrack(publisherId, info.mediaId);
     });
+
+    const targets: { [subscriberId: string]: RTCPeerConnection } = {};
+
+    subscribers.forEach((subscriber) => {
+      Object.entries(subscriber).forEach(([subscriberId, pair]) => {
+        const peer = this.peers[subscriberId];
+        peer.removeTrack(pair.transceiver.sender);
+        targets[subscriberId] = peer;
+      });
+    });
+
+    Object.values(targets).forEach(async (peer) => {
+      await peer.setLocalDescription(peer.createOffer());
+      this.sendRPC(
+        { type: "handleLeave", payload: [infos, peer.localDescription] },
+        peer
+      );
+    });
+
+    delete this.peers[publisherId];
   };
 
   // --------------------------------------------------------------------
