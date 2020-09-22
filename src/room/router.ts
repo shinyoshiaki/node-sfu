@@ -8,10 +8,10 @@ type Route = {
 export type TrackInfo = { mediaId: string; kind: string; publisherId: string };
 
 export class Router {
-  tracks: { [publisherId: string]: Route } = {};
+  routes: { [publisherId: string]: Route } = {};
 
   get trackInfos(): TrackInfo[] {
-    const medias = Object.values(this.tracks)
+    const medias = Object.values(this.routes)
       .map((route) => Object.values(route))
       .flatMap((v) => v);
 
@@ -30,11 +30,12 @@ export class Router {
     console.log("addTrack", publisherId, track.kind);
 
     const mediaId = this.getMediaId(track);
-    if (!this.tracks[publisherId]) this.tracks[publisherId] = {};
-    const route = this.tracks[publisherId];
+    if (!this.routes[publisherId]) this.routes[publisherId] = {};
+    const route = this.routes[publisherId];
     const media = (route[mediaId] = new Media({
       track,
       publisherId: publisherId,
+      mediaId,
     }));
 
     track.onRtp.once((rtp) => {
@@ -49,21 +50,36 @@ export class Router {
   }
 
   removeTrack(publisherId: string, mediaId: string) {
-    const media = this.tracks[publisherId][mediaId];
+    const media = this.routes[publisherId][mediaId];
     if (!media) return;
     const subscribers = media.stopMedia();
-    delete this.tracks[publisherId][mediaId];
+    delete this.routes[publisherId][mediaId];
     return subscribers;
   }
 
   subscribe(
-    publisherId: string,
     subscriberId: string,
+    publisherId: string,
     trackId: string,
     transceiver: RTCRtpTransceiver
   ) {
-    const media = this.tracks[publisherId][trackId];
+    const media = this.routes[publisherId][trackId];
     media.subscribe(subscriberId, transceiver);
+  }
+
+  unsubscribe(subscriberId: string, publisherId: string, trackId: string) {
+    const media = this.routes[publisherId][trackId];
+    media.unsubscribe(subscriberId);
+  }
+
+  getSubscribed(subscriberId: string) {
+    return this.allMedia.filter((media) => media.has(subscriberId));
+  }
+
+  private get allMedia() {
+    return Object.values(this.routes)
+      .map((route) => Object.values(route))
+      .flatMap((v) => v);
   }
 
   private getMediaId = (track: RtpTrack) => {

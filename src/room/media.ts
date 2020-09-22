@@ -4,6 +4,7 @@ export class Media {
   track: RtpTrack;
   publisherId: string;
   rtcpId: NodeJS.Timeout;
+  mediaId: string;
 
   subscribers: {
     [subscriberId: string]: {
@@ -43,5 +44,15 @@ export class Media {
       }
     });
     this.subscribers[subscriberId] = { transceiver, stop: unSubscribe };
+  }
+
+  has(subscriberId: string) {
+    return !!this.subscribers[subscriberId];
+  }
+
+  unsubscribe(subscriberId: string) {
+    const subscriber = this.subscribers[subscriberId];
+    subscriber.stop();
+    delete this.subscribers[subscriberId];
   }
 }
