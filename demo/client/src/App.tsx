@@ -14,6 +14,11 @@ const App: FC = () => {
         rtcManager.subscribe([info]);
       }
     });
+    rtcManager.onLeave.subscribe(async (ids) => {
+      setStreams([]);
+      const infos = await rtcManager.getTracks();
+      await rtcManager.subscribe(infos);
+    });
     rtcManager.peer!.ontrack = (e) => {
       const stream = e.streams[0];
       console.log("track", e.track);
@@ -28,7 +33,9 @@ const App: FC = () => {
       video: true,
       audio: false,
     });
-    await rtcManager.publish(mediaStream.getTracks());
+
+    await rtcManager.publish(mediaStream.getTracks(), true);
+    console.log("published");
     const infos = await rtcManager.getTracks();
     await rtcManager.subscribe(infos);
   };
@@ -41,14 +48,6 @@ const App: FC = () => {
       init(rtcManagerRef.current);
       return;
     }
-
-    const { unSubscribe } = rtcManager.onLeave.subscribe(async (ids) => {
-      setStreams([]);
-      const infos = await rtcManager.getTracks();
-      await rtcManager.subscribe(infos);
-    });
-
-    return unSubscribe;
   }, [streams, rtcManagerRef]);
 
   useEffect(() => {
@@ -69,7 +68,7 @@ const App: FC = () => {
                 videos.current = arr;
               }}
               autoPlay
-              style={{ maxWidth: 300, background: "black" }}
+              style={{ background: "black" }}
             />
           </div>
         ))}

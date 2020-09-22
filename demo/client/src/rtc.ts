@@ -73,21 +73,32 @@ export class RTCManager {
       });
     });
 
-  async publish(tracks: MediaStreamTrack[]) {
+  async publish(tracks: MediaStreamTrack[], simulcast: boolean = false) {
     this.sendRPC({
       type: "publish",
-      payload: [this.peerId, tracks.map((t) => t.kind)],
+      payload: [this.peerId, tracks.map((t) => t.kind), simulcast],
     });
     const [offer] = await this.waitRPC("handleOffer");
 
     await this.peer?.setRemoteDescription(offer);
 
-    this.peer
-      ?.getTransceivers()
-      .slice(-tracks.length)
-      .forEach((transceiver, i) => {
-        transceiver.sender.replaceTrack(tracks[i]);
-        transceiver.direction = "sendonly";
+    tracks
+      .map((track) => this.peer?.addTrack(track)!)
+      .map((sender) => {
+        if (!simulcast) return;
+        const params = sender.getParameters();
+        params.encodings = [
+          {
+            rid: "high",
+            scaleResolutionDownBy: 1,
+          },
+          {
+            rid: "low",
+            maxBitrate: 50000,
+            scaleResolutionDownBy: 2,
+          },
+        ];
+        sender.setParameters(params);
       });
 
     const answer = await this.peer?.createAnswer();

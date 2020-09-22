@@ -332,7 +332,9 @@ export class RTCPeerConnection {
   }
 
   private createSctpTransport() {
-    const sctp = new RTCSctpTransport(this.createDtlsTransport());
+    const sctp = new RTCSctpTransport(
+      this.createDtlsTransport([SRTP_PROFILE.SRTP_AES128_CM_HMAC_SHA1_80])
+    );
     sctp.mid = undefined;
 
     sctp.onDataChannel.subscribe((dc) => {
