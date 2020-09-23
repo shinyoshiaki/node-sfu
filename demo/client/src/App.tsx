@@ -1,6 +1,18 @@
 import React, { FC, useEffect, useRef, useState } from "react";
 import { RTCManager } from "./rtc";
 
+const url = (() => {
+  //@ts-ignore
+  console.log(NODE_ENV);
+  //@ts-ignore
+  switch (NODE_ENV || "") {
+    case "dev":
+      return "http://localhost:12222";
+    default:
+      return "https://node-sfu.tk";
+  }
+})();
+
 const App: FC = () => {
   const rtcManagerRef = useRef<RTCManager>();
   const videos = useRef<HTMLVideoElement[]>([]);
@@ -40,7 +52,7 @@ const App: FC = () => {
     const rtcManager = rtcManagerRef.current;
 
     if (!rtcManager) {
-      rtcManagerRef.current = new RTCManager("https://node-sfu.tk");
+      rtcManagerRef.current = new RTCManager(url);
       init(rtcManagerRef.current);
       return;
     }

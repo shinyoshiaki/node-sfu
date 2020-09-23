@@ -1,6 +1,7 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const WorkboxWebpackPlugin = require("workbox-webpack-plugin");
 const ImportHttpWebpackPlugin = require("import-http/webpack");
+const webpack = require("webpack");
 
 const dist = __dirname + "/build";
 
@@ -83,6 +84,9 @@ module.exports = {
       swDest: dist + "/sw.js",
     }),
     new ImportHttpWebpackPlugin(),
+    new webpack.DefinePlugin({
+      NODE_ENV: JSON.stringify(process.env.NODE_ENV),
+    }),
   ],
   devServer: {
     disableHostCheck: true,
