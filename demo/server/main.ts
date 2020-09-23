@@ -28,13 +28,13 @@ app.get("/join", async (req, res) => {
 
 app.post("/answer", async (req, res) => {
   const { peerId, answer } = req.body;
-  room.handleAnswer(peerId, answer);
+  await room.handleAnswer(peerId, answer);
   return res.send({});
 });
 
 app.post("/candidate", async (req, res) => {
   const { peerId, candidate } = req.body;
-  room.handleCandidate(peerId, candidate);
+  await room.handleCandidate(peerId, candidate);
   return res.send({});
 });
 

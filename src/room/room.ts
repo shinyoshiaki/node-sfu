@@ -50,10 +50,10 @@ export class Room {
     this.sendRPC({ type: "handleAnswerDone", payload: [] }, peer);
   }
 
-  handleCandidate(peerId: string, candidate: RTCIceCandidateJSON) {
+  async handleCandidate(peerId: string, candidate: RTCIceCandidateJSON) {
     console.log("handleCandidate", peerId);
     const peer = this.peers[peerId];
-    peer.addIceCandidate(candidate);
+    await peer.addIceCandidate(candidate);
   }
 
   private publish = async (

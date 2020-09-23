@@ -91,7 +91,7 @@ export class RTCManager {
           },
           {
             rid: "low",
-            maxBitrate: 50000,
+            maxBitrate: 20000,
             scaleResolutionDownBy: 2,
           },
         ];
