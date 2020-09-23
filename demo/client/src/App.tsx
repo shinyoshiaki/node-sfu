@@ -40,7 +40,7 @@ const App: FC = () => {
     const rtcManager = rtcManagerRef.current;
 
     if (!rtcManager) {
-      rtcManagerRef.current = new RTCManager("http://localhost:12222");
+      rtcManagerRef.current = new RTCManager("http://35.200.71.35:12222");
       init(rtcManagerRef.current);
       return;
     }
