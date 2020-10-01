@@ -14,6 +14,10 @@ import {
   SourceDescriptionChunk,
   SourceDescriptionItem,
 } from "../../vendor/rtp/rtcp/sdes";
+import { RTP_EXTENSION_URI } from "../extension/rtpExtension";
+import { RtcpTransportLayerFeedback } from "../../vendor/rtp/rtcp/rtpfb";
+import { TransportWideCC } from "../../vendor/rtp/rtcp/rtpfb/twcc";
+import { ntpTime } from "../../utils";
 
 const RTP_HISTORY_SIZE = 128;
 const RTT_ALPHA = 0.85;
@@ -28,7 +32,7 @@ export class RTCRtpSender {
   // # stats
   private lsr?: bigint;
   private lsrTime?: number;
-  private ntpTimestamp = BigInt(0);
+  private ntpTimestamp = 0n;
   private rtpTimestamp = 0;
   private octetCount = 0;
   private packetCount = 0;
@@ -84,7 +88,7 @@ export class RTCRtpSender {
           })
         );
       }
-      this.lsr = (this.ntpTimestamp >> BigInt(16)) & BigInt(0xffffffff);
+      this.lsr = (this.ntpTimestamp >> 16n) & 0xffffffffn;
       this.lsrTime = Date.now() / 1000;
 
       try {
@@ -109,18 +113,31 @@ export class RTCRtpSender {
       .map((extension) => {
         let payload: Buffer;
         switch (extension.uri) {
-          case "urn:ietf:params:rtp-hdrext:sdes:mid":
+          case RTP_EXTENSION_URI.sdesMid:
             if (parameters.muxId) payload = Buffer.from(parameters.muxId);
             break;
-          case "urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id":
+          case RTP_EXTENSION_URI.sdesRTPStreamID:
             if (parameters.rid) payload = Buffer.from(parameters.rid);
+            break;
+          case RTP_EXTENSION_URI.transportWideCC:
+            {
+              const buf = Buffer.alloc(2);
+              buf.writeUInt16BE(this.dtlsTransport.transportSequenceNumber++);
+              payload = buf;
+            }
+            break;
+          case RTP_EXTENSION_URI.absSendTime:
+            const buf = Buffer.alloc(3);
+            const time = (ntpTime() >> 14n) & 0x00ffffffn;
+            buf.writeUIntBE(Number(time), 0, 3);
+            payload = buf;
             break;
         }
         if (payload) return { id: extension.id, payload };
       })
       .filter((v) => v);
 
-    this.ntpTimestamp = BigInt(Date.now()) * BigInt(10000000);
+    this.ntpTimestamp = ntpTime();
     this.rtpTimestamp = rtp.header.timestamp;
     this.octetCount += rtp.payload.length;
     this.packetCount++;
@@ -133,20 +150,28 @@ export class RTCRtpSender {
     switch (rtcpPacket.type) {
       case RtcpSrPacket.type:
       case RtcpRrPacket.type:
-        const packet = rtcpPacket as RtcpSrPacket | RtcpRrPacket;
-        packet.reports
-          .filter((report) => report.ssrc === this.ssrc)
-          .forEach((report) => {
-            if (this.lsr === BigInt(report.lsr) && report.dlsr) {
-              const rtt =
-                Date.now() / 1000 - this.lsrTime - report.dlsr / 65536;
-              if (this.rtt === undefined) {
-                this.rtt = rtt;
-              } else {
-                this.rtt = RTT_ALPHA * this.rtt + (1 - RTT_ALPHA) * rtt;
+        {
+          const packet = rtcpPacket as RtcpSrPacket | RtcpRrPacket;
+          packet.reports
+            .filter((report) => report.ssrc === this.ssrc)
+            .forEach((report) => {
+              if (this.lsr === BigInt(report.lsr) && report.dlsr) {
+                const rtt =
+                  Date.now() / 1000 - this.lsrTime - report.dlsr / 65536;
+                if (this.rtt === undefined) {
+                  this.rtt = rtt;
+                } else {
+                  this.rtt = RTT_ALPHA * this.rtt + (1 - RTT_ALPHA) * rtt;
+                }
               }
-            }
-          });
+            });
+        }
+        break;
+      case RtcpTransportLayerFeedback.type:
+        {
+          const packet = rtcpPacket as RtcpTransportLayerFeedback;
+          const feedback = packet.feedback as TransportWideCC;
+        }
         break;
     }
   }

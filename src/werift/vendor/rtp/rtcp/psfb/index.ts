@@ -1,8 +1,13 @@
 import { FullIntraRequest } from "./fullIntraRequest";
 import { PictureLossIndication } from "./pictureLossIndication";
 import { RtcpPacketConverter } from "../rtcp";
+import { RtcpHeader } from "../header";
+import { ReceiverEstimatedMaxBitrate } from "./remb";
 
-type Feedback = FullIntraRequest | PictureLossIndication;
+type Feedback =
+  | FullIntraRequest
+  | PictureLossIndication
+  | ReceiverEstimatedMaxBitrate;
 
 export class RtcpPayloadSpecificFeedback {
   static type = 206;
@@ -24,17 +29,22 @@ export class RtcpPayloadSpecificFeedback {
     );
   }
 
-  static deSerialize(data: Buffer, count: number) {
+  static deSerialize(data: Buffer, header: RtcpHeader) {
     let feedback: Feedback;
 
-    switch (count) {
+    switch (header.count) {
       case FullIntraRequest.count:
         feedback = FullIntraRequest.deSerialize(data);
         break;
       case PictureLossIndication.count:
         feedback = PictureLossIndication.deSerialize(data);
         break;
+      case ReceiverEstimatedMaxBitrate.count:
+        feedback = ReceiverEstimatedMaxBitrate.deSerialize(data);
+        console.log((feedback as ReceiverEstimatedMaxBitrate).bitrate);
+        break;
       default:
+        console.log("unknown psfb packet", header.count);
         break;
     }
 

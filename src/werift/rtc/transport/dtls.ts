@@ -37,6 +37,7 @@ export class RTCDtlsTransport {
   srtp: SrtpSession;
   srtcp: SrtcpSession;
   router?: RtpRouter;
+  transportSequenceNumber = 0;
 
   constructor(
     public iceTransport: RTCIceTransport,
@@ -144,21 +145,13 @@ export class RTCDtlsTransport {
 
   sendRtp(payload: Buffer, header: RtpHeader) {
     const enc = this.srtp.encrypt(payload, header);
-    try {
-      this.iceTransport.connection.send(enc);
-    } catch (error) {
-      console.log("ice error");
-    }
+    this.iceTransport.connection.send(enc);
   }
 
   sendRtcp(packets: RtcpPacket[]) {
     const payload = Buffer.concat(packets.map((packet) => packet.serialize()));
     const enc = this.srtcp.encrypt(payload);
-    try {
-      this.iceTransport.connection.send(enc);
-    } catch (error) {
-      console.log("ice error");
-    }
+    this.iceTransport.connection.send(enc);
   }
 
   private setState(state: DtlsState) {
@@ -220,11 +213,7 @@ class IceTransport implements Transport {
   onData?: (buf: Buffer) => void;
 
   send(buf: Buffer) {
-    try {
-      this.ice.send(buf);
-    } catch (error) {
-      console.log("ice error");
-    }
+    this.ice.send(buf);
   }
 
   close() {

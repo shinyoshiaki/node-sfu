@@ -1,6 +1,11 @@
 {
   "name": "node-sfu",
   "version": "0.0.1",
+  "keywords": [
+    "WebRTC",
+    "SFU",
+    "node.js"
+  ],
   "description": "RTP,RTCP,SRTP,SRTCP implementation for TypeScript.",
   "homepage": "https://github.com/shinyoshiaki/node-sfu",
   "repository": {
@@ -19,15 +24,15 @@
   "scripts": {
     "build": "tsc",
     "ci": "yarn type && yarn lint && yarn test",
+    "client": "cd demo/client && yarn start",
     "deploy": "./build.sh && yarn publish",
     "fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
     "lint": "eslint src/**/*.ts",
+    "server": "cd demo/server && yarn dev",
     "test": "yarn type && jest --forceExit",
     "type": "tsc --noEmit -p .",
-    "unused": "organize-imports-cli src/**/*.ts",
-    "client": "cd demo/client && yarn start",
-    "server": "cd demo/server && yarn dev"
+    "unused": "organize-imports-cli src/**/*.ts"
   },
   "dependencies": {
     "lodash": "^4.17.20",
@@ -52,7 +57,7 @@
     "typescript": "^3.9.2"
   },
   "engines": {
-    "node": ">=10"
+    "node": ">=14"
   },
   "readme": "README.md"
 }

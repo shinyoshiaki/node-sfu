@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { performance } from "perf_hooks";
 
 const upper = (s: string) => s.toUpperCase();
 const colon = (s: any) => s.match(/(.{2})/g).join(":");
@@ -26,3 +27,15 @@ export function reverseSimulcastDirection(dir: "recv" | "send") {
   if (dir === "recv") return "send";
   return "recv";
 }
+
+export const microTime = () =>
+  BigInt(
+    `${(performance.timeOrigin + performance.now()) * 10000}`.slice(0, -1)
+  );
+
+export const ntpTime = () =>
+  BigInt(
+    Math.floor(
+      (performance.timeOrigin + performance.now() - Date.UTC(1900, 0, 1)) / 1000
+    )
+  ) << 32n;
