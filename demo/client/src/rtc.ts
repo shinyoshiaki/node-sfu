@@ -2,6 +2,20 @@
 import axios from "axios";
 import Event from "rx.mini";
 import { PromiseQueue } from "./util";
+import {
+  MediaInfo,
+  Kind,
+  HandleCandidate,
+  Publish,
+  RPC,
+  GetMedias,
+  HandleOffer,
+  HandleMedias,
+  Subscribe,
+  RequestSubscribe,
+  HandleAnswer,
+  HandlePublish,
+} from "../../../src";
 
 export class RTCManager {
   channel?: RTCDataChannel;
@@ -11,7 +25,7 @@ export class RTCManager {
   });
   trackIds: string[] = [];
   private onmessage = new Event<string>();
-  onPublish = new Event<TrackInfo>();
+  onPublish = new Event<MediaInfo>();
   onLeave = new Event<string[]>();
   http = axios.create({ baseURL: this.url });
 
@@ -38,9 +52,9 @@ export class RTCManager {
         this.channel = channel;
         peer.onicecandidate = ({ candidate }) => {
           if (candidate) {
-            this.sendRPC({
+            this.sendRPC<HandleCandidate>({
               type: "handleCandidate",
-              payload: [peerId, candidate],
+              payload: [peerId, candidate as any],
             });
           }
         };
@@ -71,18 +85,27 @@ export class RTCManager {
       });
     });
 
-  async publish(tracks: MediaStreamTrack[], simulcast: boolean = false) {
-    this.sendRPC({
+  async publish(requests: { track: MediaStreamTrack; simulcast: boolean }[]) {
+    this.sendRPC<Publish>({
       type: "publish",
-      payload: [this.peerId, tracks.map((t) => t.kind), simulcast],
+      payload: [
+        this.peerId!,
+        requests.map(({ track, simulcast }) => ({
+          kind: track.kind as Kind,
+          simulcast,
+        })),
+      ],
     });
-    const [offer] = await this.waitRPC("handleOffer");
+    const [offer] = await this.waitRPC<HandleOffer>("handleOffer");
 
     await this.peer.setRemoteDescription(offer);
 
-    tracks
-      .map((track) => this.peer.addTrack(track)!)
-      .map((sender) => {
+    requests
+      .map(({ track, simulcast }): [RTCRtpSender, boolean] => [
+        this.peer.addTrack(track)!,
+        simulcast,
+      ])
+      .map(([sender, simulcast]) => {
         if (!simulcast) return;
         const params = sender.getParameters();
         params.encodings = [
@@ -105,21 +128,32 @@ export class RTCManager {
     console.log("sending answer done");
   }
 
-  async getTracks(): Promise<TrackInfo[]> {
-    this.sendRPC({
-      type: "getTracks",
-      payload: [this.peerId],
+  async getTracks() {
+    this.sendRPC<GetMedias>({
+      type: "getMedias",
+      payload: [this.peerId!],
     });
-    const [infos] = await this.waitRPC("handleTracks");
+    const [infos] = await this.waitRPC<HandleMedias>("handleMedias");
     console.log("infos", infos);
     return infos;
   }
 
   subscribeQueue = new PromiseQueue();
-  async subscribe(infos: TrackInfo[]) {
+  async subscribe(infos: MediaInfo[]) {
     await this.subscribeQueue.push(async () => {
-      this.sendRPC({ type: "subscribe", payload: [this.peerId, infos] });
-      const [offer] = await this.waitRPC("handleOffer");
+      this.sendRPC<Subscribe>({
+        type: "subscribe",
+        payload: [
+          this.peerId!,
+          infos.map(
+            (info): RequestSubscribe => ({
+              info,
+              type: "high",
+            })
+          ),
+        ],
+      });
+      const [offer] = await this.waitRPC<HandleOffer>("handleOffer");
       await this.peer.setRemoteDescription(offer);
       const answer = await this.peer.createAnswer();
       await this.peer.setLocalDescription(answer!);
@@ -128,13 +162,13 @@ export class RTCManager {
     });
   }
 
-  private handlePublish = (info: TrackInfo) => {
+  private handlePublish = (info: MediaInfo) => {
     console.log("handlePublish", info);
     this.onPublish.execute(info);
   };
 
   private handleLeave = async (
-    infos: TrackInfo[],
+    infos: MediaInfo[],
     offer: RTCSessionDescription
   ) => {
     console.log("handleLeave", infos);
@@ -144,8 +178,8 @@ export class RTCManager {
     await this.sendAnswer();
   };
 
-  private waitRPC = (target: string) =>
-    new Promise<any[]>((r) => {
+  private waitRPC = <T extends RPC>(target: T["type"]) =>
+    new Promise<T["payload"]>((r) => {
       const { unSubscribe } = this.onmessage.subscribe((data) => {
         const { type, payload } = JSON.parse(data) as RPC;
         if (type === target) {
@@ -156,17 +190,15 @@ export class RTCManager {
     });
 
   async sendAnswer() {
-    this.sendRPC({
+    console.log("answer", this.peer.localDescription?.sdp);
+    this.sendRPC<HandleAnswer>({
       type: "handleAnswer",
-      payload: [this.peerId, this.peer.localDescription],
+      payload: [this.peerId!, this.peer.localDescription as any],
     });
     await this.waitRPC("handleAnswerDone");
   }
 
-  private sendRPC(msg: RPC) {
+  private sendRPC<T extends RPC>(msg: T) {
     this.channel?.send(JSON.stringify(msg));
   }
 }
-
-type RPC = { type: string; payload: any[] };
-type TrackInfo = { mediaId: string; kind: string; publisherId: string };

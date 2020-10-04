@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import React, { FC, useEffect, useRef, useState } from "react";
 import { RTCManager } from "./rtc";
 
@@ -41,7 +42,9 @@ const App: FC = () => {
       audio: false,
     });
 
-    await rtcManager.publish(mediaStream.getTracks(), true);
+    await rtcManager.publish([
+      { track: mediaStream.getVideoTracks()[0], simulcast: true },
+    ]);
     console.log("published");
     const infos = await rtcManager.getTracks();
     await rtcManager.subscribe(infos);
