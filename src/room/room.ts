@@ -117,24 +117,24 @@ export class Room {
   private subscribe = async (subscriberId: string, infos: TrackInfo[]) => {
     const peer = this.peers[subscriberId];
     infos.map((info) => {
-      const { publisherId, mediaId, kind } = info;
+      const { publisherId, trackId, kind } = info;
       const transceiver = peer.addTransceiver(kind as Kind, "sendonly");
-      this.router.subscribe(subscriberId, publisherId, mediaId, transceiver);
+      this.router.subscribe(subscriberId, publisherId, trackId, transceiver);
     });
 
     await this.sendOffer(peer);
   };
 
   private leave = async (peerId: string) => {
-    this.router.getSubscribed(peerId).forEach((media) => {
-      this.router.unsubscribe(peerId, media.publisherId, media.mediaId);
+    this.router.getSubscribed(peerId).forEach((track) => {
+      this.router.unsubscribe(peerId, track.publisherId, track.trackId);
     });
 
     const infos = this.router.trackInfos.filter(
       (info) => info.publisherId === peerId
     );
     const subscribers = infos.map((info) =>
-      this.router.removeTrack(peerId, info.mediaId)
+      this.router.removeTrack(peerId, info.trackId)
     );
 
     const targets: { [subscriberId: string]: RTCPeerConnection } = {};

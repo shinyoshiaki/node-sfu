@@ -1,10 +1,10 @@
 import { RTCRtpTransceiver, RtpTrack } from "../werift";
 
-export class Media {
+export class Track {
   track: RtpTrack;
   publisherId: string;
   rtcpId: NodeJS.Timeout;
-  mediaId: string;
+  trackId: string;
 
   subscribers: {
     [subscriberId: string]: {
@@ -13,7 +13,7 @@ export class Media {
     };
   } = {};
 
-  constructor(props: Partial<Media> = {}) {
+  constructor(props: Partial<Track> = {}) {
     Object.assign(this, props);
   }
 
@@ -28,7 +28,7 @@ export class Media {
     }, 2000);
   }
 
-  stopMedia() {
+  stop() {
     clearInterval(this.rtcpId);
     Object.values(this.subscribers).forEach(({ stop }) => stop());
 
