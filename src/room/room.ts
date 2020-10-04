@@ -30,7 +30,7 @@ export class Room {
 
     peer.iceConnectionStateChange.subscribe((state) => {
       console.log(peerId, state);
-      if (state === "disconnected") {
+      if (state === "closed") {
         this.leave(peerId);
       }
     });
