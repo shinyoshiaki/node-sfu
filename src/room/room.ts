@@ -97,18 +97,18 @@ export class Room {
           ];
         }
       })
-      .forEach(async ([transceiver, kind, simulcast]) => {
+      .forEach(async ([receiver, kind, simulcast]) => {
         const mediaId = v4();
         const mediaInfo = this.router.addMedia(publisherId, mediaId, kind);
 
         if (simulcast) {
-          await transceiver.onTrack.asPromise();
-          transceiver.receiver.tracks.forEach((track) =>
-            this.router.addTrack(publisherId, track, transceiver, mediaId)
+          await receiver.onTrack.asPromise();
+          receiver.receiver.tracks.forEach((track) =>
+            this.router.addTrack(publisherId, track, receiver, mediaId)
           );
         } else {
-          const track = await transceiver.onTrack.asPromise();
-          this.router.addTrack(publisherId, track, transceiver, mediaId);
+          const track = await receiver.onTrack.asPromise();
+          this.router.addTrack(publisherId, track, receiver, mediaId);
         }
 
         Object.values(this.peers)

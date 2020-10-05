@@ -14,7 +14,6 @@ import {
   Subscribe,
   RequestSubscribe,
   HandleAnswer,
-  HandlePublish,
 } from "../../../src";
 
 export class RTCManager {
@@ -109,15 +108,8 @@ export class RTCManager {
         if (!simulcast) return;
         const params = sender.getParameters();
         params.encodings = [
-          {
-            rid: "high",
-            scaleResolutionDownBy: 1,
-          },
-          {
-            rid: "low",
-            maxBitrate: 20000,
-            scaleResolutionDownBy: 2,
-          },
+          { maxBitrate: 680000, scaleResolutionDownBy: 1, rid: "high" },
+          { maxBitrate: 36000, scaleResolutionDownBy: 4, rid: "low" },
         ];
         sender.setParameters(params);
       });
