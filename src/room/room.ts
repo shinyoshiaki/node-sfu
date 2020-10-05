@@ -1,15 +1,27 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { v4 } from "uuid";
 import {
+  HandleAnswerDone,
+  HandleOffer,
+  HandleMedias,
+  RPC,
+  HandlePublish,
+  HandleLeave,
+} from "../typings/rpc";
+import {
   RTCPeerConnection,
   RTCSessionDescription,
   Kind,
   RTCIceCandidateJSON,
   useSdesRTPStreamID,
+  RTCRtpTransceiver,
 } from "../werift";
-import { Router, TrackInfo } from "./router";
-
-type RPC = { type: string; payload: any[] };
+import {
+  useAbsSendTime,
+  useSdesMid,
+} from "../werift/rtc/extension/rtpExtension";
+import { Router, MediaInfo } from "./router";
+import { SubscriberType } from "./subscriber";
 
 export class Room {
   router = new Router();
@@ -19,7 +31,9 @@ export class Room {
     const peerId = v4();
     const peer = (this.peers[peerId] = new RTCPeerConnection({
       stunServer: ["stun.l.google.com", 19302],
-      headerExtensions: { video: [useSdesRTPStreamID()] },
+      headerExtensions: {
+        video: [useSdesMid(1), useAbsSendTime(2), useSdesRTPStreamID(3)],
+      },
     }));
 
     peer.createDataChannel("sfu").message.subscribe((msg) => {
@@ -47,7 +61,10 @@ export class Room {
     const peer = this.peers[peerId];
 
     await peer.setRemoteDescription(answer);
-    this.sendRPC({ type: "handleAnswerDone", payload: [] }, peer);
+    this.sendRPC<HandleAnswerDone>(
+      { type: "handleAnswerDone", payload: [] },
+      peer
+    );
   }
 
   async handleCandidate(peerId: string, candidate: RTCIceCandidateJSON) {
@@ -58,83 +75,101 @@ export class Room {
 
   private publish = async (
     publisherId: string,
-    kinds: Kind[],
-    simulcast: boolean
+    request: { kind: Kind; simulcast: boolean }[]
   ) => {
-    console.log("publish", publisherId, kinds);
+    console.log("publish", publisherId, request);
     const peer = this.peers[publisherId];
 
-    kinds
-      .map((kind) => {
+    request
+      .map(({ kind, simulcast }): [RTCRtpTransceiver, string, boolean] => {
         if (!simulcast) {
-          return peer.addTransceiver(kind, "recvonly");
+          return [peer.addTransceiver(kind, "recvonly"), kind, simulcast];
         } else {
-          return peer.addTransceiver("video", "recvonly", {
-            simulcast: [
-              { rid: "high", direction: "recv" },
-              { rid: "low", direction: "recv" },
-            ],
-          });
+          return [
+            peer.addTransceiver("video", "recvonly", {
+              simulcast: [
+                { rid: "high", direction: "recv" },
+                { rid: "low", direction: "recv" },
+              ],
+            }),
+            kind,
+            simulcast,
+          ];
         }
       })
-      .forEach((transceiver) => {
-        transceiver.onTrack.subscribe((track) => {
-          const trackInfo = this.router.addTrack(
-            publisherId,
-            track,
-            transceiver
-          );
+      .forEach(async ([transceiver, kind, simulcast]) => {
+        const mediaId = v4();
+        const mediaInfo = this.router.addMedia(publisherId, mediaId, kind);
 
-          Object.values(this.peers)
-            .filter((others) => others.cname !== peer.cname)
-            .forEach((peer) => {
-              this.sendRPC(
-                {
-                  type: "handlePublish",
-                  payload: [trackInfo],
-                },
-                peer
-              );
-            });
-        });
+        if (simulcast) {
+          await transceiver.onTrack.asPromise();
+          transceiver.receiver.tracks.forEach((track) =>
+            this.router.addTrack(publisherId, track, transceiver, mediaId)
+          );
+        } else {
+          const track = await transceiver.onTrack.asPromise();
+          this.router.addTrack(publisherId, track, transceiver, mediaId);
+        }
+
+        Object.values(this.peers)
+          .filter((others) => others.cname !== peer.cname)
+          .forEach((peer) => {
+            this.sendRPC<HandlePublish>(
+              {
+                type: "handlePublish",
+                payload: [mediaInfo],
+              },
+              peer
+            );
+          });
       });
 
     await this.sendOffer(peer);
   };
 
-  private getTracks = (peerId: string) => {
-    console.log("getTracks", peerId);
+  private getMedias = (peerId: string) => {
+    console.log("getMedias", peerId);
     const peer = this.peers[peerId];
-    this.sendRPC(
+    this.sendRPC<HandleMedias>(
       {
-        type: "handleTracks",
-        payload: [this.router.trackInfos],
+        type: "handleMedias",
+        payload: [this.router.mediaInfos],
       },
       peer
     );
   };
 
-  private subscribe = async (subscriberId: string, infos: TrackInfo[]) => {
+  private subscribe = async (
+    subscriberId: string,
+    requests: { info: MediaInfo; type: SubscriberType }[]
+  ) => {
     const peer = this.peers[subscriberId];
-    infos.map((info) => {
-      const { publisherId, trackId, kind } = info;
+
+    requests.forEach(({ info, type }) => {
+      const { publisherId, mediaId, kind } = info;
       const transceiver = peer.addTransceiver(kind as Kind, "sendonly");
-      this.router.subscribe(subscriberId, publisherId, trackId, transceiver);
+      this.router.subscribe(
+        subscriberId,
+        publisherId,
+        mediaId,
+        transceiver,
+        type
+      );
     });
 
     await this.sendOffer(peer);
   };
 
   private leave = async (peerId: string) => {
-    this.router.getSubscribed(peerId).forEach((track) => {
-      this.router.unsubscribe(peerId, track.publisherId, track.trackId);
+    this.router.getSubscribed(peerId).forEach((media) => {
+      this.router.unsubscribe(peerId, media.publisherId, media.mediaId);
     });
 
-    const infos = this.router.trackInfos.filter(
+    const infos = this.router.mediaInfos.filter(
       (info) => info.publisherId === peerId
     );
     const subscribers = infos.map((info) =>
-      this.router.removeTrack(peerId, info.trackId)
+      this.router.removeMedia(peerId, info.mediaId)
     );
 
     const targets: { [subscriberId: string]: RTCPeerConnection } = {};
@@ -143,7 +178,7 @@ export class Room {
       Object.entries(subscriber).forEach(([subscriberId, pair]) => {
         const peer = this.peers[subscriberId];
         if (!peer) return;
-        peer.removeTrack(pair.transceiver.sender);
+        peer.removeTrack(pair.sender.sender);
         targets[subscriberId] = peer;
       });
     });
@@ -153,7 +188,7 @@ export class Room {
     await Promise.all(
       Object.values(targets).map(async (peer) => {
         await peer.setLocalDescription(peer.createOffer());
-        this.sendRPC(
+        this.sendRPC<HandleLeave>(
           { type: "handleLeave", payload: [infos, peer.localDescription] },
           peer
         );
@@ -166,7 +201,7 @@ export class Room {
   private async sendOffer(peer: RTCPeerConnection) {
     await peer.setLocalDescription(peer.createOffer());
 
-    this.sendRPC(
+    this.sendRPC<HandleOffer>(
       {
         type: "handleOffer",
         payload: [peer.localDescription],
@@ -175,7 +210,7 @@ export class Room {
     );
   }
 
-  private sendRPC(msg: RPC, peer: RTCPeerConnection) {
+  private sendRPC<T extends RPC>(msg: T, peer: RTCPeerConnection) {
     const channel = peer.sctpTransport.channelByLabel("sfu");
     if (!channel) return;
     channel.send(JSON.stringify(msg));

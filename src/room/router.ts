@@ -1,88 +1,87 @@
 import { RTCRtpTransceiver, RtpTrack } from "../werift";
-import { Track } from "./track";
+import { Media } from "./media";
+import { SubscriberType } from "./subscriber";
 
 type Route = {
-  [trackId: string]: Track;
+  [mediaId: string]: Media;
 };
 
-export type TrackInfo = { trackId: string; kind: string; publisherId: string };
+export type MediaInfo = { mediaId: string; kind: string; publisherId: string };
 
 export class Router {
   routes: { [publisherId: string]: Route } = {};
 
-  get trackInfos(): TrackInfo[] {
-    const tracks = Object.values(this.routes)
+  get mediaInfos(): MediaInfo[] {
+    const medias = Object.values(this.routes)
       .map((route) => Object.values(route))
       .flatMap((v) => v);
 
-    return tracks.map((track) => ({
-      trackId: this.getTrackId(track.track),
-      kind: track.track.kind,
-      publisherId: track.publisherId,
+    return medias.map((media) => ({
+      mediaId: media.mediaId,
+      kind: media.kind,
+      publisherId: media.publisherId,
     }));
+  }
+
+  addMedia(publisherId: string, mediaId: string, kind: string): MediaInfo {
+    if (!this.routes[publisherId]) this.routes[publisherId] = {};
+    const route = this.routes[publisherId];
+
+    route[mediaId] = new Media(mediaId, publisherId, kind);
+
+    return {
+      mediaId,
+      kind,
+      publisherId,
+    };
   }
 
   addTrack(
     publisherId: string,
     rtpTrack: RtpTrack,
-    transceiver: RTCRtpTransceiver
-  ): TrackInfo {
+    transceiver: RTCRtpTransceiver,
+    mediaId: string
+  ) {
     console.log("addTrack", publisherId, rtpTrack.kind);
 
-    const trackId = this.getTrackId(rtpTrack);
-    if (!this.routes[publisherId]) this.routes[publisherId] = {};
-    const route = this.routes[publisherId];
-    const track = (route[trackId] = new Track({
-      track: rtpTrack,
-      publisherId: publisherId,
-      trackId: trackId,
-    }));
+    const media = this.routes[publisherId][mediaId];
+    if (!media) throw new Error();
 
-    rtpTrack.onRtp.once((rtp) => {
-      track.startRtcp(rtp.header.ssrc, transceiver);
-    });
-
-    return {
-      trackId: this.getTrackId(rtpTrack),
-      kind: rtpTrack.kind,
-      publisherId,
-    };
+    media.addTrack(rtpTrack, transceiver);
   }
 
-  removeTrack(publisherId: string, trackId: string) {
-    const track = this.routes[publisherId][trackId];
-    if (!track) return;
-    const subscribers = track.stop();
-    delete this.routes[publisherId][trackId];
+  removeMedia(publisherId: string, mediaId: string) {
+    const media = this.routes[publisherId][mediaId];
+    if (!media) throw new Error();
+
+    const subscribers = media.stop();
+    delete this.routes[publisherId][mediaId];
     return subscribers;
   }
 
   subscribe(
     subscriberId: string,
     publisherId: string,
-    trackId: string,
-    transceiver: RTCRtpTransceiver
+    mediaId: string,
+    transceiver: RTCRtpTransceiver,
+    type: SubscriberType
   ) {
-    const track = this.routes[publisherId][trackId];
-    track.subscribe(subscriberId, transceiver);
+    const media = this.routes[publisherId][mediaId];
+    media.subscribe(subscriberId, transceiver, type);
   }
 
-  unsubscribe(subscriberId: string, publisherId: string, trackId: string) {
-    const track = this.routes[publisherId][trackId];
-    track.unsubscribe(subscriberId);
+  unsubscribe(subscriberId: string, publisherId: string, mediaId: string) {
+    const media = this.routes[publisherId][mediaId];
+    media.unsubscribe(subscriberId);
   }
 
   getSubscribed(subscriberId: string) {
-    return this.allTrack.filter((track) => track.has(subscriberId));
+    return this.allMedia.filter((media) => media.has(subscriberId));
   }
 
-  private get allTrack() {
+  private get allMedia() {
     return Object.values(this.routes)
       .map((route) => Object.values(route))
       .flatMap((v) => v);
   }
-
-  private getTrackId = (track: RtpTrack) => {
-    return (track.ssrc || track.rid).toString();
-  };
 }
