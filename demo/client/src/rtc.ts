@@ -14,21 +14,26 @@ import {
   Subscribe,
   RequestSubscribe,
   HandleAnswer,
+  SubscriberType,
+  ChangeQuality,
 } from "../../../src";
 
 export class RTCManager {
+  private http = axios.create({ baseURL: this.url });
+  private onmessage = new Event<string>();
   channel?: RTCDataChannel;
   peerId?: string;
   peer: RTCPeerConnection = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   });
-  trackIds: string[] = [];
-  private onmessage = new Event<string>();
+  mediaInfoByMID: { [mid: string]: MediaInfo } = {};
   onPublish = new Event<MediaInfo>();
   onLeave = new Event<string[]>();
-  http = axios.create({ baseURL: this.url });
+  onTrack = new Event<{ track: MediaStreamTrack; info: MediaInfo }>();
 
-  constructor(private url: string) {}
+  constructor(private url: string) {
+    this.peer.ontrack = (ev) => {};
+  }
 
   join = () =>
     new Promise(async (r) => {
@@ -151,6 +156,13 @@ export class RTCManager {
       await this.peer.setLocalDescription(answer!);
 
       await this.sendAnswer();
+    });
+  }
+
+  changeQuality(info: MediaInfo, type: SubscriberType) {
+    this.sendRPC<ChangeQuality>({
+      type: "changeQuality",
+      payload: [this.peerId!, info, type],
     });
   }
 

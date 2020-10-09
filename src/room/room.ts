@@ -160,6 +160,19 @@ export class Room {
     await this.sendOffer(peer);
   };
 
+  private changeQuality = (
+    subscriberId: string,
+    info: MediaInfo,
+    type: SubscriberType
+  ) => {
+    this.router.changeQuality(
+      subscriberId,
+      info.publisherId,
+      info.mediaId,
+      type
+    );
+  };
+
   private leave = async (peerId: string) => {
     this.router.getSubscribed(peerId).forEach((media) => {
       this.router.unsubscribe(peerId, media.publisherId, media.mediaId);

@@ -1,18 +1,6 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import React, { FC, useEffect, useRef, useState } from "react";
 import { RTCManager } from "./rtc";
-
-const url = (() => {
-  //@ts-ignore
-  console.log(NODE_ENV);
-  //@ts-ignore
-  switch (NODE_ENV || "") {
-    case "dev":
-      return "http://localhost:12222";
-    default:
-      return "https://node-sfu.tk";
-  }
-})();
+import { endpointURL } from "./util";
 
 const App: FC = () => {
   const rtcManagerRef = useRef<RTCManager>();
@@ -34,6 +22,7 @@ const App: FC = () => {
       stream.onremovetrack = () => {
         setStreams((streams) => streams.filter((s) => stream.id !== s.id));
       };
+      e.transceiver.mid;
       setStreams((streams) => [...streams, stream]);
     };
 
@@ -55,7 +44,7 @@ const App: FC = () => {
     const rtcManager = rtcManagerRef.current;
 
     if (!rtcManager) {
-      rtcManagerRef.current = new RTCManager(url);
+      rtcManagerRef.current = new RTCManager(endpointURL);
       init(rtcManagerRef.current);
       return;
     }

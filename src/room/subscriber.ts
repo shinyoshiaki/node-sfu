@@ -15,24 +15,21 @@ export class Subscriber {
 
   fixed() {
     this.state = "fixed";
-    const track = this.tracks.find(({ track }) => track.ssrc);
-    this.subscribe(track);
+    this.subscribe();
   }
 
   high() {
     this.state = "high";
-    const track = this.tracks.find(({ track }) => track.rid === "high");
-    this.subscribe(track);
+    this.subscribe();
   }
 
-  low() {
+  async low() {
     this.state = "low";
-    const track = this.tracks.find(({ track }) => track.rid === "low");
-    this.subscribe(track);
+    this.subscribe();
   }
 
   count = 0;
-  readonly threshold = 5;
+  readonly threshold = 10;
   watchREMB() {
     this.sender.sender.onRtcp.subscribe((rtcp) => {
       if (rtcp.type === RtcpPayloadSpecificFeedback.type) {
@@ -40,19 +37,18 @@ export class Subscriber {
         if (psfb.feedback.count === ReceiverEstimatedMaxBitrate.count) {
           const remb = psfb.feedback as ReceiverEstimatedMaxBitrate;
 
-          if (remb.bitrate <= 180_000n) {
-            if (this.state !== "low" && this.count > this.threshold) {
+          if (remb.bitrate / 1000n <= 200n) {
+            if (this.state !== "low" && this.count >= this.threshold) {
               console.log("low");
-              this.stop();
-              this.low();
+              this.state = "low";
               this.count = 0;
             }
             this.count++;
           } else {
-            if (this.state !== "high" && this.count < -this.threshold) {
+            if (this.state !== "high" && this.count <= -this.threshold) {
               console.log("high");
-              this.stop();
-              this.high();
+              this.state = "high";
+              this.count = 0;
             }
             this.count--;
           }
@@ -62,18 +58,13 @@ export class Subscriber {
     });
   }
 
-  private async subscribe(track: Track) {
-    const rtp = await track.track.onRtp.asPromise();
-
-    const { unSubscribe } = track.track.onRtp.subscribe((rtp) => {
-      try {
-        this.sender.sendRtp(rtp);
-      } catch (error) {
-        console.log("ice error", error);
-      }
+  private async subscribe() {
+    this.tracks.forEach((track) => {
+      track.track.onRtp.subscribe((rtp) => {
+        if (this.state == track.track.rid) {
+          this.sender.sendRtp(rtp);
+        }
+      });
     });
-    this.stop = unSubscribe;
-
-    track.receiver.receiver.sendRtcpPLI(rtp.header.ssrc);
   }
 }

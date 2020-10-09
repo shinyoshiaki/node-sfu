@@ -19,9 +19,6 @@ export class Media {
     if (this.kind !== rtpTrack.kind) throw new Error();
 
     const track = new Track(rtpTrack, receiver);
-    rtpTrack.onRtp.once((rtp) => {
-      track.startRtcp(rtp.header.ssrc);
-    });
 
     this.tracks.push(track);
   }
@@ -55,6 +52,11 @@ export class Media {
         subscriber.watchREMB();
         break;
     }
+  }
+
+  changeQuality(subscriberId: string, type: SubscriberType) {
+    const subscriber = this.subscribers[subscriberId];
+    subscriber.state = type;
   }
 
   has(subscriberId: string) {

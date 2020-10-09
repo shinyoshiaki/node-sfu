@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 export class PromiseQueue {
   queue: { promise: () => Promise<any>; call: () => void }[] = [];
   running = false;
@@ -21,3 +22,15 @@ export class PromiseQueue {
     }
   }
 }
+
+export const endpointURL = (() => {
+  //@ts-ignore
+  console.log(NODE_ENV);
+  //@ts-ignore
+  switch (NODE_ENV || "") {
+    case "dev":
+      return "http://localhost:12222";
+    default:
+      return "https://node-sfu.tk";
+  }
+})();

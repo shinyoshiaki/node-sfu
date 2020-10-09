@@ -64,3 +64,8 @@ export interface HandleOffer extends RPC {
   type: "handleOffer";
   payload: [RTCSessionDescription];
 }
+
+export interface ChangeQuality extends RPC {
+  type: "changeQuality";
+  payload: [string, MediaInfo, SubscriberType];
+}
