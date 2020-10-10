@@ -71,6 +71,7 @@ const App: FC = () => {
             <p>{`${info.mediaId} ${info.publisherId}`}</p>
             <button onClick={() => changeQuality(info, "low")}>low</button>
             <button onClick={() => changeQuality(info, "high")}>high</button>
+            <button onClick={() => changeQuality(info, "auto")}>auto</button>
             <br />
             <video
               ref={(ref) => {

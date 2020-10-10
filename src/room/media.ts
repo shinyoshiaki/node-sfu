@@ -42,16 +42,17 @@ export class Media {
       this.tracks
     ));
     switch (type) {
-      case "fixed":
-        subscriber.fixed();
+      case "single":
+        subscriber.single();
         break;
       case "high":
         subscriber.high();
-        // subscriber.watchREMB();
         break;
       case "low":
         subscriber.low();
-        // subscriber.watchREMB();
+        break;
+      case "auto":
+        subscriber.auto();
         break;
     }
   }

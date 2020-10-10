@@ -1,21 +1,19 @@
-import { sleep } from "../helper";
 import {
   ReceiverEstimatedMaxBitrate,
   RtcpPayloadSpecificFeedback,
   RTCRtpTransceiver,
 } from "../werift";
-import { RtpHeader } from "../werift/vendor/rtp";
 import { Track } from "./track";
 
-export type SubscriberType = "high" | "low" | "fixed";
+export type SubscriberType = "high" | "low" | "single" | "auto";
 
 export class Subscriber {
-  state: SubscriberType = "fixed";
+  state: SubscriberType = "single";
 
   constructor(public sender: RTCRtpTransceiver, private tracks: Track[]) {}
 
-  fixed() {
-    this.state = "fixed";
+  single() {
+    this.state = "single";
     this.subscribe();
   }
 
@@ -24,15 +22,22 @@ export class Subscriber {
     this.subscribe();
   }
 
-  async low() {
+  low() {
     this.state = "low";
     this.subscribe();
   }
 
+  auto() {
+    this.state = "auto";
+    this.subscribe();
+    this.watchREMB();
+  }
+
   count = 0;
   readonly threshold = 10;
-  watchREMB() {
-    this.sender.sender.onRtcp.subscribe((rtcp) => {
+  stopWatchREMB: () => void = () => {};
+  private watchREMB() {
+    const { unSubscribe } = this.sender.sender.onRtcp.subscribe((rtcp) => {
       if (rtcp.type === RtcpPayloadSpecificFeedback.type) {
         const psfb = rtcp as RtcpPayloadSpecificFeedback;
         if (psfb.feedback.count === ReceiverEstimatedMaxBitrate.count) {
@@ -57,18 +62,27 @@ export class Subscriber {
         }
       }
     });
+    this.stopWatchREMB = unSubscribe;
   }
 
-  stop: (() => void)[] = [];
+  private stopRTP: (() => void)[] = [];
 
   changeQuality(state: SubscriberType) {
-    this.stop.forEach((f) => f());
+    this.stopRTP.forEach((f) => f());
+    this.stopWatchREMB();
+
     this.state = state;
+
+    if (state === "auto") {
+      this.watchREMB();
+      this.state = "high";
+    }
+
     this.subscribe();
   }
 
   private async subscribe() {
-    this.stop = this.tracks.map(({ track }) => {
+    this.stopRTP = this.tracks.map(({ track }) => {
       const { unSubscribe } = track.onRtp.subscribe((rtp) => {
         if (this.state === track.rid) {
           this.sender.sendRtp(rtp);
