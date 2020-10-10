@@ -86,7 +86,7 @@ export class RtpRouter {
       ssrcReceiver = this.ridTable[rid] as RTCRtpReceiver;
       ssrcReceiver.handleRtpByRid(packet, rid, extensions);
     } else {
-      if (!ssrcReceiver) return;
+      if (!ssrcReceiver) return; // simulcast + absSendTime
 
       ssrcReceiver.handleRtpBySsrc(packet, packet.header.ssrc, extensions);
     }

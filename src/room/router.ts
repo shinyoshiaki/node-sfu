@@ -6,7 +6,11 @@ type Route = {
   [mediaId: string]: Media;
 };
 
-export type MediaInfo = { mediaId: string; kind: string; publisherId: string };
+export type MediaInfo = {
+  mediaId: string;
+  kind: string;
+  publisherId: string;
+};
 
 export class Router {
   routes: { [publisherId: string]: Route } = {};
@@ -16,10 +20,10 @@ export class Router {
       .map((route) => Object.values(route))
       .flatMap((v) => v);
 
-    return medias.map((media) => ({
-      mediaId: media.mediaId,
-      kind: media.kind,
-      publisherId: media.publisherId,
+    return medias.map(({ mediaId, kind, publisherId }) => ({
+      mediaId,
+      kind,
+      publisherId,
     }));
   }
 
@@ -68,6 +72,16 @@ export class Router {
   ) {
     const media = this.routes[publisherId][mediaId];
     media.subscribe(subscriberId, transceiver, type);
+  }
+
+  changeQuality(
+    subscriberId: string,
+    publisherId: string,
+    mediaId: string,
+    type: SubscriberType
+  ) {
+    const media = this.routes[publisherId][mediaId];
+    media.changeQuality(subscriberId, type);
   }
 
   unsubscribe(subscriberId: string, publisherId: string, mediaId: string) {

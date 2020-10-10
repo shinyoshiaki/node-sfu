@@ -1,23 +1,14 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import React, { FC, useEffect, useRef, useState } from "react";
+import { MediaInfo, SubscriberType } from "../../../src";
 import { RTCManager } from "./rtc";
-
-const url = (() => {
-  //@ts-ignore
-  console.log(NODE_ENV);
-  //@ts-ignore
-  switch (NODE_ENV || "") {
-    case "dev":
-      return "http://localhost:12222";
-    default:
-      return "https://node-sfu.tk";
-  }
-})();
+import { endpointURL } from "./util";
 
 const App: FC = () => {
   const rtcManagerRef = useRef<RTCManager>();
   const videos = useRef<HTMLVideoElement[]>([]);
-  const [streams, setStreams] = useState<MediaStream[]>([]);
+  const [streams, setStreams] = useState<
+    { stream: MediaStream; info: MediaInfo }[]
+  >([]);
 
   const init = async (rtcManager: RTCManager) => {
     await rtcManager.join();
@@ -27,15 +18,15 @@ const App: FC = () => {
         rtcManager.subscribe([info]);
       }
     });
-    rtcManager.peer!.ontrack = (e) => {
-      const stream = e.streams[0];
-      console.log("track", e.track);
-      console.log("track", stream.id);
+    rtcManager.onTrack.subscribe(({ stream, info }) => {
       stream.onremovetrack = () => {
-        setStreams((streams) => streams.filter((s) => stream.id !== s.id));
+        setStreams((streams) =>
+          streams.filter(({ stream: s }) => stream.id !== s.id)
+        );
       };
-      setStreams((streams) => [...streams, stream]);
-    };
+
+      setStreams((streams) => [...streams, { stream, info }]);
+    });
 
     const mediaStream = await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -51,11 +42,16 @@ const App: FC = () => {
     console.log("joined");
   };
 
+  const changeQuality = (info: MediaInfo, type: SubscriberType) => {
+    const manager = rtcManagerRef.current!;
+    manager.changeQuality(info, type);
+  };
+
   useEffect(() => {
     const rtcManager = rtcManagerRef.current;
 
     if (!rtcManager) {
-      rtcManagerRef.current = new RTCManager(url);
+      rtcManagerRef.current = new RTCManager(endpointURL);
       init(rtcManagerRef.current);
       return;
     }
@@ -63,15 +59,20 @@ const App: FC = () => {
 
   useEffect(() => {
     videos.current.forEach((v, i) => {
-      if (streams[i]) v.srcObject = streams[i];
+      if (streams[i]) v.srcObject = streams[i].stream;
     });
   }, [streams]);
 
   return (
     <div>
       <div style={{ display: "flex", flexWrap: "wrap", width: "100%" }}>
-        {streams.map((_, i) => (
+        {streams.map(({ info }, i) => (
           <div key={i}>
+            <p>{`${info.mediaId} ${info.publisherId}`}</p>
+            <button onClick={() => changeQuality(info, "low")}>low</button>
+            <button onClick={() => changeQuality(info, "high")}>high</button>
+            <button onClick={() => changeQuality(info, "auto")}>auto</button>
+            <br />
             <video
               ref={(ref) => {
                 const arr = videos.current;

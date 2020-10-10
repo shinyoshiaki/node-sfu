@@ -19,16 +19,15 @@ export class Media {
     if (this.kind !== rtpTrack.kind) throw new Error();
 
     const track = new Track(rtpTrack, receiver);
-    rtpTrack.onRtp.once((rtp) => {
-      track.startRtcp(rtp.header.ssrc);
-    });
 
     this.tracks.push(track);
   }
 
   stop() {
     this.tracks.forEach(({ stop }) => stop());
-    Object.values(this.subscribers).forEach(({ stop }) => stop());
+
+    // todo fix below
+    // Object.values(this.subscribers).forEach(({ stop }) => stop());
 
     return this.subscribers;
   }
@@ -43,18 +42,24 @@ export class Media {
       this.tracks
     ));
     switch (type) {
-      case "fixed":
-        subscriber.fixed();
+      case "single":
+        subscriber.single();
         break;
       case "high":
         subscriber.high();
-        subscriber.watchREMB();
         break;
       case "low":
         subscriber.low();
-        subscriber.watchREMB();
+        break;
+      case "auto":
+        subscriber.auto();
         break;
     }
+  }
+
+  changeQuality(subscriberId: string, type: SubscriberType) {
+    const subscriber = this.subscribers[subscriberId];
+    subscriber.changeQuality(type);
   }
 
   has(subscriberId: string) {
@@ -63,7 +68,8 @@ export class Media {
 
   unsubscribe(subscriberId: string) {
     const subscriber = this.subscribers[subscriberId];
-    subscriber.stop();
+    // todo fix below
+    // subscriber.stop();
     delete this.subscribers[subscriberId];
   }
 }

@@ -3,16 +3,15 @@ import { RTCRtpTransceiver, RtpTrack } from "../werift";
 export class Track {
   rtcpId: NodeJS.Timeout;
 
-  constructor(public track: RtpTrack, public receiver: RTCRtpTransceiver) {}
+  constructor(public track: RtpTrack, public receiver: RTCRtpTransceiver) {
+    track.onRtp.once((rtp) => {
+      this.startPLI(rtp.header.ssrc);
+    });
+  }
 
-  startRtcp(ssrc: number) {
+  private startPLI(ssrc: number) {
     this.rtcpId = setInterval(() => {
-      try {
-        this.receiver.receiver.sendRtcpPLI(ssrc);
-      } catch (error) {
-        console.log("sendRtcpPLI", error);
-        clearInterval(this.rtcpId);
-      }
+      this.receiver.receiver.sendRtcpPLI(ssrc);
     }, 2000);
   }
 
