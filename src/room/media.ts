@@ -25,7 +25,9 @@ export class Media {
 
   stop() {
     this.tracks.forEach(({ stop }) => stop());
-    Object.values(this.subscribers).forEach(({ stop }) => stop());
+
+    // todo fix below
+    // Object.values(this.subscribers).forEach(({ stop }) => stop());
 
     return this.subscribers;
   }
@@ -45,18 +47,19 @@ export class Media {
         break;
       case "high":
         subscriber.high();
-        subscriber.watchREMB();
+        // subscriber.watchREMB();
         break;
       case "low":
         subscriber.low();
-        subscriber.watchREMB();
+        // subscriber.watchREMB();
         break;
     }
   }
 
   changeQuality(subscriberId: string, type: SubscriberType) {
     const subscriber = this.subscribers[subscriberId];
-    subscriber.state = type;
+    subscriber.changeQuality(type);
+    console.log("change", type);
   }
 
   has(subscriberId: string) {
@@ -65,7 +68,8 @@ export class Media {
 
   unsubscribe(subscriberId: string) {
     const subscriber = this.subscribers[subscriberId];
-    subscriber.stop();
+    // todo fix below
+    // subscriber.stop();
     delete this.subscribers[subscriberId];
   }
 }

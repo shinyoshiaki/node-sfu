@@ -29,10 +29,16 @@ export class RTCManager {
   mediaInfoByMID: { [mid: string]: MediaInfo } = {};
   onPublish = new Event<MediaInfo>();
   onLeave = new Event<string[]>();
-  onTrack = new Event<{ track: MediaStreamTrack; info: MediaInfo }>();
+  onTrack = new Event<{ stream: MediaStream; info: MediaInfo }>();
 
   constructor(private url: string) {
-    this.peer.ontrack = (ev) => {};
+    this.peer.ontrack = (ev) => {
+      const mid = ev.transceiver.mid!;
+      this.onTrack.execute({
+        stream: ev.streams[0],
+        info: this.mediaInfoByMID[mid],
+      });
+    };
   }
 
   join = () =>
@@ -150,7 +156,13 @@ export class RTCManager {
           ),
         ],
       });
-      const [offer] = await this.waitRPC<HandleOffer>("handleOffer");
+      const [offer, pairs] = await this.waitRPC<HandleOffer>("handleOffer");
+      console.log({ pairs });
+      // @ts-ignore
+      (pairs as any[]).forEach(({ mid, mediaId }) => {
+        this.mediaInfoByMID[mid] = infos.find((v) => v.mediaId === mediaId)!;
+      });
+
       await this.peer.setRemoteDescription(offer);
       const answer = await this.peer.createAnswer();
       await this.peer.setLocalDescription(answer!);

@@ -1,8 +1,10 @@
+import { sleep } from "../helper";
 import {
   ReceiverEstimatedMaxBitrate,
   RtcpPayloadSpecificFeedback,
   RTCRtpTransceiver,
 } from "../werift";
+import { RtpHeader } from "../werift/vendor/rtp";
 import { Track } from "./track";
 
 export type SubscriberType = "high" | "low" | "fixed";
@@ -10,7 +12,6 @@ export type SubscriberType = "high" | "low" | "fixed";
 export class Subscriber {
   state: SubscriberType = "fixed";
 
-  stop: () => void;
   constructor(public sender: RTCRtpTransceiver, private tracks: Track[]) {}
 
   fixed() {
@@ -58,13 +59,29 @@ export class Subscriber {
     });
   }
 
+  stop: (() => void)[] = [];
+
+  async changeQuality(state: SubscriberType) {
+    this.stop.forEach((f) => f());
+
+    await sleep(500);
+    this.state = state;
+    this.subscribe();
+  }
+
+  header: RtpHeader;
   private async subscribe() {
-    this.tracks.forEach((track) => {
-      track.track.onRtp.subscribe((rtp) => {
-        if (this.state == track.track.rid) {
+    this.stop = this.tracks.map(({ track }) => {
+      const { unSubscribe } = track.onRtp.subscribe((rtp) => {
+        if (track.rid === "high") {
+          this.header = rtp.header;
+        }
+        if (this.state === track.rid) {
+          rtp.header = this.header;
           this.sender.sendRtp(rtp);
         }
       });
+      return unSubscribe;
     });
   }
 }

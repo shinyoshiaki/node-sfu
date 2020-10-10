@@ -20,7 +20,11 @@ export class Router {
       .map((route) => Object.values(route))
       .flatMap((v) => v);
 
-    return medias;
+    return medias.map(({ mediaId, kind, publisherId }) => ({
+      mediaId,
+      kind,
+      publisherId,
+    }));
   }
 
   addMedia(publisherId: string, mediaId: string, kind: string): MediaInfo {
