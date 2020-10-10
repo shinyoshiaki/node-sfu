@@ -61,23 +61,16 @@ export class Subscriber {
 
   stop: (() => void)[] = [];
 
-  async changeQuality(state: SubscriberType) {
+  changeQuality(state: SubscriberType) {
     this.stop.forEach((f) => f());
-
-    await sleep(500);
     this.state = state;
     this.subscribe();
   }
 
-  header: RtpHeader;
   private async subscribe() {
     this.stop = this.tracks.map(({ track }) => {
       const { unSubscribe } = track.onRtp.subscribe((rtp) => {
-        if (track.rid === "high") {
-          this.header = rtp.header;
-        }
         if (this.state === track.rid) {
-          rtp.header = this.header;
           this.sender.sendRtp(rtp);
         }
       });

@@ -59,7 +59,6 @@ export class Media {
   changeQuality(subscriberId: string, type: SubscriberType) {
     const subscriber = this.subscribers[subscriberId];
     subscriber.changeQuality(type);
-    console.log("change", type);
   }
 
   has(subscriberId: string) {
