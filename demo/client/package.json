@@ -5,7 +5,6 @@
   "scripts": {
     "build": "rm -rf build && NODE_ENV=prod webpack --mode production",
     "dev": "NODE_ENV=dev webpack-dev-server",
-    "server": "ts-node server/main.ts",
     "type": "tsc -p . --noEmit"
   },
   "dependencies": {
