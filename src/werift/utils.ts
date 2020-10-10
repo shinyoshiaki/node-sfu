@@ -1,4 +1,5 @@
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
+import { jspack } from "jspack";
 import { performance } from "perf_hooks";
 
 const upper = (s: string) => s.toUpperCase();
@@ -33,9 +34,31 @@ export const microTime = () =>
     `${(performance.timeOrigin + performance.now()) * 10000}`.slice(0, -1)
   );
 
-export const ntpTime = () =>
-  BigInt(
-    Math.floor(
-      (performance.timeOrigin + performance.now() - Date.UTC(1900, 0, 1)) / 1000
-    )
-  ) << 32n;
+export const ntpTime = () => {
+  const now = performance.timeOrigin + performance.now() - Date.UTC(1900, 0, 1);
+  const div = now / 1000;
+
+  const [sec, msec] = div.toString().slice(0, 14).split(".");
+  const high = BigInt(sec);
+  const v = BigInt(msec + [...Array(6 - msec.length)].fill(0).join(""));
+
+  const low = (v * (1n << 32n)) / 1000000n;
+
+  return (high << 32n) | low;
+};
+
+export function random16() {
+  return jspack.Unpack("!H", randomBytes(2))[0];
+}
+
+export function random32() {
+  return BigInt(jspack.Unpack("!L", randomBytes(4))[0]);
+}
+
+export function uint16Add(a: number, b: number) {
+  return (a + b) & 0xffff;
+}
+
+export function uint32_add(a: bigint, b: bigint) {
+  return (a + b) & 0xffffffffn;
+}

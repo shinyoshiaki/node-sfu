@@ -14,21 +14,32 @@ import {
   Subscribe,
   RequestSubscribe,
   HandleAnswer,
+  SubscriberType,
+  ChangeQuality,
 } from "../../../src";
 
 export class RTCManager {
+  private http = axios.create({ baseURL: this.url });
+  private onmessage = new Event<string>();
   channel?: RTCDataChannel;
   peerId?: string;
   peer: RTCPeerConnection = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   });
-  trackIds: string[] = [];
-  private onmessage = new Event<string>();
+  mediaInfoByMID: { [mid: string]: MediaInfo } = {};
   onPublish = new Event<MediaInfo>();
   onLeave = new Event<string[]>();
-  http = axios.create({ baseURL: this.url });
+  onTrack = new Event<{ stream: MediaStream; info: MediaInfo }>();
 
-  constructor(private url: string) {}
+  constructor(private url: string) {
+    this.peer.ontrack = (ev) => {
+      const mid = ev.transceiver.mid!;
+      this.onTrack.execute({
+        stream: ev.streams[0],
+        info: this.mediaInfoByMID[mid],
+      });
+    };
+  }
 
   join = () =>
     new Promise(async (r) => {
@@ -145,12 +156,25 @@ export class RTCManager {
           ),
         ],
       });
-      const [offer] = await this.waitRPC<HandleOffer>("handleOffer");
+      const [offer, pairs] = await this.waitRPC<HandleOffer>("handleOffer");
+      console.log({ pairs });
+      // @ts-ignore
+      (pairs as any[]).forEach(({ mid, mediaId }) => {
+        this.mediaInfoByMID[mid] = infos.find((v) => v.mediaId === mediaId)!;
+      });
+
       await this.peer.setRemoteDescription(offer);
       const answer = await this.peer.createAnswer();
       await this.peer.setLocalDescription(answer!);
 
       await this.sendAnswer();
+    });
+  }
+
+  changeQuality(info: MediaInfo, type: SubscriberType) {
+    this.sendRPC<ChangeQuality>({
+      type: "changeQuality",
+      payload: [this.peerId!, info, type],
     });
   }
 

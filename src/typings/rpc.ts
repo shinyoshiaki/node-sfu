@@ -62,5 +62,10 @@ export interface HandleLeave extends RPC {
 
 export interface HandleOffer extends RPC {
   type: "handleOffer";
-  payload: [RTCSessionDescription];
+  payload: [RTCSessionDescription, ...any[]];
+}
+
+export interface ChangeQuality extends RPC {
+  type: "changeQuality";
+  payload: [string, MediaInfo, SubscriberType];
 }

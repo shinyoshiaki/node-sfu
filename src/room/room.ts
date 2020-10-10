@@ -28,7 +28,7 @@ export class Room {
   peers: { [peerId: string]: RTCPeerConnection } = {};
 
   async join(): Promise<[string, RTCSessionDescription]> {
-    const peerId = v4();
+    const peerId = "p_" + v4();
     const peer = (this.peers[peerId] = new RTCPeerConnection({
       stunServer: ["stun.l.google.com", 19302],
       headerExtensions: {
@@ -44,7 +44,7 @@ export class Room {
 
     peer.iceConnectionStateChange.subscribe((state) => {
       console.log(peerId, state);
-      if (state === "closed") {
+      if (state === "disconnected") {
         this.leave(peerId);
       }
     });
@@ -98,7 +98,7 @@ export class Room {
         }
       })
       .forEach(async ([receiver, kind, simulcast]) => {
-        const mediaId = v4();
+        const mediaId = "m_" + v4();
         const mediaInfo = this.router.addMedia(publisherId, mediaId, kind);
 
         if (simulcast) {
@@ -124,7 +124,15 @@ export class Room {
           });
       });
 
-    await this.sendOffer(peer);
+    await peer.setLocalDescription(peer.createOffer());
+
+    this.sendRPC<HandleOffer>(
+      {
+        type: "handleOffer",
+        payload: [peer.localDescription],
+      },
+      peer
+    );
   };
 
   private getMedias = (peerId: string) => {
@@ -145,7 +153,7 @@ export class Room {
   ) => {
     const peer = this.peers[subscriberId];
 
-    requests.forEach(({ info, type }) => {
+    const pairs = requests.map(({ info, type }) => {
       const { publisherId, mediaId, kind } = info;
       const transceiver = peer.addTransceiver(kind as Kind, "sendonly");
       this.router.subscribe(
@@ -155,9 +163,34 @@ export class Room {
         transceiver,
         type
       );
+      return { mediaId, uuid: transceiver.uuid };
+    });
+    await peer.setLocalDescription(peer.createOffer());
+    const meta = pairs.map(({ mediaId, uuid }) => {
+      const transceiver = peer.transceivers.find((t) => t.uuid === uuid)!;
+      return { mediaId, mid: transceiver.mid };
     });
 
-    await this.sendOffer(peer);
+    this.sendRPC<HandleOffer>(
+      {
+        type: "handleOffer",
+        payload: [peer.localDescription, meta],
+      },
+      peer
+    );
+  };
+
+  private changeQuality = (
+    subscriberId: string,
+    info: MediaInfo,
+    type: SubscriberType
+  ) => {
+    this.router.changeQuality(
+      subscriberId,
+      info.publisherId,
+      info.mediaId,
+      type
+    );
   };
 
   private leave = async (peerId: string) => {
@@ -198,17 +231,6 @@ export class Room {
 
   // --------------------------------------------------------------------
   // util
-  private async sendOffer(peer: RTCPeerConnection) {
-    await peer.setLocalDescription(peer.createOffer());
-
-    this.sendRPC<HandleOffer>(
-      {
-        type: "handleOffer",
-        payload: [peer.localDescription],
-      },
-      peer
-    );
-  }
 
   private sendRPC<T extends RPC>(msg: T, peer: RTCPeerConnection) {
     const channel = peer.sctpTransport.channelByLabel("sfu");
