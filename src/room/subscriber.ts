@@ -65,10 +65,10 @@ export class Subscriber {
     this.stopWatchREMB = unSubscribe;
   }
 
-  private stopRTP: (() => void)[] = [];
+  private stopRTP: () => void = () => {};
 
   changeQuality(state: SubscriberType) {
-    this.stopRTP.forEach((f) => f());
+    this.stopRTP();
     this.stopWatchREMB();
 
     this.state = state;
@@ -82,13 +82,12 @@ export class Subscriber {
   }
 
   private async subscribe() {
-    this.stopRTP = this.tracks.map(({ track }) => {
-      const { unSubscribe } = track.onRtp.subscribe((rtp) => {
-        if (this.state === track.rid) {
-          this.sender.sendRtp(rtp);
-        }
-      });
-      return unSubscribe;
+    const { track } = this.tracks.find(({ track }) => track.rid === this.state);
+    const { unSubscribe } = track.onRtp.subscribe((rtp) => {
+      if (this.state === track.rid) {
+        this.sender.sendRtp(rtp);
+      }
     });
+    this.stopRTP = unSubscribe;
   }
 }
