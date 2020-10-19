@@ -73,7 +73,7 @@ export class Room {
     await peer.addIceCandidate(candidate);
   }
 
-  private publish = async (
+  publish = async (
     publisherId: string,
     request: { kind: Kind; simulcast: boolean }[]
   ) => {
@@ -135,7 +135,7 @@ export class Room {
     );
   };
 
-  private getMedias = (peerId: string) => {
+  getMedias = (peerId: string) => {
     console.log("getMedias", peerId);
     const peer = this.peers[peerId];
     this.sendRPC<HandleMedias>(
@@ -147,7 +147,7 @@ export class Room {
     );
   };
 
-  private subscribe = async (
+  subscribe = async (
     subscriberId: string,
     requests: { info: MediaInfo; type: SubscriberType }[]
   ) => {
@@ -180,7 +180,7 @@ export class Room {
     );
   };
 
-  private changeQuality = (
+  changeQuality = (
     subscriberId: string,
     info: MediaInfo,
     type: SubscriberType
@@ -193,7 +193,7 @@ export class Room {
     );
   };
 
-  private leave = async (peerId: string) => {
+  leave = async (peerId: string) => {
     this.router.getSubscribed(peerId).forEach((media) => {
       this.router.unsubscribe(peerId, media.publisherId, media.mediaId);
     });
