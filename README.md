@@ -1,10 +1,14 @@
 # node-sfu
 
-pure node.js WebRTC SFU  
+Pure node.js WebRTC SFU  
 100％ written in TypeScript
 
 # current state
 WIP
+
+# example
+
+https://github.com/shinyoshiaki/node-sfu/tree/master/demo
 
 # demo
 
