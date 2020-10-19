@@ -104,7 +104,14 @@ export class RTCRtpSender {
     }
   }
 
-  sequenceNumber = random16();
+  seqOffset = 0;
+  replaceRTP(sequenceNumber: number) {
+    if (this.sequenceNumber) {
+      this.seqOffset = this.sequenceNumber - sequenceNumber;
+    }
+  }
+
+  sequenceNumber?: number;
   timestamp = random32();
   cacheTimestamp = 0;
   rtpCache: RtpPacket[] = [];
@@ -128,8 +135,8 @@ export class RTCRtpSender {
 
     header.timestamp = Number(this.timestamp);
 
-    header.sequenceNumber = this.sequenceNumber;
-    this.sequenceNumber = uint16Add(this.sequenceNumber, 1);
+    header.sequenceNumber = uint16Add(header.sequenceNumber, this.seqOffset);
+    this.sequenceNumber = header.sequenceNumber;
 
     this.cname = parameters.rtcp.cname;
 
