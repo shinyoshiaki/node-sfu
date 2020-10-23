@@ -18,10 +18,10 @@ import { RTP_EXTENSION_URI } from "../extension/rtpExtension";
 import { RtcpTransportLayerFeedback } from "../../vendor/rtp/rtcp/rtpfb";
 import { TransportWideCC } from "../../vendor/rtp/rtcp/rtpfb/twcc";
 import { ntpTime } from "../../utils";
-import { random32, random16, uint32_add, uint16Add } from "../../utils";
+import { random32, uint32_add, uint16Add } from "../../utils";
 import { GenericNack } from "../../vendor/rtp/rtcp/rtpfb/nack";
 
-const RTP_HISTORY_SIZE = 128;
+const RTP_HISTORY_SIZE = 1024;
 const RTT_ALPHA = 0.85;
 
 export class RTCRtpSender {
@@ -104,7 +104,7 @@ export class RTCRtpSender {
     }
   }
 
-  seqOffset = 0;
+  private seqOffset = 0;
   replaceRTP(sequenceNumber: number) {
     if (this.sequenceNumber) {
       this.seqOffset = this.sequenceNumber - sequenceNumber;
@@ -120,8 +120,6 @@ export class RTCRtpSender {
 
     rtp = Buffer.isBuffer(rtp) ? RtpPacket.deSerialize(rtp) : rtp;
 
-    this.rtpCache.push(rtp);
-    this.rtpCache = this.rtpCache.slice(-RTP_HISTORY_SIZE);
     const header = rtp.header;
     header.ssrc = this.ssrc;
 
@@ -172,6 +170,10 @@ export class RTCRtpSender {
     this.rtpTimestamp = rtp.header.timestamp;
     this.octetCount += rtp.payload.length;
     this.packetCount++;
+
+    rtp.header = header;
+    this.rtpCache.push(rtp);
+    this.rtpCache = this.rtpCache.slice(-RTP_HISTORY_SIZE);
 
     this.dtlsTransport.sendRtp(rtp.payload, header);
     this.runRtcp();
