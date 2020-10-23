@@ -83,8 +83,8 @@ export class Subscriber {
 
   private async subscribe() {
     const { track } = this.tracks.find(({ track }) => track.rid === this.state);
-    const rtp = await track.onRtp.asPromise();
-    this.sender.sender.replaceRTP(rtp.header.sequenceNumber);
+    await track.onRtp.asPromise();
+    this.sender.replaceTrack(track);
 
     const { unSubscribe } = track.onRtp.subscribe((rtp) => {
       if (this.state === track.rid) {
