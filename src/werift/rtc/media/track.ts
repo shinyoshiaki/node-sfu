@@ -5,7 +5,7 @@ import { RtpPacket } from "../../vendor/rtp/rtp/rtp";
 export class RtpTrack {
   ssrc?: number;
   rid?: string;
-  onRtp = new Event<RtpPacket>();
+  readonly onRtp = new Event<RtpPacket>();
   kind: Kind;
   id: string;
   mediaSsrc?: number;
