@@ -8,7 +8,7 @@ type FlightType = typeof flightTypes[number];
 
 export abstract class Flight {
   state: FlightType = "PREPARING";
-  buffer: Buffer[] = [];
+  private buffer: Buffer[] = [];
 
   constructor(
     private udp: TransportContext,
@@ -20,14 +20,18 @@ export abstract class Flight {
     this.state = state;
   }
 
-  transmit(buf: Buffer[]) {
+  protected transmit(buf: Buffer[]) {
     this.buffer = buf;
     this.retransmit();
   }
 
+  protected send(buf: Buffer[]) {
+    buf.forEach((v) => this.udp.send(v));
+  }
+
   private async retransmit() {
     this.setState("SENDING");
-    this.buffer.forEach((v) => this.udp.send(v));
+    this.send(this.buffer);
     this.setState("WAITING");
 
     if (this.nextFlight === undefined) {
@@ -40,7 +44,8 @@ export abstract class Flight {
       this.setState("FINISHED");
       return;
     } else {
-      this.retransmit();
+      console.log("retransmit", this.dtls.flight);
+      this.retransmit().then(() => console.log(this.dtls.flight, "done"));
     }
   }
 }

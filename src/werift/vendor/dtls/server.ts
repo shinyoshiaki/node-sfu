@@ -8,6 +8,7 @@ import { Flight4 } from "./flight/server/flight4";
 import { Flight6 } from "./flight/server/flight6";
 import { SessionType } from "./cipher/suites/abstract";
 import { DtlsSocket, Options } from "./socket";
+import { DtlsContext } from "./context/dtls";
 
 export class DtlsServer extends DtlsSocket {
   constructor(options: Options) {
@@ -47,20 +48,23 @@ export class DtlsServer extends DtlsSocket {
           const assemble = FragmentedHandshake.assemble(handshakes);
           const clientHello = ClientHello.deSerialize(assemble.fragment);
 
-          if (this.dtls.cookie && this.dtls.cookie.equals(clientHello.cookie)) {
-            this.dtls.bufferHandshakeCache([assemble], false, 4);
-
+          if (
+            this.dtls &&
+            this.dtls.cookie &&
+            this.dtls.cookie.equals(clientHello.cookie)
+          ) {
             new Flight4(this.udp, this.dtls, this.cipher, this.srtp).exec(
+              assemble,
               this.options.certificateRequest
             );
           } else {
+            this.dtls = new DtlsContext(this.options);
             flight2(this.udp, this.dtls, this.cipher, this.srtp)(clientHello);
           }
         }
         break;
       case HandshakeType.client_key_exchange:
         {
-          this.dtls.flight = 8;
           new Flight6(this.udp, this.dtls, this.cipher).exec(handshakes);
           if (this.onConnect) this.onConnect();
         }
