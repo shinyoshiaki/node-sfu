@@ -2,25 +2,25 @@
 import { v4 } from "uuid";
 import {
   HandleAnswerDone,
-  HandleOffer,
-  HandleMedias,
-  RPC,
-  HandlePublish,
   HandleLeave,
+  HandleMedias,
+  HandleOffer,
+  HandlePublish,
+  RPC,
 } from "../typings/rpc";
 import {
-  RTCPeerConnection,
-  RTCSessionDescription,
   Kind,
   RTCIceCandidateJSON,
-  useSdesRTPStreamID,
+  RTCPeerConnection,
   RTCRtpTransceiver,
+  RTCSessionDescription,
+  useSdesRTPStreamID,
 } from "../werift";
 import {
   useAbsSendTime,
   useSdesMid,
 } from "../werift/rtc/extension/rtpExtension";
-import { Router, MediaInfo } from "./router";
+import { MediaInfo, Router } from "./router";
 import { SubscriberType } from "./subscriber";
 
 export class Room {
@@ -46,6 +46,7 @@ export class Room {
       console.log(peerId, state);
       if (state === "disconnected") {
         this.leave(peerId);
+        peer.close();
       }
     });
 

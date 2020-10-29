@@ -4,6 +4,9 @@ import {
   RTCRtpTransceiver,
 } from "../werift";
 import { Track } from "./track";
+import debug from "debug";
+
+const log = debug("node-sfu:subscriber");
 
 export type SubscriberType = "high" | "low" | "single" | "auto";
 
@@ -82,6 +85,7 @@ export class Subscriber {
   }
 
   private async subscribe() {
+    log("on subscribe", this.state);
     const { track } = this.tracks.find(({ track }) => track.rid === this.state);
     await track.onRtp.asPromise();
     this.sender.replaceTrack(track);
