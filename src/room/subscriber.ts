@@ -5,8 +5,9 @@ import {
 } from "../werift";
 import { Track } from "./track";
 import debug from "debug";
+import { sleep } from "../helper";
 
-const log = debug("node-sfu:subscriber");
+const log = debug("werift:sfu:subscriber");
 
 export type SubscriberType = "high" | "low" | "single" | "auto";
 
@@ -85,15 +86,16 @@ export class Subscriber {
   }
 
   private async subscribe() {
-    log("on subscribe", this.state);
+    log("on subscribe", this.sender.uuid, this.state);
+
     const { track } = this.tracks.find(({ track }) => track.rid === this.state);
-    await track.onRtp.asPromise();
-    this.sender.replaceTrack(track);
+
+    const rtp = await track.onRtp.asPromise();
+    this.sender.replaceRtp(rtp.header);
+    log("replace track", this.sender.uuid, rtp.header.ssrc);
 
     const { unSubscribe } = track.onRtp.subscribe((rtp) => {
-      if (this.state === track.rid) {
-        this.sender.sendRtp(rtp);
-      }
+      this.sender.sendRtp(rtp);
     });
     this.stopRTP = unSubscribe;
   }

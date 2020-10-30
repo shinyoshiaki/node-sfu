@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { jspack } from "jspack";
 import * as uuid from "uuid";
-import { RtpPacket } from "../../vendor/rtp/rtp/rtp";
+import { RtpHeader, RtpPacket } from "../../vendor/rtp/rtp/rtp";
 import { RtcpPacket } from "../../vendor/rtp/rtcp/rtcp";
 import { RtcpSrPacket, RtcpSenderInfo } from "../../vendor/rtp/rtcp/sr";
 import { RtcpRrPacket } from "../../vendor/rtp/rtcp/rr";
@@ -20,6 +20,10 @@ import { TransportWideCC } from "../../vendor/rtp/rtcp/rtpfb/twcc";
 import { ntpTime } from "../../utils";
 import { random32, uint32_add, uint16Add } from "../../utils";
 import { GenericNack } from "../../vendor/rtp/rtcp/rtpfb/nack";
+import debug from "debug";
+import { RtpTrack } from "./track";
+
+const log = debug("werift:webrtc:rtpSender");
 
 const RTP_HISTORY_SIZE = 128;
 const RTT_ALPHA = 0.85;
@@ -111,10 +115,19 @@ export class RTCRtpSender {
   }
 
   private seqOffset = 0;
-  replaceRTP(sequenceNumber: number) {
+  replaceRTP({ sequenceNumber, ssrc }: RtpHeader) {
     if (this.sequenceNumber) {
-      this.seqOffset = this.sequenceNumber - sequenceNumber;
+      this.seqOffset = uint16Add(this.sequenceNumber, -sequenceNumber);
     }
+    this.rtpCache = [];
+    log(
+      "replaceRTP",
+      this.ssrc,
+      ssrc,
+      this.sequenceNumber,
+      sequenceNumber,
+      this.seqOffset
+    );
   }
 
   sendRtp(rtp: Buffer | RtpPacket, parameters: RTCRtpParameters) {

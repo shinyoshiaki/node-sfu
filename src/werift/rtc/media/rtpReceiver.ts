@@ -199,11 +199,8 @@ export class RTCRtpReceiver {
     this.cacheExtensions[ssrc].push({ extensions, timestamp: microTime() });
   }
 
-  handleRtpBySsrc = (
-    packet: RtpPacket,
-    ssrc: number,
-    extensions: Extensions
-  ) => {
+  handleRtpBySsrc = (packet: RtpPacket, extensions: Extensions) => {
+    const ssrc = packet.header.ssrc;
     this.nack.onPacket(packet);
 
     const track = this.tracks.find((track) => track.ssrc === ssrc);
