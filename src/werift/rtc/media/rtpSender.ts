@@ -21,7 +21,6 @@ import { ntpTime } from "../../utils";
 import { random32, uint32_add, uint16Add } from "../../utils";
 import { GenericNack } from "../../vendor/rtp/rtcp/rtpfb/nack";
 import debug from "debug";
-import { RtpTrack } from "./track";
 
 const log = debug("werift:webrtc:rtpSender");
 
@@ -105,12 +104,11 @@ export class RTCRtpSender {
       this.lsr = (this.ntpTimestamp >> 16n) & 0xffffffffn;
       this.lsrTime = Date.now() / 1000;
 
-      try {
-        this.dtlsTransport.sendRtcp(packets);
-      } catch (error) {
+      const error = await this.dtlsTransport.sendRtcp(packets).catch(() => {
         console.log("send rtcp error");
-        await sleep(500 + Math.random() * 1000);
-      }
+        return true;
+      });
+      if (error) await sleep(500 + Math.random() * 1000);
     }
   }
 

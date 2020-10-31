@@ -119,7 +119,11 @@ export class StunProtocol implements Protocol {
   async close() {
     await new Promise((r) => {
       this.socket.once("close", r);
-      this.socket.close();
+      try {
+        this.socket.close();
+      } catch (error) {
+        r();
+      }
     });
   }
 }
