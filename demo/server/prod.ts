@@ -3,7 +3,7 @@ import bodyParser from "body-parser";
 import { Room } from "../../src";
 import https from "https";
 import * as fs from "fs";
-import { start } from "./main";
+import { start } from "./src/main";
 
 const options = {
   key: fs.readFileSync("/etc/letsencrypt/live/node-sfu.tk/privkey.pem"),
