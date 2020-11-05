@@ -12,10 +12,11 @@ export class RoomManager {
 
   create() {
     const name = v4();
+    console.log(process.cwd(), process.env.PWD);
     const room = wrap(
       Room,
       workerThreadsWrapper(
-        new Worker(`./worker.js`, {
+        new Worker(`./demo/server/worker.js`, {
           workerData: { path: `./src/worker/room.worker.ts` },
         })
       )

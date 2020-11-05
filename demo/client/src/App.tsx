@@ -11,6 +11,15 @@ const App: FC = () => {
   >([]);
 
   const init = async (rtcManager: RTCManager) => {
+    const params = new URLSearchParams(window.location.hash.split("#")[1]);
+
+    if (!params.has("room")) {
+      await rtcManager.create();
+      window.location.hash = `?room=${rtcManager.roomName}`;
+    } else rtcManager.roomName = params.get("room")!;
+
+    console.log("roomName", rtcManager.roomName);
+
     await rtcManager.join();
 
     rtcManager.onPublish.subscribe((info) => {
