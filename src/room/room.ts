@@ -27,6 +27,10 @@ export class Room {
   router = new Router();
   peers: { [peerId: string]: RTCPeerConnection } = {};
 
+  constructor() {
+    console.log("room start");
+  }
+
   async join(): Promise<[string, RTCSessionDescription]> {
     const peerId = "p_" + v4();
     const peer = (this.peers[peerId] = new RTCPeerConnection({

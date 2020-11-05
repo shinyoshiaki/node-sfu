@@ -21,6 +21,7 @@ import {
 export class RTCManager {
   private http = axios.create({ baseURL: this.url });
   private onmessage = new Event<string>();
+  roomName!: string;
   channel?: RTCDataChannel;
   peerId?: string;
   peer: RTCPeerConnection = new RTCPeerConnection({
@@ -41,10 +42,17 @@ export class RTCManager {
     };
   }
 
+  async create() {
+    const { roomName } = (await this.http.post("/create")).data;
+    this.roomName = roomName;
+  }
+
   join = () =>
     new Promise(async (r) => {
       console.log("join");
-      const { peerId, offer } = (await this.http.get("/join")).data;
+      const { peerId, offer } = (
+        await this.http.put("/join", { roomName: this.roomName })
+      ).data;
 
       this.peerId = peerId;
 
@@ -55,6 +63,7 @@ export class RTCManager {
           this.http.post("/candidate", {
             peerId,
             candidate,
+            roomName: this.roomName,
           });
         }
       };
@@ -92,6 +101,7 @@ export class RTCManager {
       await this.http.post("/answer", {
         peerId,
         answer: peer.localDescription,
+        roomName: this.roomName,
       });
     });
 

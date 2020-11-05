@@ -15,6 +15,8 @@
     "noUnusedLocals": false,
     "skipLibCheck": true,
     "strictNullChecks": false,
-    "noImplicitAny": false
-  }
+    "noImplicitAny": false,
+    "allowJs": true
+  },
+  "include": ["src", "prod.ts", "dev.ts", "worker", "worker.js"]
 }

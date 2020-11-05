@@ -37,7 +37,12 @@
       "request": "launch",
       "program": "${workspaceRoot}/demo/server/node_modules/ts-node/dist/bin.js",
       "protocol": "inspector",
-      "args": ["--files", "${workspaceRoot}/demo/server/dev.ts"],
+      "args": [
+        "--files",
+        "${workspaceRoot}/demo/server/dev.ts",
+        "${workspaceRoot}/demo/server/worker.js",
+        "./worker/room.worker.ts"
+      ],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
     }
