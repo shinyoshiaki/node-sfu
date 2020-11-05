@@ -5,7 +5,6 @@ import {
 } from "../werift";
 import { Track } from "./track";
 import debug from "debug";
-import { sleep } from "../helper";
 
 const log = debug("werift:sfu:subscriber");
 

@@ -67,9 +67,6 @@ export class Media {
   }
 
   unsubscribe(subscriberId: string) {
-    const subscriber = this.subscribers[subscriberId];
-    // todo fix below
-    // subscriber.stop();
     delete this.subscribers[subscriberId];
   }
 }

@@ -1,6 +1,5 @@
 import express from "express";
 import bodyParser from "body-parser";
-import { Room } from "../../src";
 import https from "https";
 import * as fs from "fs";
 import { start } from "./src/main";

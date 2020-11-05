@@ -7,17 +7,21 @@ import {
   RTCSessionDescription,
 } from "../../../../src/werift";
 
+const workerPath = process.argv[3];
+const workerLoaderPath =
+  process.argv[2] === "prod" ? workerPath : process.argv[2];
+
 export class RoomManager {
   rooms: { [name: string]: Room } = {};
 
-  create() {
-    const name = v4();
+  create(name = v4()) {
     console.log(process.cwd(), process.env.PWD);
+
     const room = wrap(
       Room,
       workerThreadsWrapper(
-        new Worker(`./demo/server/worker.js`, {
-          workerData: { path: `./src/worker/room.worker.ts` },
+        new Worker(workerLoaderPath, {
+          workerData: { path: workerPath },
         })
       )
     );
@@ -26,7 +30,11 @@ export class RoomManager {
   }
 
   async join(name: string) {
+    if (!this.rooms[name]) {
+      this.create(name);
+    }
     const room = this.rooms[name];
+
     return room.join();
   }
 
