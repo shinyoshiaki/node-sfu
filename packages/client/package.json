@@ -1,6 +1,6 @@
 {
   "name": "@shinyoshiaki/node-sfu-client",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "> TODO: description",
   "homepage": "https://github.com/shinyoshiaki/node-sfu#readme",
   "bugs": {
@@ -12,7 +12,9 @@
   },
   "license": "MIT",
   "author": "shinyoshiaki <shinyoshiaki2012@gmail.com>",
-  "main": "lib/client/src/index.js",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "directories": {
     "lib": "lib",
     "test": "__tests__"
@@ -25,8 +27,8 @@
     "build": "./build.sh",
     "deploy": "npx can-npm-publish --verbose && yarn publish || echo 'Does not publish'",
     "dev": "cd example && yarn dev",
+    "rollup": "rollup -c",
     "test": "echo \"empty\"",
-    "tsc": "tsc",
     "type": "tsc --noEmit"
   },
   "dependencies": {
@@ -34,7 +36,10 @@
     "rx.mini": "^1.0.0"
   },
   "devDependencies": {
-    "@types/axios": "^0.14.0"
+    "@rollup/plugin-commonjs": "^16.0.0",
+    "@types/axios": "^0.14.0",
+    "@wessberg/rollup-plugin-ts": "^1.3.8",
+    "rollup": "^2.33.1"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"

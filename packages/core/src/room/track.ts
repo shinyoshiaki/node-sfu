@@ -1,7 +1,7 @@
 import { RTCRtpTransceiver, RtpTrack } from "../werift";
 
 export class Track {
-  rtcpId: NodeJS.Timeout;
+  rtcpId: any;
 
   constructor(public track: RtpTrack, public receiver: RTCRtpTransceiver) {
     track.onRtp.once((rtp) => {

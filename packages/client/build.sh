@@ -1,3 +1,3 @@
 #!/bin/sh
 rm -rf lib
-yarn tsc
+yarn rollup
