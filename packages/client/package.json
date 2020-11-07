@@ -1,6 +1,6 @@
 {
   "name": "@shinyoshiaki/node-sfu-client",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "> TODO: description",
   "homepage": "https://github.com/shinyoshiaki/node-sfu#readme",
   "bugs": {
@@ -12,7 +12,7 @@
   },
   "license": "MIT",
   "author": "shinyoshiaki <shinyoshiaki2012@gmail.com>",
-  "main": "lib/client/index.js",
+  "main": "lib/client/src/index.js",
   "directories": {
     "lib": "lib",
     "test": "__tests__"
