@@ -24,13 +24,10 @@
   ],
   "scripts": {
     "build": "tsc",
-    "ci": "yarn type && yarn lint && yarn test",
-    "client": "cd demo/client && yarn dev",
     "deploy": "./build.sh && yarn publish",
     "fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
     "lint": "eslint src/**/*.ts",
-    "server": "cd demo/server && yarn dev",
     "test": "yarn type && jest --forceExit",
     "type": "tsc --noEmit -p .",
     "unused": "organize-imports-cli src/**/*.ts"

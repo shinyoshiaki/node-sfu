@@ -21,7 +21,7 @@
     "url": "git+https://github.com/shinyoshiaki/node-sfu.git"
   },
   "scripts": {
-    "test": "echo \"Error: run tests from root\" && exit 1"
+    "test": "echo \"empty\""
   },
   "bugs": {
     "url": "https://github.com/shinyoshiaki/node-sfu/issues"
