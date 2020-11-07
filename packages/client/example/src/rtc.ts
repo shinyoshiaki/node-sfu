@@ -16,7 +16,7 @@ import {
   HandleAnswer,
   SubscriberType,
   ChangeQuality,
-} from "../../../src";
+} from "../../../core/src";
 
 export class RTCManager {
   private http = axios.create({ baseURL: this.url });
