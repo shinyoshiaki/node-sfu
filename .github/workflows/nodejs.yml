@@ -19,6 +19,7 @@ jobs:
         with:
           node-version: "14.x"
           registry-url: "https://npm.pkg.github.com"
+          scope: "@node-sfu"
 
       - name: Cache node modules
         uses: actions/cache@v2
@@ -46,5 +47,5 @@ jobs:
           yarn deploy
 
         env:
-          CI: true
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CI: true
