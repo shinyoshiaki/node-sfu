@@ -1,11 +1,11 @@
 import { v4 } from "uuid";
 import { Worker } from "worker_threads";
 import { wrap, workerThreadsWrapper } from "airpc";
-import { Room } from "../../../../src";
+import { Room } from "../../../../packages/core/src";
 import {
   RTCIceCandidateJSON,
   RTCSessionDescription,
-} from "../../../../src/werift";
+} from "../../../../packages/core/src/werift";
 
 const workerPath = process.argv[3];
 const workerLoaderPath =
