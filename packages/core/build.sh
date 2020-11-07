@@ -4,7 +4,7 @@ yarn fix
 yarn unused
 yarn format
 yarn test
-yarn build
+yarn tsc
 cd lib
 mv src/* .
 rm -rf demo

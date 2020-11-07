@@ -21,11 +21,12 @@
     "lib"
   ],
   "scripts": {
-    "dev": "ts-node dev.ts ./worker.js ./worker/room.worker.ts",
-    "type": "tsc --noEmit",
-    "inspect": "node --expose-gc --inspect lib/demo/server/dev.js",
     "build": "tsc",
-    "test": "echo \"empty\""
+    "deploy": "echo \"empty\"",
+    "dev": "ts-node dev.ts ./worker.js ./worker/room.worker.ts",
+    "inspect": "node --expose-gc --inspect lib/demo/server/dev.js",
+    "test": "echo \"empty\"",
+    "type": "tsc --noEmit"
   },
   "dependencies": {
     "airpc": "^0.3.1",

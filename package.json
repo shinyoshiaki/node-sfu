@@ -9,11 +9,12 @@
     "packages/*"
   ],
   "scripts": {
-    "bootstrap": "lerna bootstrap",
+    "build": "lerna run build",
     "client": "cd packages/client/example && yarn dev",
+    "deploy": "lerna run deploy",
     "server": "cd packages/server && yarn dev",
-    "type": "lerna run type",
-    "test": "lerna run test"
+    "test": "lerna run test",
+    "type": "lerna run type"
   },
   "devDependencies": {
     "lerna": "^3.22.1",

@@ -12,17 +12,21 @@
   },
   "license": "MIT",
   "author": "shinyoshiaki <shinyoshiaki2012@gmail.com>",
-  "main": "lib/client.js",
+  "main": "lib/index.js",
   "directories": {
     "lib": "lib",
     "test": "__tests__"
   },
   "files": [
-    "lib"
+    "lib",
+    "src"
   ],
   "scripts": {
+    "build": "./build.sh",
+    "deploy": "npx can-npm-publish --verbose && yarn publish || echo 'Does not publish'",
     "dev": "cd example && yarn dev",
     "test": "echo \"empty\"",
+    "tsc": "tsc",
     "type": "tsc --noEmit"
   },
   "dependencies": {

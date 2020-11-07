@@ -1,10 +1,10 @@
+import debug from "debug";
 import {
   ReceiverEstimatedMaxBitrate,
   RtcpPayloadSpecificFeedback,
   RTCRtpTransceiver,
 } from "../werift";
 import { Track } from "./track";
-import debug from "debug";
 
 const log = debug("werift:sfu:subscriber");
 
