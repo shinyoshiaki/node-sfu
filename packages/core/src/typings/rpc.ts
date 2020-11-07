@@ -1,5 +1,5 @@
-import { MediaInfo } from "../room/router";
-import { SubscriberType } from "../room/subscriber";
+import { MediaInfo } from "../sfu/router";
+import { SubscriberType } from "../sfu/subscriber";
 import { Kind, RTCIceCandidateJSON, RTCSessionDescription } from "../werift";
 
 export interface RPC {

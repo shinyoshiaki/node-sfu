@@ -1,5 +1,5 @@
-export { Room } from "./room/room";
-export { SubscriberType } from "./room/subscriber";
+export { Room } from "./sfu/room";
+export { SubscriberType } from "./sfu/subscriber";
 export { Kind } from "./werift";
-export { MediaInfo } from "./room/router";
+export { MediaInfo } from "./sfu/router";
 export * from "./typings/rpc";
