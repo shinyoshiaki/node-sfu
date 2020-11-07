@@ -44,7 +44,7 @@ jobs:
         run: |
           yarn build
           yarn deploy
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
         env:
           CI: true
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
