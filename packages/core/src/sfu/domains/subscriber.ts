@@ -3,7 +3,7 @@ import {
   ReceiverEstimatedMaxBitrate,
   RtcpPayloadSpecificFeedback,
   RTCRtpTransceiver,
-} from "../werift";
+} from "../../werift";
 import { Track } from "./track";
 
 const log = debug("werift:sfu:subscriber");

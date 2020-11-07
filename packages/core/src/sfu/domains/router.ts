@@ -1,4 +1,4 @@
-import { RTCRtpTransceiver, RtpTrack } from "../werift";
+import { RTCRtpTransceiver, RtpTrack } from "../../werift";
 import { Media } from "./media";
 import { SubscriberType } from "./subscriber";
 
