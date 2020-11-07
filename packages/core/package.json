@@ -60,6 +60,6 @@
     "node": ">=14"
   },
   "publishConfig": {
-    "registry": "https://registry.yarnpkg.com"
+    "registry": "https://npm.pkg.github.com/"
   }
 }

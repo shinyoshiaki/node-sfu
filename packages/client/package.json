@@ -37,6 +37,6 @@
     "@types/axios": "^0.14.0"
   },
   "publishConfig": {
-    "registry": "https://registry.yarnpkg.com"
+    "registry": "https://npm.pkg.github.com/"
   }
 }
