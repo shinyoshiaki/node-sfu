@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import axios from "axios";
-import Event from "rx.mini";
+import { Event } from "rx.mini";
 import { PromiseQueue } from "./util";
 import {
   MediaInfo,
@@ -16,29 +16,26 @@ import {
   HandleAnswer,
   SubscriberType,
   ChangeQuality,
-} from "../../../core/src";
+} from "../../core/src";
 
 export class RTCManager {
-  private http = axios.create({ baseURL: this.url });
-  private onmessage = new Event<string>();
+  private readonly http = axios.create({ baseURL: this.url });
+  private readonly onmessage = new Event<[string]>();
   roomName!: string;
-  channel?: RTCDataChannel;
-  peerId?: string;
-  peer: RTCPeerConnection = new RTCPeerConnection({
+  channel!: RTCDataChannel;
+  peerId!: string;
+  mediaInfoByMID: { [mid: string]: MediaInfo } = {};
+  readonly peer: RTCPeerConnection = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   });
-  mediaInfoByMID: { [mid: string]: MediaInfo } = {};
-  onPublish = new Event<MediaInfo>();
-  onLeave = new Event<string[]>();
-  onTrack = new Event<{ stream: MediaStream; info: MediaInfo }>();
+  readonly onPublish = new Event<[MediaInfo]>();
+  readonly onLeave = new Event<[string[]]>();
+  readonly onTrack = new Event<[MediaStream, MediaInfo]>();
 
   constructor(private url: string) {
     this.peer.ontrack = (ev) => {
       const mid = ev.transceiver.mid!;
-      this.onTrack.execute({
-        stream: ev.streams[0],
-        info: this.mediaInfoByMID[mid],
-      });
+      this.onTrack.execute(ev.streams[0], this.mediaInfoByMID[mid]);
     };
   }
 
@@ -189,7 +186,6 @@ export class RTCManager {
   }
 
   private handlePublish = (info: MediaInfo) => {
-    console.log("handlePublish", info);
     this.onPublish.execute(info);
   };
 
@@ -197,7 +193,6 @@ export class RTCManager {
     infos: MediaInfo[],
     offer: RTCSessionDescription
   ) => {
-    console.log("handleLeave", infos);
     await this.peer.setRemoteDescription(offer);
     const answer = await this.peer.createAnswer();
     await this.peer.setLocalDescription(answer!);
@@ -216,7 +211,6 @@ export class RTCManager {
     });
 
   async sendAnswer() {
-    console.log("answer", this.peer.localDescription?.sdp);
     this.sendRPC<HandleAnswer>({
       type: "handleAnswer",
       payload: [this.peerId!, this.peer.localDescription as any],
@@ -225,6 +219,6 @@ export class RTCManager {
   }
 
   private sendRPC<T extends RPC>(msg: T) {
-    this.channel?.send(JSON.stringify(msg));
+    this.channel.send(JSON.stringify(msg));
   }
 }

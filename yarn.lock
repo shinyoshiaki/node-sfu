@@ -1452,6 +1452,13 @@
     multimatch "^4.0.0"
     typescript "~3.7.2"
 
+"@types/axios@^0.14.0":
+  version "0.14.0"
+  resolved "https://registry.yarnpkg.com/@types/axios/-/axios-0.14.0.tgz#ec2300fbe7d7dddd7eb9d3abf87999964cafce46"
+  integrity sha1-7CMA++fX3d1+udOr+HmZlkyvzkY=
+  dependencies:
+    axios "*"
+
 "@types/babel__core@^7.0.0", "@types/babel__core@^7.1.7":
   version "7.1.12"
   resolved "https://registry.yarnpkg.com/@types/babel__core/-/babel__core-7.1.12.tgz#4d8e9e51eb265552a7e4f1ff2219ab6133bdfb2d"
@@ -2049,6 +2056,13 @@ aws4@^1.8.0:
   version "1.11.0"
   resolved "https://registry.yarnpkg.com/aws4/-/aws4-1.11.0.tgz#d61f46d83b2519250e2784daf5b09479a8b41c59"
   integrity sha512-xh1Rl34h6Fi1DC2WWKfxUTVqRsNnr6LsKz2+hfwDxQJWmrx8+c7ylaqBMcHfl1U1r2dsifOvKX3LQuLNZ+XSvA==
+
+axios@*, axios@^0.21.0:
+  version "0.21.0"
+  resolved "https://registry.yarnpkg.com/axios/-/axios-0.21.0.tgz#26df088803a2350dff2c27f96fef99fe49442aca"
+  integrity sha512-fmkJBknJKoZwem3/IKSSLpkdNXZeBu5Q7GA/aRsr2btgrptmSCxi2oFjZHqGdK9DoTil9PIHlPIZw2EcRJXRvw==
+  dependencies:
+    follow-redirects "^1.10.0"
 
 babel-jest@^26.6.3:
   version "26.6.3"
@@ -3710,6 +3724,11 @@ flush-write-stream@^1.0.0:
   dependencies:
     inherits "^2.0.3"
     readable-stream "^2.3.6"
+
+follow-redirects@^1.10.0:
+  version "1.13.0"
+  resolved "https://registry.yarnpkg.com/follow-redirects/-/follow-redirects-1.13.0.tgz#b42e8d93a2a7eea5ed88633676d6597bc8e384db"
+  integrity sha512-aq6gF1BEKje4a9i9+5jimNFIpq4Q1WiwBToeRK5NvZBd/TRsmW8BsJfOEGkr76TbOyPVD3OVDN910EcUNtRYEA==
 
 for-in@^1.0.2:
   version "1.0.2"
@@ -7065,6 +7084,11 @@ rx.mini@^0.1.1:
   resolved "https://registry.yarnpkg.com/rx.mini/-/rx.mini-0.1.1.tgz#86d648043b4e8debcf6e42b69ce20bdb568dad23"
   integrity sha512-o8hudkWb3rxdJo46SiXdErQzM2dgu1e3q9eGEFIpADvt62mcIWxJCK1K+0ByXtpVbX+vsEYCFA4ZEKU1joX1CA==
 
+rx.mini@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/rx.mini/-/rx.mini-1.0.0.tgz#4a689140571ac436962737a00e0e2155cbd0ec0f"
+  integrity sha512-9UCpq0p1SGSeBd18S5axVRnAupLc3lRBoXzX/u8mVOzpu1g1O8edzlF5L8kLfSnPQYUAeDsNGjrEW502AygsQQ==
+
 rxjs@^6.4.0, rxjs@^6.5.3:
   version "6.6.3"
   resolved "https://registry.yarnpkg.com/rxjs/-/rxjs-6.6.3.tgz#8ca84635c4daa900c0d3967a6ee7ac60271ee552"
@@ -8257,10 +8281,10 @@ webidl-conversions@^6.1.0:
   resolved "https://registry.yarnpkg.com/webidl-conversions/-/webidl-conversions-6.1.0.tgz#9111b4d7ea80acd40f5270d666621afa78b69514"
   integrity sha512-qBIvFLGiBpLjfwmYAaHPXsn+ho5xZnGvyGvsarywGNc8VyQJUMHJ8OBKGGrPER0okBeMDaan4mNBlgBROxuI8w==
 
-werift@^0.0.26:
-  version "0.0.26"
-  resolved "https://registry.yarnpkg.com/werift/-/werift-0.0.26.tgz#f8c78aa183c2462fe0d249398f1df44f5437d590"
-  integrity sha512-ezlyvb60tpaU9GPHlqoBfX8jGOtcKuAXe+ylvD7LqpqiQtEEXNG4YmmuEmUNHcuKNrsoP5qbjgZPuvcuVcp6Jw==
+werift@^0.0.30:
+  version "0.0.30"
+  resolved "https://registry.yarnpkg.com/werift/-/werift-0.0.30.tgz#7ddf1d08d4459188726af189b0f8672aaeeb56b1"
+  integrity sha512-BmJV5gUCieMJV3GjQbVe2Rfby5SV0+IWYRKshJ4dXx/jnaTOWUKmgEdsPNyRf5B0IVR4D1/hV4HF4bqod0PrMA==
   dependencies:
     "@fidm/x509" "^1.2.1"
     aes-js "^3.1.2"

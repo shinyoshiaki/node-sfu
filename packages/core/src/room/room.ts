@@ -112,7 +112,7 @@ export class Room {
             this.router.addTrack(publisherId, track, receiver, mediaId)
           );
         } else {
-          const track = await receiver.onTrack.asPromise();
+          const [track] = await receiver.onTrack.asPromise();
           this.router.addTrack(publisherId, track, receiver, mediaId);
         }
 

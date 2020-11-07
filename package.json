@@ -12,6 +12,7 @@
     "bootstrap": "lerna bootstrap",
     "client": "cd packages/client/example && yarn dev",
     "server": "cd packages/server && yarn dev",
+    "type": "lerna run type",
     "test": "lerna run test"
   },
   "devDependencies": {

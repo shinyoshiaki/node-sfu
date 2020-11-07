@@ -36,7 +36,7 @@
     "debug": "^4.2.0",
     "lodash": "^4.17.20",
     "uuid": "^8.3.0",
-    "werift": "^0.0.26"
+    "werift": "^0.0.30"
   },
   "devDependencies": {
     "@types/debug": "^4.1.5",

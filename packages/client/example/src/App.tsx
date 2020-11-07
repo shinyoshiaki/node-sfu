@@ -1,7 +1,18 @@
 import React, { FC, useEffect, useRef, useState } from "react";
 import { MediaInfo, SubscriberType } from "../../../core/src";
-import { RTCManager } from "./rtc";
-import { endpointURL } from "./util";
+import { RTCManager } from "../../src/";
+
+const endpointURL = (() => {
+  //@ts-ignore
+  console.log(NODE_ENV);
+  //@ts-ignore
+  switch (NODE_ENV || "") {
+    case "dev":
+      return "http://localhost:12222";
+    default:
+      return "https://node-sfu.tk";
+  }
+})();
 
 const App: FC = () => {
   const rtcManagerRef = useRef<RTCManager>();
@@ -27,7 +38,7 @@ const App: FC = () => {
         rtcManager.subscribe([info]);
       }
     });
-    rtcManager.onTrack.subscribe(({ stream, info }) => {
+    rtcManager.onTrack.subscribe((stream, info) => {
       stream.onremovetrack = () => {
         setStreams((streams) =>
           streams.filter(({ stream: s }) => stream.id !== s.id)

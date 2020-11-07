@@ -2,9 +2,16 @@
   "name": "@node-sfu/client",
   "version": "0.0.1",
   "description": "> TODO: description",
-  "author": "shinyoshiaki <shinyoshiaki2012@gmail.com>",
   "homepage": "https://github.com/shinyoshiaki/node-sfu#readme",
+  "bugs": {
+    "url": "https://github.com/shinyoshiaki/node-sfu/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shinyoshiaki/node-sfu.git"
+  },
   "license": "MIT",
+  "author": "shinyoshiaki <shinyoshiaki2012@gmail.com>",
   "main": "lib/client.js",
   "directories": {
     "lib": "lib",
@@ -13,17 +20,19 @@
   "files": [
     "lib"
   ],
+  "scripts": {
+    "dev": "cd example && yarn dev",
+    "test": "echo \"empty\"",
+    "type": "tsc --noEmit"
+  },
+  "dependencies": {
+    "axios": "^0.21.0",
+    "rx.mini": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.14.0"
+  },
   "publishConfig": {
     "registry": "https://registry.yarnpkg.com"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/shinyoshiaki/node-sfu.git"
-  },
-  "scripts": {
-    "test": "echo \"empty\""
-  },
-  "bugs": {
-    "url": "https://github.com/shinyoshiaki/node-sfu/issues"
   }
 }

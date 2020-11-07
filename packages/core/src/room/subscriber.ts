@@ -89,7 +89,7 @@ export class Subscriber {
 
     const { track } = this.tracks.find(({ track }) => track.rid === this.state);
 
-    const rtp = await track.onRtp.asPromise();
+    const [rtp] = await track.onRtp.asPromise();
     this.sender.replaceRtp(rtp.header);
     log("replace track", this.sender.uuid, rtp.header.ssrc);
 
