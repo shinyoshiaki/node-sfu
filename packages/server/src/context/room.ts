@@ -1,6 +1,6 @@
+import { workerThreadsWrapper, wrap } from "airpc";
 import { v4 } from "uuid";
 import { Worker } from "worker_threads";
-import { wrap, workerThreadsWrapper } from "airpc";
 import { Room } from "../../../../packages/core/src";
 import {
   RTCIceCandidateJSON,
