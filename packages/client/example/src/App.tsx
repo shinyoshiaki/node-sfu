@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useRef, useState } from "react";
-import { MediaInfo, SubscriberType } from "../../../src";
+import { MediaInfo, SubscriberType } from "../../../core/src";
 import { RTCManager } from "./rtc";
 import { endpointURL } from "./util";
 

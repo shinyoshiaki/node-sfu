@@ -1,0 +1,29 @@
+{
+  "name": "@node-sfu/client",
+  "version": "0.0.1",
+  "description": "> TODO: description",
+  "author": "shinyoshiaki <shinyoshiaki2012@gmail.com>",
+  "homepage": "https://github.com/shinyoshiaki/node-sfu#readme",
+  "license": "MIT",
+  "main": "lib/client.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib"
+  ],
+  "publishConfig": {
+    "registry": "https://registry.yarnpkg.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shinyoshiaki/node-sfu.git"
+  },
+  "scripts": {
+    "test": "echo \"empty\""
+  },
+  "bugs": {
+    "url": "https://github.com/shinyoshiaki/node-sfu/issues"
+  }
+}

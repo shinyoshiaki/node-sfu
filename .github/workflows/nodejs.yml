@@ -33,8 +33,9 @@ jobs:
       - name: prepare
         run: |
           yarn
+          yarn bootstrap
       - name: test
         run: |
-          yarn ci
+          yarn test
         env:
           CI: true
