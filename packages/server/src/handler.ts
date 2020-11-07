@@ -1,7 +1,7 @@
 import {
   RTCIceCandidateJSON,
   RTCSessionDescription,
-} from "../../../src/werift";
+} from "../../../packages/core/src/werift";
 import { Context } from "./context/context";
 
 export const handleCreate = async ({ roomManager }: Context) => {

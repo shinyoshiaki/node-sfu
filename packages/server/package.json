@@ -22,6 +22,7 @@
   ],
   "scripts": {
     "dev": "ts-node dev.ts ./worker.js ./worker/room.worker.ts",
+    "type": "tsc --noEmit",
     "inspect": "node --expose-gc --inspect lib/demo/server/dev.js",
     "build": "tsc"
   },
