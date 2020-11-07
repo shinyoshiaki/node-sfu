@@ -10,6 +10,8 @@
   ],
   "scripts": {
     "bootstrap": "lerna bootstrap",
+    "client": "cd packages/client/example && yarn dev",
+    "server": "cd packages/server && yarn dev",
     "test": "lerna run test"
   },
   "devDependencies": {
