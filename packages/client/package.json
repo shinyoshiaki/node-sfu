@@ -1,6 +1,6 @@
 {
-  "name": "@node-sfu/client",
-  "version": "0.0.1",
+  "name": "@shinyoshiaki/node-sfu-client",
+  "version": "0.0.2",
   "description": "> TODO: description",
   "homepage": "https://github.com/shinyoshiaki/node-sfu#readme",
   "bugs": {
