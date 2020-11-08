@@ -12,14 +12,4 @@ export default [
       },
     ],
   },
-  {
-    input: "src/index.ts",
-    plugins: [ts({ tsconfig: "tsconfig.json" }), commonjs()],
-    output: [
-      {
-        file: "lib/index.mjs",
-        format: "module",
-      },
-    ],
-  },
 ];
