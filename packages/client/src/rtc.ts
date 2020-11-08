@@ -2,7 +2,7 @@
 import axios from "axios";
 import { Event } from "rx.mini";
 import { PromiseQueue } from "./util";
-import {
+import type {
   MediaInfo,
   Kind,
   HandleCandidate,
