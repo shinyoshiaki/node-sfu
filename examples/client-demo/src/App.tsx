@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useRef, useState } from "react";
-import { MediaInfo, SubscriberType } from "../../../core/src";
-import { RTCManager } from "../../src/";
+import type { MediaInfo, SubscriberType } from "../../../packages/core/src";
+import { RTCManager } from "../../../packages/client/src";
 
 const endpointURL = (() => {
   //@ts-ignore

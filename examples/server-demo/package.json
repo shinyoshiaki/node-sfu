@@ -13,13 +13,6 @@
   },
   "license": "MIT",
   "author": "shinyoshiaki <shinyoshiaki2012@gmail.com>",
-  "main": "lib/server.js",
-  "directories": {
-    "lib": "lib"
-  },
-  "files": [
-    "lib"
-  ],
   "scripts": {
     "build": "./build.sh",
     "deploy": "echo \"empty\"",

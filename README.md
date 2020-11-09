@@ -8,7 +8,7 @@ WIP
 
 # example
 
-https://github.com/shinyoshiaki/node-sfu/tree/master/demo
+https://github.com/shinyoshiaki/node-sfu/tree/master/examples
 
 # demo
 

@@ -6,7 +6,8 @@
   "license": "MIT",
   "author": "shinyoshiaki <shinyoshiaki2012@gmail.com>",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "examples/*"
   ],
   "scripts": {
     "build": "lerna run build",

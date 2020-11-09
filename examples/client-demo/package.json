@@ -1,11 +1,24 @@
 {
-  "name": "playground",
-  "version": "1.0.0",
-  "description": "",
+  "name": "@shinyoshiaki/client-demo",
+  "version": "0.0.1",
+  "private": "true",
+  "description": "> TODO: description",
+  "homepage": "https://github.com/shinyoshiaki/node-sfu#readme",
+  "bugs": {
+    "url": "https://github.com/shinyoshiaki/node-sfu/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shinyoshiaki/node-sfu.git"
+  },
+  "license": "MIT",
+  "author": "shinyoshiaki <shinyoshiaki2012@gmail.com>",
   "scripts": {
     "build": "rm -rf build && NODE_ENV=prod webpack --mode production",
+    "deploy": "echo \"empty\"",
     "dev": "NODE_ENV=dev webpack-dev-server",
-    "type": "tsc -p . --noEmit"
+    "test": "echo \"empty\"",
+    "type": "tsc --noEmit"
   },
   "dependencies": {
     "axios": "^0.20.0",

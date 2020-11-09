@@ -1,4 +1,4 @@
 import { expose, workerThreadsExposer } from "airpc";
-import { Endpoint } from "../../../packages/core/src/";
+import { Endpoint } from "../../../packages/core/src";
 
 expose(new Endpoint(), workerThreadsExposer());

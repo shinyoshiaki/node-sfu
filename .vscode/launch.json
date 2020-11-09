@@ -40,9 +40,9 @@
       "args": [
         "--files",
         "--project",
-        "${workspaceRoot}/packages/server/tsconfig.json",
-        "${workspaceRoot}/packages/server/dev.ts",
-        "${workspaceRoot}/packages/server/worker.js",
+        "${workspaceRoot}/examples/server-demo/tsconfig.json",
+        "${workspaceRoot}/examples/server-demo/dev.ts",
+        "${workspaceRoot}/examples/server-demo/worker.js",
         "./worker/room.worker.ts"
       ],
       "console": "integratedTerminal",
