@@ -35,12 +35,14 @@
       "type": "node",
       "env": { "DEBUG": "werift:webrtc:*" },
       "request": "launch",
-      "program": "${workspaceRoot}/demo/server/node_modules/ts-node/dist/bin.js",
+      "program": "${workspaceRoot}/node_modules/ts-node/dist/bin.js",
       "protocol": "inspector",
       "args": [
         "--files",
-        "${workspaceRoot}/demo/server/dev.ts",
-        "${workspaceRoot}/demo/server/worker.js",
+        "--project",
+        "${workspaceRoot}/packages/server/tsconfig.json",
+        "${workspaceRoot}/packages/server/dev.ts",
+        "${workspaceRoot}/packages/server/worker.js",
         "./worker/room.worker.ts"
       ],
       "console": "integratedTerminal",

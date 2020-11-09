@@ -17,22 +17,22 @@ export class Subscriber {
 
   single() {
     this.state = "single";
-    this.subscribe();
+    this.subscribe(this.state);
   }
 
   high() {
     this.state = "high";
-    this.subscribe();
+    this.subscribe(this.state);
   }
 
   low() {
     this.state = "low";
-    this.subscribe();
+    this.subscribe(this.state);
   }
 
   auto() {
     this.state = "auto";
-    this.subscribe();
+    this.subscribe("high");
     this.watchREMB();
   }
 
@@ -50,6 +50,8 @@ export class Subscriber {
             if (this.state !== "low" && this.count >= this.threshold) {
               console.log("low");
               this.state = "low";
+              this.stopRTP();
+              this.subscribe(this.state);
               this.count = 0;
             }
             this.count++;
@@ -57,6 +59,8 @@ export class Subscriber {
             if (this.state !== "high" && this.count <= -this.threshold) {
               console.log("high");
               this.state = "high";
+              this.stopRTP();
+              this.subscribe(this.state);
               this.count = 0;
             }
             this.count--;
@@ -81,13 +85,13 @@ export class Subscriber {
       this.state = "high";
     }
 
-    this.subscribe();
+    this.subscribe(this.state);
   }
 
-  private async subscribe() {
-    log("on subscribe", this.sender.uuid, this.state);
+  private async subscribe(state: SubscriberType) {
+    log("on subscribe", this.sender.uuid, state);
 
-    const { track } = this.tracks.find(({ track }) => track.rid === this.state);
+    const { track } = this.tracks.find(({ track }) => track.rid === state);
 
     const [rtp] = await track.onRtp.asPromise();
     this.sender.replaceRtp(rtp.header);
