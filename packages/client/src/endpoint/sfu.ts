@@ -1,12 +1,12 @@
 import { MediaInfo, RPC } from "../";
 import { DataChannelConnection } from "../connection/dc";
-import { Main } from "../domain/main";
+import { SFU } from "../domain/sfu";
 import { Events } from "../context/events";
 
 export class SFUEndpoint {
   private dcConnection!: DataChannelConnection;
 
-  constructor(private events: Events, private main: Main) {}
+  constructor(private events: Events, private sfu: SFU) {}
 
   listen(dcConnection: DataChannelConnection) {
     this.dcConnection = dcConnection;
@@ -25,8 +25,7 @@ export class SFUEndpoint {
     infos: MediaInfo[],
     offer: RTCSessionDescription
   ) => {
-    const answer = await this.main.handleLeave(infos, offer);
-    console.log("dcConnection", this.dcConnection);
+    const answer = await this.sfu.handleLeave(infos, offer);
     this.dcConnection.sendAnswer(answer);
   };
 

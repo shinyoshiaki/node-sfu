@@ -1,10 +1,10 @@
-import Event from "rx.mini";
-import { MediaInfo } from "../";
+import { MediaInfo } from "..";
 import { Events } from "../context/events";
 
-export class Main {
+export class SFU {
   private mediaInfoByMID: { [mid: string]: MediaInfo } = {};
   peerId!: string;
+  roomName!: string;
 
   readonly peer: RTCPeerConnection = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -19,25 +19,21 @@ export class Main {
 
   join = (
     offer: RTCSessionDescription,
-    onIceCandidate: (candidate: RTCIceCandidate) => void,
-    onAnswer: (answer: RTCSessionDescription) => void
+    {
+      onAnswer,
+      onIceCandidate,
+    }: {
+      onIceCandidate: (candidate: RTCIceCandidate) => void;
+      onAnswer: (answer: RTCSessionDescription) => void;
+    }
   ) =>
     new Promise<RTCDataChannel>(async (r) => {
       this.peer.onicecandidate = ({ candidate }) => {
-        if (candidate) {
-          onIceCandidate(candidate);
-        }
+        if (candidate) onIceCandidate(candidate);
       };
-      this.peer.ondatachannel = ({ channel }) => {
-        console.log("connect to sfu");
-        r(channel);
-      };
+      this.peer.ondatachannel = ({ channel }) => r(channel);
 
-      await this.peer.setRemoteDescription(offer);
-      const answer = await this.peer.createAnswer();
-      await this.peer.setLocalDescription(answer);
-
-      onAnswer(this.peer.localDescription);
+      onAnswer(await this.setOffer(offer));
     });
 
   async publish(
@@ -74,18 +70,19 @@ export class Main {
       this.mediaInfoByMID[mid] = infos.find((v) => v.mediaId === mediaId)!;
     });
 
-    await this.peer.setRemoteDescription(offer);
-    const answer = await this.peer.createAnswer();
-    await this.peer.setLocalDescription(answer!);
-    return this.peer.localDescription;
+    return this.setOffer(offer);
   }
 
   async handleLeave(infos: MediaInfo[], offer: RTCSessionDescription) {
+    this.events.onLeave.execute(infos);
+
+    return await this.setOffer(offer);
+  }
+
+  private async setOffer(offer: RTCSessionDescription) {
     await this.peer.setRemoteDescription(offer);
     const answer = await this.peer.createAnswer();
     await this.peer.setLocalDescription(answer);
-    this.events.onLeave.execute(infos);
-
     return this.peer.localDescription;
   }
 }

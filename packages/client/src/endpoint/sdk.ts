@@ -14,7 +14,7 @@ import {
 } from "../";
 import { HttpConnection } from "../connection/http";
 import { DataChannelConnection } from "../connection/dc";
-import { Main } from "../domain/main";
+import { SFU } from "../domain/sfu";
 import { SFUEndpoint } from "./sfu";
 import { Events } from "../context/events";
 
@@ -22,11 +22,10 @@ export class ClientSDK {
   private readonly httpConnection = new HttpConnection({ url: this.url });
   private dcConnection!: DataChannelConnection;
   private readonly events = new Events();
-  private readonly main = new Main(this.events);
-  private readonly sfuEndpoint = new SFUEndpoint(this.events, this.main);
+  private readonly sfu = new SFU(this.events);
+  private readonly sfuEndpoint = new SFUEndpoint(this.events, this.sfu);
   private subscribeQueue = new PromiseQueue();
 
-  roomName!: string;
   readonly onPublish = this.events.onPublish;
   readonly onLeave = this.events.onLeave;
   readonly onJoin = this.events.onJoin;
@@ -35,25 +34,33 @@ export class ClientSDK {
   constructor(private url: string) {}
 
   get peerId() {
-    return this.main.peerId;
+    return this.sfu.peerId;
+  }
+
+  get roomName() {
+    return this.sfu.roomName;
+  }
+  set roomName(roomName: string) {
+    this.sfu.roomName = roomName;
   }
 
   async create() {
-    this.roomName = await this.httpConnection.create();
+    this.sfu.roomName = await this.httpConnection.create();
   }
 
   async join() {
     const { offer, peerId } = await this.httpConnection.join(this.roomName);
-    this.main.peerId = peerId;
+    this.sfu.peerId = peerId;
 
-    const channel = await this.main.join(
-      offer,
-      (c) => this.httpConnection.candidate(peerId, this.roomName, c),
-      (a) => this.httpConnection.answer(peerId, this.roomName, a)
-    );
+    const channel = await this.sfu.join(offer, {
+      onIceCandidate: (candidate) =>
+        this.httpConnection.candidate(peerId, this.roomName, candidate),
+      onAnswer: (answer) =>
+        this.httpConnection.answer(peerId, this.roomName, answer),
+    });
 
     this.dcConnection = new DataChannelConnection(peerId, channel);
-    this.main.peer.onicecandidate = ({ candidate }) => {
+    this.sfu.peer.onicecandidate = ({ candidate }) => {
       if (candidate) {
         this.dcConnection.sendCandidate(candidate);
       }
@@ -65,7 +72,7 @@ export class ClientSDK {
     this.dcConnection.sendRPC<Publish>({
       type: "publish",
       payload: [
-        this.main.peerId,
+        this.peerId,
         requests.map(({ track, simulcast }) => ({
           kind: track.kind as Kind,
           simulcast,
@@ -73,14 +80,14 @@ export class ClientSDK {
       ],
     });
     const [offer] = await this.dcConnection.waitRPC<HandleOffer>("handleOffer");
-    const answer = await this.main.publish(requests, offer as any);
-    this.dcConnection.sendAnswer(answer);
+    const answer = await this.sfu.publish(requests, offer as any);
+    await this.dcConnection.sendAnswer(answer);
   }
 
   async getTracks() {
     this.dcConnection.sendRPC<GetMedias>({
       type: "getMedias",
-      payload: [this.main.peerId],
+      payload: [this.peerId],
     });
     const [infos] = await this.dcConnection.waitRPC<HandleMedias>(
       "handleMedias"
@@ -90,22 +97,18 @@ export class ClientSDK {
 
   async subscribe(infos: MediaInfo[]) {
     await this.subscribeQueue.push(async () => {
+      const requests: RequestSubscribe[] = infos.map((info) => ({
+        info,
+        type: "high",
+      }));
       this.dcConnection.sendRPC<Subscribe>({
         type: "subscribe",
-        payload: [
-          this.main.peerId,
-          infos.map(
-            (info): RequestSubscribe => ({
-              info,
-              type: "high",
-            })
-          ),
-        ],
+        payload: [this.peerId, requests],
       });
       const [offer, pairs] = await this.dcConnection.waitRPC<HandleOffer>(
         "handleOffer"
       );
-      const answer = await this.main.subscribe(pairs, infos, offer as any);
+      const answer = await this.sfu.subscribe(pairs, infos, offer as any);
       await this.dcConnection.sendAnswer(answer);
     });
   }
@@ -113,7 +116,7 @@ export class ClientSDK {
   changeQuality(info: MediaInfo, type: SubscriberType) {
     this.dcConnection.sendRPC<ChangeQuality>({
       type: "changeQuality",
-      payload: [this.main.peerId, info, type],
+      payload: [this.peerId, info, type],
     });
   }
 }

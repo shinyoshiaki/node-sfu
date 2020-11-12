@@ -46,7 +46,13 @@ export class Router {
     transceiver: RTCRtpTransceiver,
     mediaId: string
   ) {
-    console.log("addTrack", publisherId, rtpTrack.kind);
+    console.log(
+      "addTrack",
+      publisherId,
+      rtpTrack.kind,
+      rtpTrack.rid,
+      rtpTrack.ssrc
+    );
 
     const media = this.routes[publisherId][mediaId];
     if (!media) throw new Error();
