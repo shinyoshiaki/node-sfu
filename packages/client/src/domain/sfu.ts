@@ -1,19 +1,26 @@
+import Event from "rx.mini";
 import { MediaInfo } from "..";
 import { Events } from "../context/events";
 
 export class SFU {
   private mediaInfoByMID: { [mid: string]: MediaInfo } = {};
-  peerId!: string;
-  roomName!: string;
-
-  readonly peer: RTCPeerConnection = new RTCPeerConnection({
+  private readonly peer: RTCPeerConnection = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   });
+
+  peerId!: string;
+  roomName!: string;
+  onIceCandidate = new Event<[RTCIceCandidate]>();
 
   constructor(private events: Events) {
     this.peer.ontrack = (ev) => {
       const mid = ev.transceiver.mid!;
       this.events.onTrack.execute(ev.streams[0], this.mediaInfoByMID[mid]);
+    };
+    this.peer.onicecandidate = ({ candidate }) => {
+      if (candidate) {
+        this.onIceCandidate.execute(candidate);
+      }
     };
   }
 

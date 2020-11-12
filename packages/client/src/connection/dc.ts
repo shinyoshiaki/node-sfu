@@ -1,5 +1,15 @@
 import Event from "rx.mini";
-import { HandleAnswer, HandleCandidate, RPC } from "../";
+import {
+  HandleAnswer,
+  HandleCandidate,
+  RPC,
+  Publish,
+  ChangeQuality,
+  GetMedias,
+  HandleMedias,
+  HandleOffer,
+  Subscribe,
+} from "../";
 
 export class DataChannelConnection {
   readonly onmessage = new Event<[string]>();
@@ -10,22 +20,56 @@ export class DataChannelConnection {
     };
   }
 
-  sendCandidate(candidate: RTCIceCandidate) {
+  sendCandidate = (candidate: RTCIceCandidate) => {
     this.sendRPC<HandleCandidate>({
       type: "handleCandidate",
       payload: [this.peerId, candidate as any],
     });
-  }
+  };
 
-  async sendAnswer(answer: RTCSessionDescription) {
+  sendAnswer = async (answer: RTCSessionDescription) => {
     this.sendRPC<HandleAnswer>({
       type: "handleAnswer",
       payload: [this.peerId, answer as any],
     });
     await this.waitRPC("handleAnswerDone");
+  };
+
+  async publish(payload: Publish["payload"]) {
+    this.sendRPC<Publish>({
+      type: "publish",
+      payload,
+    });
+    const [offer] = await this.waitRPC<HandleOffer>("handleOffer");
+    return offer;
   }
 
-  waitRPC = <T extends RPC>(target: T["type"]) =>
+  async getMedias(payload: GetMedias["payload"]) {
+    this.sendRPC<GetMedias>({
+      type: "getMedias",
+      payload,
+    });
+    const [infos] = await this.waitRPC<HandleMedias>("handleMedias");
+
+    return infos;
+  }
+
+  async subscribe(payload: Subscribe["payload"]) {
+    this.sendRPC<Subscribe>({
+      type: "subscribe",
+      payload,
+    });
+    return await this.waitRPC<HandleOffer>("handleOffer");
+  }
+
+  changeQuality(payload: ChangeQuality["payload"]) {
+    this.sendRPC<ChangeQuality>({
+      type: "changeQuality",
+      payload,
+    });
+  }
+
+  private waitRPC = <T extends RPC>(target: T["type"]) =>
     new Promise<T["payload"]>((r) => {
       const { unSubscribe } = this.onmessage.subscribe((data) => {
         const { type, payload } = JSON.parse(data) as RPC;
@@ -36,7 +80,7 @@ export class DataChannelConnection {
       });
     });
 
-  sendRPC<T extends RPC>(msg: T) {
+  private sendRPC<T extends RPC>(msg: T) {
     this.channel.send(JSON.stringify(msg));
   }
 }

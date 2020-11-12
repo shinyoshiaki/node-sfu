@@ -1,17 +1,5 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { PromiseQueue } from "../util";
-import {
-  MediaInfo,
-  Kind,
-  Publish,
-  GetMedias,
-  HandleOffer,
-  HandleMedias,
-  Subscribe,
-  RequestSubscribe,
-  SubscriberType,
-  ChangeQuality,
-} from "../";
+import { MediaInfo, Kind, RequestSubscribe, SubscriberType } from "../";
 import { HttpConnection } from "../connection/http";
 import { DataChannelConnection } from "../connection/dc";
 import { SFU } from "../domain/sfu";
@@ -60,39 +48,25 @@ export class ClientSDK {
     });
 
     this.dcConnection = new DataChannelConnection(peerId, channel);
-    this.sfu.peer.onicecandidate = ({ candidate }) => {
-      if (candidate) {
-        this.dcConnection.sendCandidate(candidate);
-      }
-    };
+    this.sfu.onIceCandidate.subscribe(this.dcConnection.sendCandidate);
     this.sfuEndpoint.listen(this.dcConnection);
   }
 
   async publish(requests: { track: MediaStreamTrack; simulcast: boolean }[]) {
-    this.dcConnection.sendRPC<Publish>({
-      type: "publish",
-      payload: [
-        this.peerId,
-        requests.map(({ track, simulcast }) => ({
-          kind: track.kind as Kind,
-          simulcast,
-        })),
-      ],
-    });
-    const [offer] = await this.dcConnection.waitRPC<HandleOffer>("handleOffer");
+    const publishRequests = requests.map(({ track, simulcast }) => ({
+      kind: track.kind as Kind,
+      simulcast,
+    }));
+    const offer = await this.dcConnection.publish([
+      this.peerId,
+      publishRequests,
+    ]);
     const answer = await this.sfu.publish(requests, offer as any);
     await this.dcConnection.sendAnswer(answer);
   }
 
   async getTracks() {
-    this.dcConnection.sendRPC<GetMedias>({
-      type: "getMedias",
-      payload: [this.peerId],
-    });
-    const [infos] = await this.dcConnection.waitRPC<HandleMedias>(
-      "handleMedias"
-    );
-    return infos;
+    return await this.dcConnection.getMedias([this.peerId]);
   }
 
   async subscribe(infos: MediaInfo[]) {
@@ -101,22 +75,16 @@ export class ClientSDK {
         info,
         type: "high",
       }));
-      this.dcConnection.sendRPC<Subscribe>({
-        type: "subscribe",
-        payload: [this.peerId, requests],
-      });
-      const [offer, pairs] = await this.dcConnection.waitRPC<HandleOffer>(
-        "handleOffer"
-      );
+      const [offer, pairs] = await this.dcConnection.subscribe([
+        this.peerId,
+        requests,
+      ]);
       const answer = await this.sfu.subscribe(pairs, infos, offer as any);
       await this.dcConnection.sendAnswer(answer);
     });
   }
 
   changeQuality(info: MediaInfo, type: SubscriberType) {
-    this.dcConnection.sendRPC<ChangeQuality>({
-      type: "changeQuality",
-      payload: [this.peerId, info, type],
-    });
+    this.dcConnection.changeQuality([this.peerId, info, type]);
   }
 }
