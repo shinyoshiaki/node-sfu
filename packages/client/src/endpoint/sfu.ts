@@ -29,7 +29,9 @@ export class SFUEndpoint {
     this.dcConnection.sendAnswer(answer);
   };
 
-  private handleJoin = async () => {};
+  private handleJoin = async (peerId: string) => {
+    this.events.onJoin.execute(peerId);
+  };
 
   private handlePublish = (info: MediaInfo) => {
     this.events.onPublish.execute(info);

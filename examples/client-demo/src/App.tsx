@@ -47,8 +47,10 @@ const App: FC = () => {
           streams.filter(({ stream: s }) => stream.id !== s.id)
         );
       };
-
       setStreams((streams) => [...streams, { stream, info }]);
+    });
+    clientSDK.onJoin.subscribe((peerId) => {
+      console.log("join", peerId);
     });
 
     const mediaStream = await navigator.mediaDevices.getUserMedia({

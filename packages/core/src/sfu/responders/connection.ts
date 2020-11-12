@@ -5,6 +5,7 @@ import {
   HandleMedias,
   HandleOffer,
   HandlePublish,
+  HandleJoin,
   RPC,
 } from "../../typings/rpc";
 import {
@@ -29,6 +30,13 @@ export class Connection {
         this[type](...payload);
       } catch (error) {}
     });
+    const { unSubscribe } = channel.stateChanged.subscribe((state) => {
+      if (state === "open") {
+        this.join(peerId);
+        unSubscribe();
+      }
+    });
+
     peer.iceConnectionStateChange.subscribe((state) => {
       if (state === "disconnected") {
         this.leave(peerId);
@@ -36,6 +44,8 @@ export class Connection {
       }
     });
   }
+
+  // ---------------------------------------------------------------------------
 
   handleAnswer = async (peerId: string, answer: RTCSessionDescription) => {
     const peer = await this.room.handleAnswer(peerId, answer);
@@ -110,6 +120,13 @@ export class Connection {
       },
       peer
     );
+  };
+
+  join = (peerId: string) => {
+    Object.entries(this.room.peers).forEach(([id, peer]) => {
+      if (id === peerId) return;
+      this.sendRPC<HandleJoin>({ type: "handleJoin", payload: [peerId] }, peer);
+    });
   };
 
   changeQuality = (

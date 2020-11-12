@@ -55,6 +55,11 @@ export interface Leave extends RPC {
   payload: [string];
 }
 
+export interface HandleJoin extends RPC {
+  type: "handleJoin";
+  payload: [string];
+}
+
 export interface HandleLeave extends RPC {
   type: "handleLeave";
   payload: [MediaInfo[], RTCSessionDescription];
