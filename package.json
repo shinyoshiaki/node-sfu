@@ -11,9 +11,9 @@
   ],
   "scripts": {
     "build": "lerna run build",
-    "client": "cd packages/client/example && yarn dev",
+    "client": "cd examples/client-demo && yarn dev",
     "deploy": "lerna run deploy",
-    "server": "cd packages/server && yarn dev",
+    "server": "cd examples/server-demo && yarn dev",
     "test": "lerna run test",
     "type": "lerna run type"
   },

@@ -1,6 +1,9 @@
 import React, { FC, useEffect, useRef, useState } from "react";
-import type { MediaInfo, SubscriberType } from "../../../packages/core/src";
-import { RTCManager } from "../../../packages/client/src";
+import {
+  ClientSDK,
+  MediaInfo,
+  SubscriberType,
+} from "../../../packages/client/src";
 
 const endpointURL = (() => {
   //@ts-ignore
@@ -15,30 +18,30 @@ const endpointURL = (() => {
 })();
 
 const App: FC = () => {
-  const rtcManagerRef = useRef<RTCManager>();
+  const clientSDKRef = useRef<ClientSDK>();
   const videos = useRef<HTMLVideoElement[]>([]);
   const [streams, setStreams] = useState<
     { stream: MediaStream; info: MediaInfo }[]
   >([]);
 
-  const init = async (rtcManager: RTCManager) => {
+  const init = async (clientSDK: ClientSDK) => {
     const params = new URLSearchParams(window.location.hash.split("#")[1]);
 
     if (!params.has("room")) {
-      await rtcManager.create();
-      window.location.hash = `?room=${rtcManager.roomName}`;
-    } else rtcManager.roomName = params.get("room")!;
+      await clientSDK.create();
+      window.location.hash = `?room=${clientSDK.roomName}`;
+    } else clientSDK.roomName = params.get("room")!;
 
-    console.log("roomName", rtcManager.roomName);
+    console.log("roomName", clientSDK.roomName);
 
-    await rtcManager.join();
+    await clientSDK.join();
 
-    rtcManager.onPublish.subscribe((info) => {
-      if (info.publisherId !== rtcManager.peerId) {
-        rtcManager.subscribe([info]);
+    clientSDK.onPublish.subscribe((info) => {
+      if (info.publisherId !== clientSDK.peerId) {
+        clientSDK.subscribe([info]);
       }
     });
-    rtcManager.onTrack.subscribe((stream, info) => {
+    clientSDK.onTrack.subscribe((stream, info) => {
       stream.onremovetrack = () => {
         setStreams((streams) =>
           streams.filter(({ stream: s }) => stream.id !== s.id)
@@ -53,29 +56,29 @@ const App: FC = () => {
       audio: false,
     });
 
-    await rtcManager.publish([
+    await clientSDK.publish([
       { track: mediaStream.getVideoTracks()[0], simulcast: true },
     ]);
     console.log("published");
-    const infos = await rtcManager.getTracks();
-    await rtcManager.subscribe(infos);
+    const infos = await clientSDK.getTracks();
+    await clientSDK.subscribe(infos);
     console.log("joined");
   };
 
   const changeQuality = (info: MediaInfo, type: SubscriberType) => {
-    const manager = rtcManagerRef.current!;
+    const manager = clientSDKRef.current!;
     manager.changeQuality(info, type);
   };
 
   useEffect(() => {
-    const rtcManager = rtcManagerRef.current;
+    const clientSDK = clientSDKRef.current;
 
-    if (!rtcManager) {
-      rtcManagerRef.current = new RTCManager(endpointURL);
-      init(rtcManagerRef.current);
+    if (!clientSDK) {
+      clientSDKRef.current = new ClientSDK(endpointURL);
+      init(clientSDKRef.current);
       return;
     }
-  }, [streams, rtcManagerRef]);
+  }, [streams, clientSDKRef]);
 
   useEffect(() => {
     videos.current.forEach((v, i) => {
