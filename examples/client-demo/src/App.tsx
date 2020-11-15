@@ -38,6 +38,7 @@ const App: FC = () => {
 
     clientSDK.onPublish.subscribe((info) => {
       if (info.publisherId !== clientSDK.peerId) {
+        console.log(info, clientSDK.peerId);
         clientSDK.subscribe([info]);
       }
     });
