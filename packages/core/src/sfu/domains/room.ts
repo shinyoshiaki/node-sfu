@@ -26,6 +26,7 @@ export class Room {
       stunServer: ["stun.l.google.com", 19302],
       headerExtensions: {
         video: [useSdesMid(1), useAbsSendTime(2), useSdesRTPStreamID(3)],
+        audio: [useSdesMid(1), useAbsSendTime(2), useSdesRTPStreamID(3)],
       },
     });
     this.peers[peerId] = peer;

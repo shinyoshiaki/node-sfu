@@ -44,7 +44,7 @@ export class SFU {
     });
 
   async publish(
-    requests: { track: MediaStreamTrack; simulcast: boolean }[],
+    requests: { track: MediaStreamTrack; simulcast?: boolean }[],
     offer: RTCSessionDescription
   ) {
     await this.peer.setRemoteDescription(offer);
@@ -52,7 +52,7 @@ export class SFU {
     requests
       .map(({ track, simulcast }): [RTCRtpSender, boolean] => [
         this.peer.addTrack(track)!,
-        simulcast,
+        !!simulcast,
       ])
       .map(([sender, simulcast]) => {
         if (!simulcast) return;

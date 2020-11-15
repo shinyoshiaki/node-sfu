@@ -55,11 +55,12 @@ const App: FC = () => {
 
     const mediaStream = await navigator.mediaDevices.getUserMedia({
       video: true,
-      audio: false,
+      audio: true,
     });
 
     await clientSDK.publish([
       { track: mediaStream.getVideoTracks()[0], simulcast: true },
+      { track: mediaStream.getAudioTracks()[0], simulcast: false },
     ]);
     console.log("published");
     const infos = await clientSDK.getTracks();

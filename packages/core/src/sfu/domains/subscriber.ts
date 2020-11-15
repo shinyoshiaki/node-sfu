@@ -91,7 +91,10 @@ export class Subscriber {
   private async subscribe(state: SubscriberType) {
     log("on subscribe", this.sender.uuid, state);
 
-    const { track } = this.tracks.find(({ track }) => track.rid === state);
+    const track =
+      state === "single"
+        ? this.tracks[0].track
+        : this.tracks.find(({ track }) => track.rid === state).track;
 
     const [rtp] = await track.onRtp.asPromise();
     this.sender.replaceRtp(rtp.header);

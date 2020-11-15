@@ -52,10 +52,10 @@ export class ClientSDK {
     this.sfuEndpoint.listen(this.dcConnection);
   }
 
-  async publish(requests: { track: MediaStreamTrack; simulcast: boolean }[]) {
+  async publish(requests: { track: MediaStreamTrack; simulcast?: boolean }[]) {
     const publishRequests = requests.map(({ track, simulcast }) => ({
       kind: track.kind as Kind,
-      simulcast,
+      simulcast: !!simulcast,
     }));
     const offer = await this.dcConnection.publish([
       this.peerId,
@@ -71,10 +71,12 @@ export class ClientSDK {
 
   async subscribe(infos: MediaInfo[]) {
     await this.subscribeQueue.push(async () => {
-      const requests: RequestSubscribe[] = infos.map((info) => ({
-        info,
-        type: "high",
-      }));
+      const requests: RequestSubscribe[] = infos.map((info) => {
+        return {
+          info,
+          type: info.kind === "audio" ? "single" : "high",
+        };
+      });
       const [offer, pairs] = await this.dcConnection.subscribe([
         this.peerId,
         requests,
