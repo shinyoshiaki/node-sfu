@@ -3,7 +3,7 @@ import {
   ReceiverEstimatedMaxBitrate,
   RtcpPayloadSpecificFeedback,
   RTCRtpTransceiver,
-} from "../../werift";
+} from "../../../../werift";
 import { Track } from "./track";
 
 const log = debug("werift:sfu:subscriber");
@@ -11,6 +11,8 @@ const log = debug("werift:sfu:subscriber");
 export type SubscriberType = "high" | "low" | "single" | "auto";
 
 export class Subscriber {
+  private stopRTP: () => void = () => {};
+
   state: SubscriberType = "single";
 
   constructor(public sender: RTCRtpTransceiver, private tracks: Track[]) {}
@@ -71,8 +73,6 @@ export class Subscriber {
     });
     this.stopWatchREMB = unSubscribe;
   }
-
-  private stopRTP: () => void = () => {};
 
   changeQuality(state: SubscriberType) {
     this.stopRTP();

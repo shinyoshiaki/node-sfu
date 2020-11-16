@@ -5,7 +5,7 @@ import { Room } from "../../../../packages/core/src";
 import {
   RTCIceCandidateJSON,
   RTCSessionDescription,
-} from "../../../../packages/core/src/werift";
+} from "../../../../packages/werift";
 
 const workerPath = process.argv[3];
 const workerLoaderPath =

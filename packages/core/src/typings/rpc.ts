@@ -1,6 +1,10 @@
 import { MediaInfo } from "../sfu/domains/router";
 import { SubscriberType } from "../sfu/domains/subscriber";
-import { Kind, RTCIceCandidateJSON, RTCSessionDescription } from "../werift";
+import {
+  Kind,
+  RTCIceCandidateJSON,
+  RTCSessionDescription,
+} from "../../../werift";
 
 export interface RPC {
   type: string;

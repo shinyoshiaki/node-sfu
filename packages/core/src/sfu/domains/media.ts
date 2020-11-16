@@ -1,4 +1,4 @@
-import { RTCRtpTransceiver, RtpTrack } from "../../werift";
+import { RTCRtpTransceiver, RtpTrack } from "../../../../werift";
 import { Subscriber, SubscriberType } from "./subscriber";
 import { Track } from "./track";
 
@@ -25,9 +25,6 @@ export class Media {
 
   stop() {
     this.tracks.forEach(({ stop }) => stop());
-
-    // todo fix below
-    // Object.values(this.subscribers).forEach(({ stop }) => stop());
 
     return this.subscribers;
   }

@@ -6,11 +6,9 @@ import {
   RTCRtpTransceiver,
   RTCSessionDescription,
   useSdesMid,
-} from "../../werift";
-import {
   useAbsSendTime,
   useSdesRTPStreamID,
-} from "../../werift/rtc/extension/rtpExtension";
+} from "../../../../werift";
 import { Connection } from "../responders/connection";
 import { MediaInfo, Router } from "./router";
 import { SubscriberType } from "./subscriber";

@@ -1,5 +1,9 @@
 export { RTCDataChannel } from "./rtc/dataChannel";
-export { useSdesMid, useSdesRTPStreamID } from "./rtc/extension/rtpExtension";
+export {
+  useSdesMid,
+  useSdesRTPStreamID,
+  useAbsSendTime,
+} from "./rtc/extension/rtpExtension";
 export { RTCRtpCodecParameters } from "./rtc/media/parameters";
 export { Direction, RTCRtpTransceiver } from "./rtc/media/rtpTransceiver";
 export { RtpTrack } from "./rtc/media/track";

@@ -14,7 +14,7 @@ import {
   RTCIceCandidateJSON,
   RTCPeerConnection,
   RTCSessionDescription,
-} from "../../werift";
+} from "../../../../werift";
 import { Room } from "../domains/room";
 import { MediaInfo } from "../domains/router";
 import { SubscriberType } from "../domains/subscriber";
