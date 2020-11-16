@@ -1,6 +1,9 @@
+import debug from "debug";
 import { RTCRtpTransceiver, RtpTrack } from "../../../werift";
 import { Media } from "./sfu/media";
 import { SubscriberType } from "./sfu/subscriber";
+
+const log = debug("werift:sfu:router");
 
 type Route = {
   [mediaId: string]: Media;
@@ -15,16 +18,24 @@ export type MediaInfo = {
 export class Router {
   routes: { [publisherId: string]: Route } = {};
 
-  get mediaInfos(): MediaInfo[] {
-    const medias = Object.values(this.routes)
+  get allMedia() {
+    return Object.values(this.routes)
       .map((route) => Object.values(route))
       .flatMap((v) => v);
+  }
 
-    return medias.map(({ mediaId, kind, publisherId }) => ({
+  get mediaInfos(): MediaInfo[] {
+    return this.allMedia.map(({ mediaId, kind, publisherId }) => ({
       mediaId,
       kind,
       publisherId,
     }));
+  }
+
+  getMedia(publisherId: string, mediaId: string) {
+    const media = this.routes[publisherId][mediaId];
+    if (!media) throw new Error();
+    return media;
   }
 
   addMedia(publisherId: string, mediaId: string, kind: string): MediaInfo {
@@ -46,25 +57,13 @@ export class Router {
     transceiver: RTCRtpTransceiver,
     mediaId: string
   ) {
-    console.log(
-      "addTrack",
-      publisherId,
-      rtpTrack.kind,
-      rtpTrack.rid,
-      rtpTrack.ssrc
-    );
+    log("addTrack", publisherId, rtpTrack.kind, rtpTrack.rid, rtpTrack.ssrc);
 
-    const media = this.routes[publisherId][mediaId];
-    if (!media) throw new Error();
-
-    media.addTrack(rtpTrack, transceiver);
+    this.getMedia(publisherId, mediaId).addTrack(rtpTrack, transceiver);
   }
 
   removeMedia(publisherId: string, mediaId: string) {
-    const media = this.routes[publisherId][mediaId];
-    if (!media) throw new Error();
-
-    const subscribers = media.stop();
+    const subscribers = this.getMedia(publisherId, mediaId).stop();
     delete this.routes[publisherId][mediaId];
     return subscribers;
   }
@@ -76,8 +75,11 @@ export class Router {
     transceiver: RTCRtpTransceiver,
     type: SubscriberType
   ) {
-    const media = this.routes[publisherId][mediaId];
-    media.subscribe(subscriberId, transceiver, type);
+    this.getMedia(publisherId, mediaId).subscribe(
+      subscriberId,
+      transceiver,
+      type
+    );
   }
 
   changeQuality(
@@ -86,22 +88,14 @@ export class Router {
     mediaId: string,
     type: SubscriberType
   ) {
-    const media = this.routes[publisherId][mediaId];
-    media.changeQuality(subscriberId, type);
+    this.getMedia(publisherId, mediaId).changeQuality(subscriberId, type);
   }
 
   unsubscribe(subscriberId: string, publisherId: string, mediaId: string) {
-    const media = this.routes[publisherId][mediaId];
-    media.unsubscribe(subscriberId);
+    this.getMedia(publisherId, mediaId).unsubscribe(subscriberId);
   }
 
   getSubscribed(subscriberId: string) {
     return this.allMedia.filter((media) => media.has(subscriberId));
-  }
-
-  private get allMedia() {
-    return Object.values(this.routes)
-      .map((route) => Object.values(route))
-      .flatMap((v) => v);
   }
 }

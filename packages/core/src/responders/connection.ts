@@ -74,7 +74,7 @@ export class Connection {
     request: { kind: Kind; simulcast: boolean }[]
   ) => {
     this.room.publish(publisherId, request).then((responds) => {
-      responds.forEach(([peers, info]) =>
+      responds.forEach(({ peers, info }) =>
         peers.forEach((peer) => {
           this.sendRPC<HandlePublish>(
             {
@@ -112,7 +112,7 @@ export class Connection {
     subscriberId: string,
     requests: { info: MediaInfo; type: SubscriberType }[]
   ) => {
-    const [peer, meta] = await this.room.subscribe(subscriberId, requests);
+    const { peer, meta } = await this.room.subscribe(subscriberId, requests);
     this.sendRPC<HandleOffer>(
       {
         type: "handleOffer",

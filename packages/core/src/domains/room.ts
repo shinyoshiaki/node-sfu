@@ -1,4 +1,5 @@
 import { v4 } from "uuid";
+import debug from "debug";
 import {
   Kind,
   RTCIceCandidateJSON,
@@ -12,6 +13,8 @@ import {
 import { Connection } from "../responders/connection";
 import { MediaInfo, Router } from "./router";
 import { SubscriberType } from "./sfu/subscriber";
+
+const log = debug("werift:sfu:room");
 
 export class Room {
   router = new Router();
@@ -85,7 +88,7 @@ export class Room {
     publisherId: string,
     request: { kind: Kind; simulcast: boolean }[]
   ) {
-    console.log("publish", publisherId, request);
+    log("publish", publisherId, request);
     const peer = this.peers[publisherId];
 
     const transceivers = request.map(({ kind, simulcast }): [
@@ -110,30 +113,26 @@ export class Room {
     });
 
     const responds = await Promise.all(
-      transceivers.map(
-        async ([receiver, kind, simulcast]): Promise<
-          [RTCPeerConnection[], MediaInfo]
-        > => {
-          const mediaId = "m_" + v4();
-          const mediaInfo = this.router.addMedia(publisherId, mediaId, kind);
+      transceivers.map(async ([receiver, kind, simulcast]) => {
+        const mediaId = "m_" + v4();
+        const info = this.router.addMedia(publisherId, mediaId, kind);
 
-          if (simulcast) {
-            await receiver.onTrack.asPromise();
-            receiver.receiver.tracks.forEach((track) =>
-              this.router.addTrack(publisherId, track, receiver, mediaId)
-            );
-          } else {
-            const [track] = await receiver.onTrack.asPromise();
-            this.router.addTrack(publisherId, track, receiver, mediaId);
-          }
-
-          const peers = Object.values(this.peers).filter(
-            (others) => others.cname !== peer.cname
+        if (simulcast) {
+          await receiver.onTrack.asPromise();
+          receiver.receiver.tracks.forEach((track) =>
+            this.router.addTrack(publisherId, track, receiver, mediaId)
           );
-
-          return [peers, mediaInfo];
+        } else {
+          const [track] = await receiver.onTrack.asPromise();
+          this.router.addTrack(publisherId, track, receiver, mediaId);
         }
-      )
+
+        const peers = Object.values(this.peers).filter(
+          (others) => others.cname !== peer.cname
+        );
+
+        return { peers, info };
+      })
     );
 
     return responds;
@@ -154,15 +153,7 @@ export class Room {
   async subscribe(
     subscriberId: string,
     requests: { info: MediaInfo; type: SubscriberType }[]
-  ): Promise<
-    [
-      RTCPeerConnection,
-      {
-        mediaId: string;
-        mid: string;
-      }[]
-    ]
-  > {
+  ) {
     const peer = this.peers[subscriberId];
 
     const pairs = requests.map(({ info, type }) => {
@@ -179,10 +170,10 @@ export class Room {
     });
     await peer.setLocalDescription(peer.createOffer());
     const meta = pairs.map(({ mediaId, uuid }) => {
-      const transceiver = peer.transceivers.find((t) => t.uuid === uuid)!;
+      const transceiver = peer.transceivers.find((t) => t.uuid === uuid);
       return { mediaId, mid: transceiver.mid };
     });
-    return [peer, meta];
+    return { peer, meta };
   }
 
   changeQuality(subscriberId: string, info: MediaInfo, type: SubscriberType) {
