@@ -1,5 +1,5 @@
-import { MediaInfo } from "../sfu/domains/router";
-import { SubscriberType } from "../sfu/domains/subscriber";
+import { MediaInfo } from "../domains/router";
+import { SubscriberType } from "../domains/sfu/subscriber";
 import {
   Kind,
   RTCIceCandidateJSON,

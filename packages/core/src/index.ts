@@ -1,7 +1,7 @@
-export { Connection } from "./sfu/responders/connection";
-export { Endpoint } from "./sfu/responders/endpoint";
-export { Room } from "./sfu/domains/room";
-export { SubscriberType } from "./sfu/domains/subscriber";
+export { Connection } from "./responders/connection";
+export { Endpoint } from "./responders/endpoint";
+export { Room } from "./domains/room";
+export { SubscriberType } from "./domains/sfu/subscriber";
 export { Kind } from "../../werift";
-export { MediaInfo } from "./sfu/domains/router";
+export { MediaInfo } from "./domains/router";
 export * from "./typings/rpc";

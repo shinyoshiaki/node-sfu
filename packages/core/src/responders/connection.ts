@@ -7,17 +7,17 @@ import {
   HandlePublish,
   HandleJoin,
   RPC,
-} from "../../typings/rpc";
+} from "../typings/rpc";
 import {
   Kind,
   RTCDataChannel,
   RTCIceCandidateJSON,
   RTCPeerConnection,
   RTCSessionDescription,
-} from "../../../../werift";
+} from "../../../werift";
 import { Room } from "../domains/room";
 import { MediaInfo } from "../domains/router";
-import { SubscriberType } from "../domains/subscriber";
+import { SubscriberType } from "../domains/sfu/subscriber";
 
 export class Connection {
   constructor(private room: Room) {}

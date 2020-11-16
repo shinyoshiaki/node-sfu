@@ -1,6 +1,6 @@
-import { RTCRtpTransceiver, RtpTrack } from "../../../../werift";
-import { Media } from "./media";
-import { SubscriberType } from "./subscriber";
+import { RTCRtpTransceiver, RtpTrack } from "../../../werift";
+import { Media } from "./sfu/media";
+import { SubscriberType } from "./sfu/subscriber";
 
 type Route = {
   [mediaId: string]: Media;

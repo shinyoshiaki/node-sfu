@@ -8,10 +8,10 @@ import {
   useSdesMid,
   useAbsSendTime,
   useSdesRTPStreamID,
-} from "../../../../werift";
+} from "../../../werift";
 import { Connection } from "../responders/connection";
 import { MediaInfo, Router } from "./router";
-import { SubscriberType } from "./subscriber";
+import { SubscriberType } from "./sfu/subscriber";
 
 export class Room {
   router = new Router();
