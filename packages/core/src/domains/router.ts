@@ -1,13 +1,10 @@
 import debug from "debug";
 import { RTCRtpTransceiver, RtpTrack } from "../../../werift";
-import { Media } from "./sfu/media";
+import { Media } from "./media/media";
+import { SFURoutes } from "./sfu/routes";
 import { SubscriberType } from "./sfu/subscriber";
 
 const log = debug("werift:sfu:router");
-
-type Route = {
-  [mediaId: string]: Media;
-};
 
 export type MediaInfo = {
   mediaId: string;
@@ -16,12 +13,11 @@ export type MediaInfo = {
 };
 
 export class Router {
-  routes: { [publisherId: string]: Route } = {};
+  medias: { [mediaId: string]: Media } = {};
+  sfuRoute = new SFURoutes();
 
   get allMedia() {
-    return Object.values(this.routes)
-      .map((route) => Object.values(route))
-      .flatMap((v) => v);
+    return Object.values(this.medias);
   }
 
   get mediaInfos(): MediaInfo[] {
@@ -32,17 +28,15 @@ export class Router {
     }));
   }
 
-  getMedia(publisherId: string, mediaId: string) {
-    const media = this.routes[publisherId][mediaId];
+  getMedia(mediaId: string) {
+    const media = this.medias[mediaId];
     if (!media) throw new Error();
     return media;
   }
 
   addMedia(publisherId: string, mediaId: string, kind: string): MediaInfo {
-    if (!this.routes[publisherId]) this.routes[publisherId] = {};
-    const route = this.routes[publisherId];
-
-    route[mediaId] = new Media(mediaId, publisherId, kind);
+    this.medias[mediaId] = new Media(mediaId, publisherId, kind);
+    this.sfuRoute.addRoute(this.medias[mediaId]);
 
     return {
       mediaId,
@@ -52,50 +46,42 @@ export class Router {
   }
 
   addTrack(
-    publisherId: string,
     rtpTrack: RtpTrack,
     transceiver: RTCRtpTransceiver,
     mediaId: string
   ) {
-    log("addTrack", publisherId, rtpTrack.kind, rtpTrack.rid, rtpTrack.ssrc);
+    log("addTrack", rtpTrack.kind, rtpTrack.rid, rtpTrack.ssrc);
 
-    this.getMedia(publisherId, mediaId).addTrack(rtpTrack, transceiver);
+    this.getMedia(mediaId).addTrack(rtpTrack, transceiver);
   }
 
-  removeMedia(publisherId: string, mediaId: string) {
-    const subscribers = this.getMedia(publisherId, mediaId).stop();
-    delete this.routes[publisherId][mediaId];
+  removeMedia(mediaId: string) {
+    this.sfuRoute.getRoute(mediaId).stop();
+    const subscribers = this.sfuRoute.getRoute(mediaId).stop();
+    delete this.medias[mediaId];
     return subscribers;
   }
 
   subscribe(
     subscriberId: string,
-    publisherId: string,
     mediaId: string,
     transceiver: RTCRtpTransceiver,
     type: SubscriberType
   ) {
-    this.getMedia(publisherId, mediaId).subscribe(
-      subscriberId,
-      transceiver,
-      type
-    );
+    this.sfuRoute.getRoute(mediaId).subscribe(subscriberId, transceiver, type);
   }
 
-  changeQuality(
-    subscriberId: string,
-    publisherId: string,
-    mediaId: string,
-    type: SubscriberType
-  ) {
-    this.getMedia(publisherId, mediaId).changeQuality(subscriberId, type);
+  changeQuality(subscriberId: string, mediaId: string, type: SubscriberType) {
+    this.sfuRoute.getRoute(mediaId).changeQuality(subscriberId, type);
   }
 
-  unsubscribe(subscriberId: string, publisherId: string, mediaId: string) {
-    this.getMedia(publisherId, mediaId).unsubscribe(subscriberId);
+  unsubscribe(subscriberId: string, mediaId: string) {
+    this.sfuRoute.getRoute(mediaId).unsubscribe(subscriberId);
   }
 
   getSubscribed(subscriberId: string) {
-    return this.allMedia.filter((media) => media.has(subscriberId));
+    return this.allMedia.filter((media) =>
+      this.sfuRoute.getRoute(media.mediaId).has(subscriberId)
+    );
   }
 }

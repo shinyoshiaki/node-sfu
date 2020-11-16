@@ -1,30 +1,16 @@
-import { RTCRtpTransceiver, RtpTrack } from "../../../../werift";
+import { RTCRtpTransceiver } from "../../../../werift";
 import { Subscriber, SubscriberType } from "./subscriber";
-import { Track } from "./track";
+import { Media } from "../media/media";
 
-export class Media {
-  tracks: Track[] = [];
-
+export class Route {
   subscribers: {
     [subscriberId: string]: Subscriber;
   } = {};
 
-  constructor(
-    public mediaId: string,
-    public publisherId: string,
-    public kind: string
-  ) {}
-
-  addTrack(rtpTrack: RtpTrack, receiver: RTCRtpTransceiver) {
-    if (this.kind !== rtpTrack.kind) throw new Error();
-
-    const track = new Track(rtpTrack, receiver);
-
-    this.tracks.push(track);
-  }
+  constructor(public media: Media) {}
 
   stop() {
-    this.tracks.forEach(({ stop }) => stop());
+    this.media.tracks.forEach(({ stop }) => stop());
 
     return this.subscribers;
   }
@@ -36,7 +22,7 @@ export class Media {
   ) {
     const subscriber = (this.subscribers[subscriberId] = new Subscriber(
       sender,
-      this.tracks
+      this.media.tracks
     ));
     switch (type) {
       case "single":

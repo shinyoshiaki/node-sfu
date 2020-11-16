@@ -52,14 +52,14 @@ export class Room {
 
   async leave(peerId: string): Promise<[RTCPeerConnection[], MediaInfo[]]> {
     this.router.getSubscribed(peerId).forEach((media) => {
-      this.router.unsubscribe(peerId, media.publisherId, media.mediaId);
+      this.router.unsubscribe(peerId, media.mediaId);
     });
 
     const infos = this.router.mediaInfos.filter(
       (info) => info.publisherId === peerId
     );
     const subscribers = infos.map((info) =>
-      this.router.removeMedia(peerId, info.mediaId)
+      this.router.removeMedia(info.mediaId)
     );
 
     const targets: { [subscriberId: string]: RTCPeerConnection } = {};
@@ -120,11 +120,11 @@ export class Room {
         if (simulcast) {
           await receiver.onTrack.asPromise();
           receiver.receiver.tracks.forEach((track) =>
-            this.router.addTrack(publisherId, track, receiver, mediaId)
+            this.router.addTrack(track, receiver, mediaId)
           );
         } else {
           const [track] = await receiver.onTrack.asPromise();
-          this.router.addTrack(publisherId, track, receiver, mediaId);
+          this.router.addTrack(track, receiver, mediaId);
         }
 
         const peers = Object.values(this.peers).filter(
@@ -157,15 +157,9 @@ export class Room {
     const peer = this.peers[subscriberId];
 
     const pairs = requests.map(({ info, type }) => {
-      const { publisherId, mediaId, kind } = info;
+      const { mediaId, kind } = info;
       const transceiver = peer.addTransceiver(kind as Kind, "sendonly");
-      this.router.subscribe(
-        subscriberId,
-        publisherId,
-        mediaId,
-        transceiver,
-        type
-      );
+      this.router.subscribe(subscriberId, mediaId, transceiver, type);
       return { mediaId, uuid: transceiver.uuid };
     });
     await peer.setLocalDescription(peer.createOffer());
@@ -177,11 +171,6 @@ export class Room {
   }
 
   changeQuality(subscriberId: string, info: MediaInfo, type: SubscriberType) {
-    this.router.changeQuality(
-      subscriberId,
-      info.publisherId,
-      info.mediaId,
-      type
-    );
+    this.router.changeQuality(subscriberId, info.mediaId, type);
   }
 }
