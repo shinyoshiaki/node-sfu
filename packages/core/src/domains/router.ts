@@ -1,7 +1,7 @@
 import debug from "debug";
 import { RTCRtpTransceiver, RtpTrack } from "../../../werift";
 import { Media } from "./media/media";
-import { SFURoutes } from "./sfu/routes";
+import { SFUManager } from "./sfu/manager";
 import { SubscriberType } from "./sfu/subscriber";
 
 const log = debug("werift:sfu:router");
@@ -14,7 +14,7 @@ export type MediaInfo = {
 
 export class Router {
   medias: { [mediaId: string]: Media } = {};
-  sfuRoute = new SFURoutes();
+  sfu = new SFUManager();
 
   get allMedia() {
     return Object.values(this.medias);
@@ -36,7 +36,7 @@ export class Router {
 
   addMedia(publisherId: string, mediaId: string, kind: string): MediaInfo {
     this.medias[mediaId] = new Media(mediaId, publisherId, kind);
-    this.sfuRoute.addRoute(this.medias[mediaId]);
+    this.sfu.addRoute(this.medias[mediaId]);
 
     return {
       mediaId,
@@ -56,8 +56,8 @@ export class Router {
   }
 
   removeMedia(mediaId: string) {
-    this.sfuRoute.getRoute(mediaId).stop();
-    const subscribers = this.sfuRoute.getRoute(mediaId).stop();
+    this.sfu.getRoute(mediaId).stop();
+    const subscribers = this.sfu.getRoute(mediaId).stop();
     delete this.medias[mediaId];
     return subscribers;
   }
@@ -68,20 +68,20 @@ export class Router {
     transceiver: RTCRtpTransceiver,
     type: SubscriberType
   ) {
-    this.sfuRoute.getRoute(mediaId).subscribe(subscriberId, transceiver, type);
+    this.sfu.getRoute(mediaId).subscribe(subscriberId, transceiver, type);
   }
 
   changeQuality(subscriberId: string, mediaId: string, type: SubscriberType) {
-    this.sfuRoute.getRoute(mediaId).changeQuality(subscriberId, type);
+    this.sfu.getRoute(mediaId).changeQuality(subscriberId, type);
   }
 
   unsubscribe(subscriberId: string, mediaId: string) {
-    this.sfuRoute.getRoute(mediaId).unsubscribe(subscriberId);
+    this.sfu.getRoute(mediaId).unsubscribe(subscriberId);
   }
 
   getSubscribed(subscriberId: string) {
     return this.allMedia.filter((media) =>
-      this.sfuRoute.getRoute(media.mediaId).has(subscriberId)
+      this.sfu.getRoute(media.mediaId).has(subscriberId)
     );
   }
 }

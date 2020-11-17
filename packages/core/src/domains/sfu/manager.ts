@@ -1,7 +1,7 @@
 import { Media } from "../media/media";
 import { Route } from "./route";
 
-export class SFURoutes {
+export class SFUManager {
   routes: { [mediaId: string]: Route } = {};
 
   addRoute(media: Media) {
