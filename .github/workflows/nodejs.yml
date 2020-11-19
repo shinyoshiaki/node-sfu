@@ -17,6 +17,7 @@ jobs:
 
       - uses: actions/setup-node@v1
         with:
+          always-auth: true
           node-version: "14.x"
           registry-url: "https://npm.pkg.github.com"
           scope: "@shinyoshiaki"
