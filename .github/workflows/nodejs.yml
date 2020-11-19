@@ -37,6 +37,8 @@ jobs:
       - name: prepare
         run: |
           yarn install
+      env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_SFU_PACKAGES }}
 
       - name: test
         run: |
@@ -46,7 +48,6 @@ jobs:
         run: |
           yarn build
           yarn deploy
-
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_SFU_PACKAGES }}
           CI: true
