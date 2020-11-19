@@ -17,7 +17,6 @@ jobs:
 
       - uses: actions/setup-node@v1
         with:
-          always-auth: true
           node-version: "14.x"
           registry-url: "https://npm.pkg.github.com"
           scope: "@shinyoshiaki"
@@ -48,5 +47,5 @@ jobs:
           yarn deploy
 
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_SFU_PACKAGES }}
           CI: true
