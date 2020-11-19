@@ -37,7 +37,7 @@ jobs:
       - name: prepare
         run: |
           yarn install
-      env:
+        env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_SFU_PACKAGES }}
 
       - name: test
