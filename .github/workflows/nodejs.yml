@@ -38,7 +38,7 @@ jobs:
         run: |
           yarn install
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_SFU_PACKAGES }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: test
         run: |
@@ -49,5 +49,5 @@ jobs:
           yarn build
           yarn deploy
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NODE_SFU_PACKAGES }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI: true
