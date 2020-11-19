@@ -2,7 +2,7 @@ import { RTCRtpTransceiver } from "../../../../werift";
 import { Subscriber, SubscriberType } from "./subscriber";
 import { Media } from "../media/media";
 
-export class Route {
+export class SFURouter {
   subscribers: {
     [subscriberId: string]: Subscriber;
   } = {};

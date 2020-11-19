@@ -1,20 +1,16 @@
 import debug from "debug";
 import { RTCRtpTransceiver, RtpTrack } from "../../../werift";
+import { MCUManager } from "./mcu/manager";
 import { Media } from "./media/media";
 import { SFUManager } from "./sfu/manager";
 import { SubscriberType } from "./sfu/subscriber";
 
 const log = debug("werift:sfu:router");
 
-export type MediaInfo = {
-  mediaId: string;
-  kind: string;
-  publisherId: string;
-};
-
 export class Router {
   medias: { [mediaId: string]: Media } = {};
   sfu = new SFUManager();
+  mcu = new MCUManager();
 
   get allMedia() {
     return Object.values(this.medias);
@@ -85,3 +81,9 @@ export class Router {
     );
   }
 }
+
+export type MediaInfo = {
+  mediaId: string;
+  kind: string;
+  publisherId: string;
+};

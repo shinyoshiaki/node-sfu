@@ -1,11 +1,11 @@
 import { Media } from "../media/media";
-import { Route } from "./route";
+import { SFURouter } from "./router";
 
 export class SFUManager {
-  routes: { [mediaId: string]: Route } = {};
+  routes: { [mediaId: string]: SFURouter } = {};
 
   addRoute(media: Media) {
-    this.routes[media.mediaId] = new Route(media);
+    this.routes[media.mediaId] = new SFURouter(media);
   }
 
   getRoute(mediaId: string) {

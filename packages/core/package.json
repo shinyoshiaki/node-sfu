@@ -33,6 +33,8 @@
     "unused": "organize-imports-cli src/**/*.ts"
   },
   "dependencies": {
+    "@discordjs/opus": "^0.3.3",
+    "@shinyoshiaki/audio-mixer": "^0.0.5",
     "debug": "^4.2.0",
     "lodash": "^4.17.20",
     "uuid": "^8.3.0",
