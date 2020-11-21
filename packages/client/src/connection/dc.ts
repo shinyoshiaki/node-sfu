@@ -10,6 +10,7 @@ import {
   HandleOffer,
   Subscribe,
 } from "../";
+import { ListenMixedAudio } from "../../../core/src";
 
 export class DataChannelConnection {
   readonly onmessage = new Event<[string]>();
@@ -57,6 +58,14 @@ export class DataChannelConnection {
   async subscribe(payload: Subscribe["payload"]) {
     this.sendRPC<Subscribe>({
       type: "subscribe",
+      payload,
+    });
+    return await this.waitRPC<HandleOffer>("handleOffer");
+  }
+
+  async listenMixedAudio(payload: ListenMixedAudio["payload"]) {
+    this.sendRPC<ListenMixedAudio>({
+      type: "listenMixedAudio",
       payload,
     });
     return await this.waitRPC<HandleOffer>("handleOffer");

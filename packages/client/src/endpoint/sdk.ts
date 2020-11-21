@@ -86,6 +86,15 @@ export class ClientSDK {
     });
   }
 
+  async listenMixedAudio(infos: MediaInfo[]) {
+    const [offer, meta] = await this.dcConnection.listenMixedAudio([
+      this.peerId,
+      infos,
+    ]);
+    const answer = await this.sfu.listenMixedAudio(offer as any, meta);
+    await this.dcConnection.sendAnswer(answer);
+  }
+
   changeQuality(info: MediaInfo, type: SubscriberType) {
     this.dcConnection.changeQuality([this.peerId, info, type]);
   }
