@@ -17,14 +17,15 @@ export class RoomManager {
   create(name = v4()) {
     console.log(process.cwd(), process.env.PWD);
 
-    const room = wrap(
-      Room,
-      workerThreadsWrapper(
-        new Worker(workerLoaderPath, {
-          workerData: { path: workerPath },
-        })
-      )
-    );
+    // const room = wrap(
+    //   Room,
+    //   workerThreadsWrapper(
+    //     new Worker(workerLoaderPath, {
+    //       workerData: { path: workerPath },
+    //     })
+    //   )
+    // );
+    const room = new Room();
     this.rooms[name] = room as any;
     return name;
   }
