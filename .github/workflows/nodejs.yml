@@ -36,6 +36,8 @@ jobs:
 
       - name: prepare
         run: |
+          sudo apt-get update
+          sudo apt-get install libasound2-dev -y
           yarn install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
