@@ -67,6 +67,11 @@ export class Router {
     this.sfu.getRoute(mediaId).subscribe(subscriberId, transceiver, type);
   }
 
+  listenMixedAudio(mediaIds: string[], transceiver: RTCRtpTransceiver) {
+    const medias = mediaIds.map((id) => this.medias[id]);
+    return this.mcu.subscribe(medias, transceiver);
+  }
+
   changeQuality(subscriberId: string, mediaId: string, type: SubscriberType) {
     this.sfu.getRoute(mediaId).changeQuality(subscriberId, type);
   }

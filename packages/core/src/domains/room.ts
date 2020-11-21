@@ -170,6 +170,22 @@ export class Room {
     return { peer, meta };
   }
 
+  async listenMixedAudio(subscriberId: string, infos: MediaInfo[]) {
+    const peer = this.peers[subscriberId];
+    const transceiver = peer.addTransceiver("audio", "sendonly");
+    await peer.setLocalDescription(peer.createOffer());
+
+    infos = infos.filter((info) => info.publisherId !== subscriberId);
+
+    const mixId = this.router.listenMixedAudio(
+      infos.map((v) => v.mediaId),
+      transceiver
+    );
+    const meta = { mid: transceiver.mid, mixId };
+
+    return { peer, meta };
+  }
+
   changeQuality(subscriberId: string, info: MediaInfo, type: SubscriberType) {
     this.router.changeQuality(subscriberId, info.mediaId, type);
   }

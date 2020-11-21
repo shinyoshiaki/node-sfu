@@ -27,6 +27,7 @@ export class MCUMixer {
 
   constructor(medias: Media[], private sender: RTCRtpTransceiver) {
     medias.forEach((media) => this.inputMedia(media.tracks[0].track));
+    this.listen();
   }
 
   inputMedia(track: RtpTrack) {
@@ -55,7 +56,7 @@ export class MCUMixer {
         timestamp: Number(this.timestamp),
         payloadType: 96,
         payloadOffset: 12,
-        extension: false,
+        extension: true,
         marker: false,
         padding: false,
       });

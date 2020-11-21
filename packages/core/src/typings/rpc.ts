@@ -54,6 +54,11 @@ export interface Subscribe extends RPC {
   payload: [string, RequestSubscribe[]];
 }
 
+export interface ListenMixedAudio extends RPC {
+  type: "listenMixedAudio";
+  payload: [string, MediaInfo[]];
+}
+
 export interface Leave extends RPC {
   type: "leave";
   payload: [string];

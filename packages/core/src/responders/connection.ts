@@ -7,6 +7,9 @@ import {
   HandlePublish,
   HandleJoin,
   RPC,
+  Subscribe,
+  ListenMixedAudio,
+  GetMedias,
 } from "../typings/rpc";
 import {
   Kind,
@@ -97,7 +100,7 @@ export class Connection {
     );
   };
 
-  getMedias = (peerId: string) => {
+  getMedias = (peerId: GetMedias["payload"][0]) => {
     const [peer, mediaInfos] = this.room.getMedias(peerId);
     this.sendRPC<HandleMedias>(
       {
@@ -109,10 +112,27 @@ export class Connection {
   };
 
   subscribe = async (
-    subscriberId: string,
-    requests: { info: MediaInfo; type: SubscriberType }[]
+    subscriberId: Subscribe["payload"][0],
+    requests: Subscribe["payload"][1]
   ) => {
     const { peer, meta } = await this.room.subscribe(subscriberId, requests);
+    this.sendRPC<HandleOffer>(
+      {
+        type: "handleOffer",
+        payload: [peer.localDescription, meta],
+      },
+      peer
+    );
+  };
+
+  listenMixedAudio = async (
+    subscriberId: ListenMixedAudio["payload"][0],
+    infos: ListenMixedAudio["payload"][1]
+  ) => {
+    const { peer, meta } = await this.room.listenMixedAudio(
+      subscriberId,
+      infos
+    );
     this.sendRPC<HandleOffer>(
       {
         type: "handleOffer",

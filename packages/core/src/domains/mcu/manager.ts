@@ -8,6 +8,7 @@ export class MCUManager {
   subscribe(medias: Media[], sender: RTCRtpTransceiver) {
     const mixer = new MCUMixer(medias, sender);
     this.mixers[mixer.id] = mixer;
+    return mixer.id;
   }
 
   addMedia(mixerId: string, media: Media) {
