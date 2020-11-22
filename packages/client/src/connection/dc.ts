@@ -1,13 +1,13 @@
 import Event from "rx.mini";
 import {
-  HandleAnswer,
-  HandleCandidate,
-  RPC,
-  Publish,
   ChangeQuality,
   GetMedias,
+  HandleAnswer,
+  HandleCandidate,
   HandleMedias,
   HandleOffer,
+  Publish,
+  RPC,
   Subscribe,
 } from "../";
 import {

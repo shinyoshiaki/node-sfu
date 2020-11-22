@@ -1,10 +1,10 @@
-import { PromiseQueue } from "../util";
-import { MediaInfo, Kind, RequestSubscribe, SubscriberType } from "../";
-import { HttpConnection } from "../connection/http";
+import { Kind, MediaInfo, RequestSubscribe, SubscriberType } from "../";
 import { DataChannelConnection } from "../connection/dc";
-import { SFU } from "../domain/sfu";
-import { SFUEndpoint } from "./sfu";
+import { HttpConnection } from "../connection/http";
 import { Events } from "../context/events";
+import { SFU } from "../domain/sfu";
+import { PromiseQueue } from "../util";
+import { SFUEndpoint } from "./sfu";
 
 export class ClientSDK {
   private readonly httpConnection = new HttpConnection({ url: this.url });

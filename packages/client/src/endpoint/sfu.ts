@@ -1,7 +1,7 @@
 import { MediaInfo, RPC } from "../";
 import { DataChannelConnection } from "../connection/dc";
-import { SFU } from "../domain/sfu";
 import { Events } from "../context/events";
+import { SFU } from "../domain/sfu";
 
 export class SFUEndpoint {
   private dcConnection!: DataChannelConnection;

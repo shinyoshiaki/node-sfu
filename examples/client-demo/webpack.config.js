@@ -45,9 +45,11 @@ module.exports = {
     }),
   ],
   devServer: {
-    disableHostCheck: true,
     contentBase: __dirname + "/public",
-    historyApiFallback: true,
     publicPath: "/",
+    disableHostCheck: true,
+    historyApiFallback: true,
+    open: true,
+    hot: true,
   },
 };
