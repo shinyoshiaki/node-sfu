@@ -786,7 +786,8 @@ function createMediaDescriptionForTransceiver(
 
   if (transceiver.options.simulcast) {
     media.simulcastParameters = transceiver.options.simulcast.map(
-      (o) => new RTCRtpSimulcastParameters(o)
+      // todo fix
+      (o) => new RTCRtpSimulcastParameters(o as any)
     );
   }
 

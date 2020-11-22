@@ -72,5 +72,5 @@ export const Directions = [
 export type Direction = typeof Directions[number];
 
 export type TransceiverOptions = {
-  simulcast: { direction: "send" | "recv"; rid: string }[];
+  simulcast: { direction: string; rid: string }[];
 };
