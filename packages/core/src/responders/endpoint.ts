@@ -1,4 +1,4 @@
-import { RTCIceCandidateJSON, RTCSessionDescription } from "../../../../werift";
+import { RTCIceCandidateJSON, RTCSessionDescription } from "../../../werift";
 import { Room } from "../domains/room";
 
 export class Endpoint {

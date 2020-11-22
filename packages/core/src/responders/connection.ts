@@ -7,17 +7,22 @@ import {
   HandlePublish,
   HandleJoin,
   RPC,
-} from "../../typings/rpc";
+  Subscribe,
+  ListenMixedAudio,
+  GetMedias,
+  Leave,
+  ChangeQuality,
+  AddMixedAudioTrack,
+  RemoveMixedAudioTrack,
+} from "../typings/rpc";
 import {
   Kind,
   RTCDataChannel,
   RTCIceCandidateJSON,
   RTCPeerConnection,
   RTCSessionDescription,
-} from "../../../../werift";
+} from "../../../werift";
 import { Room } from "../domains/room";
-import { MediaInfo } from "../domains/router";
-import { SubscriberType } from "../domains/subscriber";
 
 export class Connection {
   constructor(private room: Room) {}
@@ -45,10 +50,16 @@ export class Connection {
     });
   }
 
-  // ---------------------------------------------------------------------------
+  private async createOffer(peerID: string) {
+    const peer = this.room.peers[peerID];
+    await peer.setLocalDescription(peer.createOffer());
+    return peer;
+  }
 
   handleAnswer = async (peerId: string, answer: RTCSessionDescription) => {
-    const peer = await this.room.handleAnswer(peerId, answer);
+    const peer = this.room.peers[peerId];
+    await peer.setRemoteDescription(answer);
+
     this.sendRPC<HandleAnswerDone>(
       { type: "handleAnswerDone", payload: [] },
       peer
@@ -56,10 +67,13 @@ export class Connection {
   };
 
   handleCandidate = async (peerId: string, candidate: RTCIceCandidateJSON) => {
-    await this.room.handleCandidate(peerId, candidate);
+    const peer = this.room.peers[peerId];
+    await peer.addIceCandidate(candidate);
   };
 
-  leave = async (peerId: string) => {
+  // ---------------------------------------------------------------------------
+
+  leave = async (peerId: Leave["payload"][0]) => {
     const [peers, infos] = await this.room.leave(peerId);
     peers.forEach((peer) =>
       this.sendRPC<HandleLeave>(
@@ -74,7 +88,7 @@ export class Connection {
     request: { kind: Kind; simulcast: boolean }[]
   ) => {
     this.room.publish(publisherId, request).then((responds) => {
-      responds.forEach(([peers, info]) =>
+      responds.forEach(({ peers, info }) =>
         peers.forEach((peer) => {
           this.sendRPC<HandlePublish>(
             {
@@ -87,7 +101,7 @@ export class Connection {
       );
     });
 
-    const peer = await this.room.createOffer(publisherId);
+    const peer = await this.createOffer(publisherId);
     this.sendRPC<HandleOffer>(
       {
         type: "handleOffer",
@@ -97,7 +111,7 @@ export class Connection {
     );
   };
 
-  getMedias = (peerId: string) => {
+  getMedias = (peerId: GetMedias["payload"][0]) => {
     const [peer, mediaInfos] = this.room.getMedias(peerId);
     this.sendRPC<HandleMedias>(
       {
@@ -109,10 +123,10 @@ export class Connection {
   };
 
   subscribe = async (
-    subscriberId: string,
-    requests: { info: MediaInfo; type: SubscriberType }[]
+    subscriberId: Subscribe["payload"][0],
+    requests: Subscribe["payload"][1]
   ) => {
-    const [peer, meta] = await this.room.subscribe(subscriberId, requests);
+    const { peer, meta } = await this.room.subscribe(subscriberId, requests);
     this.sendRPC<HandleOffer>(
       {
         type: "handleOffer",
@@ -122,6 +136,25 @@ export class Connection {
     );
   };
 
+  listenMixedAudio = async (...args: ListenMixedAudio["payload"]) => {
+    const { peer, meta } = await this.room.listenMixedAudio(...args);
+    this.sendRPC<HandleOffer>(
+      {
+        type: "handleOffer",
+        payload: [peer.localDescription, meta],
+      },
+      peer
+    );
+  };
+
+  addMixedAudioTrack = (...args: AddMixedAudioTrack["payload"]) => {
+    this.room.addMixedAudioTrack(...args);
+  };
+
+  removeMixedAudioTrack = (...args: RemoveMixedAudioTrack["payload"]) => {
+    this.room.removeMixedAudioTrack(...args);
+  };
+
   join = (peerId: string) => {
     Object.entries(this.room.peers).forEach(([id, peer]) => {
       if (id === peerId) return;
@@ -129,12 +162,8 @@ export class Connection {
     });
   };
 
-  changeQuality = (
-    subscriberId: string,
-    info: MediaInfo,
-    type: SubscriberType
-  ) => {
-    this.room.changeQuality(subscriberId, info, type);
+  changeQuality = (...args: ChangeQuality["payload"]) => {
+    this.room.changeQuality(...args);
   };
 
   private sendRPC<T extends RPC>(msg: T, peer: RTCPeerConnection) {

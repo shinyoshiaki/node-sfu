@@ -4,7 +4,7 @@ import {
   RtcpPayloadSpecificFeedback,
   RTCRtpTransceiver,
 } from "../../../../werift";
-import { Track } from "./track";
+import { Track } from "../media/track";
 
 const log = debug("werift:sfu:subscriber");
 

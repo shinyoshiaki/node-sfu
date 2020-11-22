@@ -1,21 +1,22 @@
 import { v4 } from "uuid";
+import debug from "debug";
 import {
   Kind,
-  RTCIceCandidateJSON,
   RTCPeerConnection,
   RTCRtpTransceiver,
-  RTCSessionDescription,
   useSdesMid,
   useAbsSendTime,
   useSdesRTPStreamID,
-} from "../../../../werift";
+} from "../../../werift";
 import { Connection } from "../responders/connection";
 import { MediaInfo, Router } from "./router";
-import { SubscriberType } from "./subscriber";
+import { SubscriberType } from "./sfu/subscriber";
+
+const log = debug("werift:sfu:room");
 
 export class Room {
-  router = new Router();
-  connection = new Connection(this);
+  readonly router = new Router();
+  readonly connection = new Connection(this);
   peers: { [peerId: string]: RTCPeerConnection } = {};
 
   async join() {
@@ -24,7 +25,7 @@ export class Room {
       stunServer: ["stun.l.google.com", 19302],
       headerExtensions: {
         video: [useSdesMid(1), useAbsSendTime(2), useSdesRTPStreamID(3)],
-        audio: [useSdesMid(1), useAbsSendTime(2), useSdesRTPStreamID(3)],
+        audio: [useSdesMid(1), useAbsSendTime(2)],
       },
     });
     this.peers[peerId] = peer;
@@ -36,31 +37,10 @@ export class Room {
     return [peerId, peer.localDescription];
   }
 
-  async handleAnswer(peerId: string, answer: RTCSessionDescription) {
-    const peer = this.peers[peerId];
-    await peer.setRemoteDescription(answer);
-    return peer;
-  }
-
-  async handleCandidate(peerId: string, candidate: RTCIceCandidateJSON) {
-    const peer = this.peers[peerId];
-    await peer.addIceCandidate(candidate);
-  }
-
   async leave(peerId: string): Promise<[RTCPeerConnection[], MediaInfo[]]> {
-    this.router.getSubscribed(peerId).forEach((media) => {
-      this.router.unsubscribe(peerId, media.publisherId, media.mediaId);
-    });
-
-    const infos = this.router.mediaInfos.filter(
-      (info) => info.publisherId === peerId
-    );
-    const subscribers = infos.map((info) =>
-      this.router.removeMedia(peerId, info.mediaId)
-    );
+    const { subscribers, infos } = this.router.leave(peerId);
 
     const targets: { [subscriberId: string]: RTCPeerConnection } = {};
-
     subscribers.forEach((subscriber) => {
       Object.entries(subscriber).forEach(([subscriberId, pair]) => {
         const peer = this.peers[subscriberId];
@@ -85,7 +65,7 @@ export class Room {
     publisherId: string,
     request: { kind: Kind; simulcast: boolean }[]
   ) {
-    console.log("publish", publisherId, request);
+    log("publish", publisherId, request);
     const peer = this.peers[publisherId];
 
     const transceivers = request.map(({ kind, simulcast }): [
@@ -110,39 +90,28 @@ export class Room {
     });
 
     const responds = await Promise.all(
-      transceivers.map(
-        async ([receiver, kind, simulcast]): Promise<
-          [RTCPeerConnection[], MediaInfo]
-        > => {
-          const mediaId = "m_" + v4();
-          const mediaInfo = this.router.addMedia(publisherId, mediaId, kind);
+      transceivers.map(async ([receiver, kind, simulcast]) => {
+        const info = this.router.createMedia(publisherId, kind);
 
-          if (simulcast) {
-            await receiver.onTrack.asPromise();
-            receiver.receiver.tracks.forEach((track) =>
-              this.router.addTrack(publisherId, track, receiver, mediaId)
-            );
-          } else {
-            const [track] = await receiver.onTrack.asPromise();
-            this.router.addTrack(publisherId, track, receiver, mediaId);
-          }
-
-          const peers = Object.values(this.peers).filter(
-            (others) => others.cname !== peer.cname
+        if (simulcast) {
+          await receiver.onTrack.asPromise();
+          receiver.receiver.tracks.forEach((track) =>
+            this.router.addTrack(track, receiver, info.mediaId)
           );
-
-          return [peers, mediaInfo];
+        } else {
+          const [track] = await receiver.onTrack.asPromise();
+          this.router.addTrack(track, receiver, info.mediaId);
         }
-      )
+
+        const peers = Object.values(this.peers).filter(
+          (others) => others.cname !== peer.cname
+        );
+
+        return { peers, info };
+      })
     );
 
     return responds;
-  }
-
-  async createOffer(peerID: string) {
-    const peer = this.peers[peerID];
-    await peer.setLocalDescription(peer.createOffer());
-    return peer;
   }
 
   getMedias(peerId: string): [RTCPeerConnection, MediaInfo[]] {
@@ -154,43 +123,48 @@ export class Room {
   async subscribe(
     subscriberId: string,
     requests: { info: MediaInfo; type: SubscriberType }[]
-  ): Promise<
-    [
-      RTCPeerConnection,
-      {
-        mediaId: string;
-        mid: string;
-      }[]
-    ]
-  > {
+  ) {
     const peer = this.peers[subscriberId];
 
     const pairs = requests.map(({ info, type }) => {
-      const { publisherId, mediaId, kind } = info;
+      const { mediaId, kind } = info;
       const transceiver = peer.addTransceiver(kind as Kind, "sendonly");
-      this.router.subscribe(
-        subscriberId,
-        publisherId,
-        mediaId,
-        transceiver,
-        type
-      );
+      this.router.subscribe(subscriberId, mediaId, transceiver, type);
       return { mediaId, uuid: transceiver.uuid };
     });
     await peer.setLocalDescription(peer.createOffer());
     const meta = pairs.map(({ mediaId, uuid }) => {
-      const transceiver = peer.transceivers.find((t) => t.uuid === uuid)!;
+      const transceiver = peer.transceivers.find((t) => t.uuid === uuid);
       return { mediaId, mid: transceiver.mid };
     });
-    return [peer, meta];
+    return { peer, meta };
+  }
+
+  async listenMixedAudio(subscriberId: string, infos: MediaInfo[]) {
+    const peer = this.peers[subscriberId];
+    const transceiver = peer.addTransceiver("audio", "sendonly");
+    await peer.setLocalDescription(peer.createOffer());
+
+    infos = infos.filter((info) => info.publisherId !== subscriberId);
+
+    const mixId = this.router.listenMixedAudio(
+      infos.map((v) => v.mediaId),
+      transceiver
+    );
+    const meta = { mid: transceiver.mid, mixId };
+
+    return { peer, meta };
+  }
+
+  addMixedAudioTrack(mixerId: string, info: MediaInfo) {
+    this.router.addMixedAudioTrack(mixerId, info.mediaId);
+  }
+
+  removeMixedAudioTrack(mixerId: string, info: MediaInfo) {
+    this.router.removeMixedAudioTrack(mixerId, info.mediaId);
   }
 
   changeQuality(subscriberId: string, info: MediaInfo, type: SubscriberType) {
-    this.router.changeQuality(
-      subscriberId,
-      info.publisherId,
-      info.mediaId,
-      type
-    );
+    this.router.changeQuality(subscriberId, info.mediaId, type);
   }
 }

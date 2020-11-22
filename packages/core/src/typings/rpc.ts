@@ -1,5 +1,5 @@
-import { MediaInfo } from "../sfu/domains/router";
-import { SubscriberType } from "../sfu/domains/subscriber";
+import { MediaInfo } from "../domains/router";
+import { SubscriberType } from "../domains/sfu/subscriber";
 import {
   Kind,
   RTCIceCandidateJSON,
@@ -52,6 +52,21 @@ export type RequestSubscribe = { info: MediaInfo; type: SubscriberType };
 export interface Subscribe extends RPC {
   type: "subscribe";
   payload: [string, RequestSubscribe[]];
+}
+
+export interface ListenMixedAudio extends RPC {
+  type: "listenMixedAudio";
+  payload: [string, MediaInfo[]];
+}
+
+export interface AddMixedAudioTrack extends RPC {
+  type: "addMixedAudioTrack";
+  payload: [string, MediaInfo];
+}
+
+export interface RemoveMixedAudioTrack extends RPC {
+  type: "removeMixedAudioTrack";
+  payload: [string, MediaInfo];
 }
 
 export interface Leave extends RPC {

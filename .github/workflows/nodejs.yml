@@ -17,9 +17,10 @@ jobs:
 
       - uses: actions/setup-node@v1
         with:
+          always-auth: true
           node-version: "14.x"
           registry-url: "https://npm.pkg.github.com"
-          scope: "@node-sfu"
+          scope: "@shinyoshiaki"
 
       - name: Cache node modules
         uses: actions/cache@v2
@@ -35,7 +36,11 @@ jobs:
 
       - name: prepare
         run: |
+          sudo apt-get update
+          sudo apt-get install libasound2-dev -y
           yarn install
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: test
         run: |
@@ -45,7 +50,6 @@ jobs:
         run: |
           yarn build
           yarn deploy
-
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI: true

@@ -86,6 +86,23 @@ export class ClientSDK {
     });
   }
 
+  async listenMixedAudio(infos: MediaInfo[]) {
+    const [offer, meta] = await this.dcConnection.listenMixedAudio([
+      this.peerId,
+      infos,
+    ]);
+    const answer = await this.sfu.listenMixedAudio(offer as any, meta);
+    await this.dcConnection.sendAnswer(answer);
+  }
+
+  addMixedAudioTrack(mixerId: string, info: MediaInfo) {
+    this.dcConnection.addMixedAudioTrack([mixerId, info]);
+  }
+
+  removeMixedAudioTrack(mixerId: string, info: MediaInfo) {
+    this.dcConnection.removeMixedAudioTrack([mixerId, info]);
+  }
+
   changeQuality(info: MediaInfo, type: SubscriberType) {
     this.dcConnection.changeQuality([this.peerId, info, type]);
   }

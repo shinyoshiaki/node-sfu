@@ -80,6 +80,13 @@ export class SFU {
     return this.setOffer(offer);
   }
 
+  async listenMixedAudio(
+    offer: RTCSessionDescription,
+    meta: { mid: string; mixId: string }
+  ) {
+    return this.setOffer(offer);
+  }
+
   async handleLeave(infos: MediaInfo[], offer: RTCSessionDescription) {
     this.events.onLeave.execute(infos);
 
