@@ -1,21 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import {
-  HandleAnswerDone,
-  HandleLeave,
-  HandleMedias,
-  HandleOffer,
-  HandlePublish,
-  HandleJoin,
-  RPC,
-  Subscribe,
-  ListenMixedAudio,
-  GetMedias,
-  Leave,
-  ChangeQuality,
-  AddMixedAudioTrack,
-  RemoveMixedAudioTrack,
-} from "../typings/rpc";
-import {
   Kind,
   RTCDataChannel,
   RTCIceCandidateJSON,
@@ -23,6 +7,22 @@ import {
   RTCSessionDescription,
 } from "../../../werift";
 import { Room } from "../domains/room";
+import {
+  AddMixedAudioTrack,
+  ChangeQuality,
+  GetMedias,
+  HandleAnswerDone,
+  HandleJoin,
+  HandleLeave,
+  HandleMedias,
+  HandleOffer,
+  HandlePublish,
+  Leave,
+  ListenMixedAudio,
+  RemoveMixedAudioTrack,
+  RPC,
+  Subscribe,
+} from "../typings/rpc";
 
 export class Connection {
   constructor(private room: Room) {}
