@@ -11,6 +11,9 @@ import {
   ListenMixedAudio,
   GetMedias,
   Leave,
+  ChangeQuality,
+  AddMixedAudioTrack,
+  RemoveMixedAudioTrack,
 } from "../typings/rpc";
 import {
   Kind,
@@ -20,8 +23,6 @@ import {
   RTCSessionDescription,
 } from "../../../werift";
 import { Room } from "../domains/room";
-import { MediaInfo } from "../domains/router";
-import { SubscriberType } from "../domains/sfu/subscriber";
 
 export class Connection {
   constructor(private room: Room) {}
@@ -135,14 +136,8 @@ export class Connection {
     );
   };
 
-  listenMixedAudio = async (
-    subscriberId: ListenMixedAudio["payload"][0],
-    infos: ListenMixedAudio["payload"][1]
-  ) => {
-    const { peer, meta } = await this.room.listenMixedAudio(
-      subscriberId,
-      infos
-    );
+  listenMixedAudio = async (...args: ListenMixedAudio["payload"]) => {
+    const { peer, meta } = await this.room.listenMixedAudio(...args);
     this.sendRPC<HandleOffer>(
       {
         type: "handleOffer",
@@ -152,6 +147,14 @@ export class Connection {
     );
   };
 
+  addMixedAudioTrack = (...args: AddMixedAudioTrack["payload"]) => {
+    this.room.addMixedAudioTrack(...args);
+  };
+
+  removeMixedAudioTrack = (...args: RemoveMixedAudioTrack["payload"]) => {
+    this.room.removeMixedAudioTrack(...args);
+  };
+
   join = (peerId: string) => {
     Object.entries(this.room.peers).forEach(([id, peer]) => {
       if (id === peerId) return;
@@ -159,12 +162,8 @@ export class Connection {
     });
   };
 
-  changeQuality = (
-    subscriberId: string,
-    info: MediaInfo,
-    type: SubscriberType
-  ) => {
-    this.room.changeQuality(subscriberId, info, type);
+  changeQuality = (...args: ChangeQuality["payload"]) => {
+    this.room.changeQuality(...args);
   };
 
   private sendRPC<T extends RPC>(msg: T, peer: RTCPeerConnection) {

@@ -13,7 +13,12 @@ export class MCUManager {
 
   addMedia(mixerId: string, media: Media) {
     const mixer = this.mixers[mixerId];
-    mixer.inputMedia(media.tracks[0].track);
+    mixer.inputMedia(media);
+  }
+
+  removeMedia(mixerId: string, mediaId: string) {
+    const mixer = this.mixers[mixerId];
+    mixer.removeMedia(mediaId);
   }
 
   close(mixerId: string) {

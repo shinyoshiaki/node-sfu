@@ -95,6 +95,14 @@ export class ClientSDK {
     await this.dcConnection.sendAnswer(answer);
   }
 
+  addMixedAudioTrack(mixerId: string, info: MediaInfo) {
+    this.dcConnection.addMixedAudioTrack([mixerId, info]);
+  }
+
+  removeMixedAudioTrack(mixerId: string, info: MediaInfo) {
+    this.dcConnection.removeMixedAudioTrack([mixerId, info]);
+  }
+
   changeQuality(info: MediaInfo, type: SubscriberType) {
     this.dcConnection.changeQuality([this.peerId, info, type]);
   }

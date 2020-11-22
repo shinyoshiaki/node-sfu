@@ -156,6 +156,14 @@ export class Room {
     return { peer, meta };
   }
 
+  addMixedAudioTrack(mixerId: string, info: MediaInfo) {
+    this.router.addMixedAudioTrack(mixerId, info.mediaId);
+  }
+
+  removeMixedAudioTrack(mixerId: string, info: MediaInfo) {
+    this.router.removeMixedAudioTrack(mixerId, info.mediaId);
+  }
+
   changeQuality(subscriberId: string, info: MediaInfo, type: SubscriberType) {
     this.router.changeQuality(subscriberId, info.mediaId, type);
   }

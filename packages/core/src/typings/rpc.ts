@@ -59,6 +59,16 @@ export interface ListenMixedAudio extends RPC {
   payload: [string, MediaInfo[]];
 }
 
+export interface AddMixedAudioTrack extends RPC {
+  type: "addMixedAudioTrack";
+  payload: [string, MediaInfo];
+}
+
+export interface RemoveMixedAudioTrack extends RPC {
+  type: "removeMixedAudioTrack";
+  payload: [string, MediaInfo];
+}
+
 export interface Leave extends RPC {
   type: "leave";
   payload: [string];

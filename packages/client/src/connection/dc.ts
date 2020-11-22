@@ -10,7 +10,11 @@ import {
   HandleOffer,
   Subscribe,
 } from "../";
-import { ListenMixedAudio } from "../../../core/src";
+import {
+  AddMixedAudioTrack,
+  ListenMixedAudio,
+  RemoveMixedAudioTrack,
+} from "../../../core/src";
 
 export class DataChannelConnection {
   readonly onmessage = new Event<[string]>();
@@ -69,6 +73,20 @@ export class DataChannelConnection {
       payload,
     });
     return await this.waitRPC<HandleOffer>("handleOffer");
+  }
+
+  addMixedAudioTrack(payload: AddMixedAudioTrack["payload"]) {
+    this.sendRPC<AddMixedAudioTrack>({
+      type: "addMixedAudioTrack",
+      payload,
+    });
+  }
+
+  removeMixedAudioTrack(payload: RemoveMixedAudioTrack["payload"]) {
+    this.sendRPC<RemoveMixedAudioTrack>({
+      type: "removeMixedAudioTrack",
+      payload,
+    });
   }
 
   changeQuality(payload: ChangeQuality["payload"]) {
