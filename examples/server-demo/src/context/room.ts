@@ -41,7 +41,7 @@ export class RoomManager {
 
   async answer(name: string, peerId: string, answer: RTCSessionDescription) {
     const room = this.rooms[name];
-    return room.handleAnswer(peerId, answer);
+    return room.connection.handleAnswer(peerId, answer);
   }
 
   async candidate(
@@ -50,6 +50,6 @@ export class RoomManager {
     candidate: RTCIceCandidateJSON
   ) {
     const room = this.rooms[name];
-    return room.handleCandidate(peerId, candidate);
+    return room.connection.handleCandidate(peerId, candidate);
   }
 }

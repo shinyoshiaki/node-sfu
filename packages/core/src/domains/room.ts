@@ -2,10 +2,8 @@ import { v4 } from "uuid";
 import debug from "debug";
 import {
   Kind,
-  RTCIceCandidateJSON,
   RTCPeerConnection,
   RTCRtpTransceiver,
-  RTCSessionDescription,
   useSdesMid,
   useAbsSendTime,
   useSdesRTPStreamID,
@@ -17,8 +15,8 @@ import { SubscriberType } from "./sfu/subscriber";
 const log = debug("werift:sfu:room");
 
 export class Room {
-  router = new Router();
-  connection = new Connection(this);
+  readonly router = new Router();
+  readonly connection = new Connection(this);
   peers: { [peerId: string]: RTCPeerConnection } = {};
 
   async join() {
@@ -27,7 +25,7 @@ export class Room {
       stunServer: ["stun.l.google.com", 19302],
       headerExtensions: {
         video: [useSdesMid(1), useAbsSendTime(2), useSdesRTPStreamID(3)],
-        audio: [useSdesMid(1), useAbsSendTime(2), useSdesRTPStreamID(3)],
+        audio: [useSdesMid(1), useAbsSendTime(2)],
       },
     });
     this.peers[peerId] = peer;
@@ -39,31 +37,10 @@ export class Room {
     return [peerId, peer.localDescription];
   }
 
-  async handleAnswer(peerId: string, answer: RTCSessionDescription) {
-    const peer = this.peers[peerId];
-    await peer.setRemoteDescription(answer);
-    return peer;
-  }
-
-  async handleCandidate(peerId: string, candidate: RTCIceCandidateJSON) {
-    const peer = this.peers[peerId];
-    await peer.addIceCandidate(candidate);
-  }
-
   async leave(peerId: string): Promise<[RTCPeerConnection[], MediaInfo[]]> {
-    this.router.getSubscribed(peerId).forEach((media) => {
-      this.router.unsubscribe(peerId, media.mediaId);
-    });
-
-    const infos = this.router.mediaInfos.filter(
-      (info) => info.publisherId === peerId
-    );
-    const subscribers = infos.map((info) =>
-      this.router.removeMedia(info.mediaId)
-    );
+    const { subscribers, infos } = this.router.leave(peerId);
 
     const targets: { [subscriberId: string]: RTCPeerConnection } = {};
-
     subscribers.forEach((subscriber) => {
       Object.entries(subscriber).forEach(([subscriberId, pair]) => {
         const peer = this.peers[subscriberId];
@@ -114,17 +91,16 @@ export class Room {
 
     const responds = await Promise.all(
       transceivers.map(async ([receiver, kind, simulcast]) => {
-        const mediaId = "m_" + v4();
-        const info = this.router.addMedia(publisherId, mediaId, kind);
+        const info = this.router.createMedia(publisherId, kind);
 
         if (simulcast) {
           await receiver.onTrack.asPromise();
           receiver.receiver.tracks.forEach((track) =>
-            this.router.addTrack(track, receiver, mediaId)
+            this.router.addTrack(track, receiver, info.mediaId)
           );
         } else {
           const [track] = await receiver.onTrack.asPromise();
-          this.router.addTrack(track, receiver, mediaId);
+          this.router.addTrack(track, receiver, info.mediaId);
         }
 
         const peers = Object.values(this.peers).filter(
@@ -136,12 +112,6 @@ export class Room {
     );
 
     return responds;
-  }
-
-  async createOffer(peerID: string) {
-    const peer = this.peers[peerID];
-    await peer.setLocalDescription(peer.createOffer());
-    return peer;
   }
 
   getMedias(peerId: string): [RTCPeerConnection, MediaInfo[]] {

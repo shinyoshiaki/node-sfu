@@ -1,4 +1,5 @@
 import debug from "debug";
+import { v4 } from "uuid";
 import { RTCRtpTransceiver, RtpTrack } from "../../../werift";
 import { MCUManager } from "./mcu/manager";
 import { Media } from "./media/media";
@@ -30,7 +31,8 @@ export class Router {
     return media;
   }
 
-  addMedia(publisherId: string, mediaId: string, kind: string): MediaInfo {
+  createMedia(publisherId: string, kind: string): MediaInfo {
+    const mediaId = "m_" + v4();
     this.medias[mediaId] = new Media(mediaId, publisherId, kind);
     this.sfu.addRoute(this.medias[mediaId]);
 
@@ -80,10 +82,20 @@ export class Router {
     this.sfu.getRoute(mediaId).unsubscribe(subscriberId);
   }
 
-  getSubscribed(subscriberId: string) {
+  getSubscribed(subscriberId: string): Media[] {
     return this.allMedia.filter((media) =>
       this.sfu.getRoute(media.mediaId).has(subscriberId)
     );
+  }
+
+  leave(peerId: string) {
+    this.getSubscribed(peerId).forEach((media) => {
+      this.unsubscribe(peerId, media.mediaId);
+    });
+
+    const infos = this.mediaInfos.filter((info) => info.publisherId === peerId);
+    const subscribers = infos.map((info) => this.removeMedia(info.mediaId));
+    return { subscribers, infos };
   }
 }
 
