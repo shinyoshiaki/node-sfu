@@ -13,4 +13,10 @@ export type {
   HandleAnswer,
   HandleCandidate,
   ChangeQuality,
+  AddMixedAudioTrack,
+  ListenMixedAudio,
+  RemoveMixedAudioTrack,
+  UnPublish,
+  HandleSubscribe,
+  MidPair,
 } from "../../core/src";

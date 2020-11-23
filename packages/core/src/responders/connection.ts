@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import {
-  Kind,
   RTCDataChannel,
   RTCIceCandidateJSON,
   RTCPeerConnection,
@@ -17,12 +16,15 @@ import {
   HandleMedias,
   HandleOffer,
   HandlePublish,
+  HandleUnPublish,
   Leave,
   ListenMixedAudio,
   Publish,
   RemoveMixedAudioTrack,
   RPC,
   Subscribe,
+  UnPublish,
+  HandleSubscribe,
 } from "../typings/rpc";
 
 export class Connection {
@@ -111,8 +113,22 @@ export class Connection {
     );
   };
 
-  // WIP
-  unpublish = (...args) => {};
+  unPublish = async (...args: UnPublish["payload"]) => {
+    const [info] = args;
+
+    const { peers, peer } = await this.room.unPublish(info);
+
+    peers.forEach((peer) =>
+      this.sendRPC<HandleUnPublish>(
+        { type: "handleUnPublish", payload: [info, peer.localDescription] },
+        peer
+      )
+    );
+    this.sendRPC<HandleUnPublish>(
+      { type: "handleUnPublish", payload: [info, peer.localDescription] },
+      peer
+    );
+  };
 
   getMedias = (peerId: GetMedias["payload"][0]) => {
     const [peer, mediaInfos] = this.room.getMedias(peerId);
@@ -130,9 +146,9 @@ export class Connection {
     requests: Subscribe["payload"][1]
   ) => {
     const { peer, meta } = await this.room.subscribe(subscriberId, requests);
-    this.sendRPC<HandleOffer>(
+    this.sendRPC<HandleSubscribe>(
       {
-        type: "handleOffer",
+        type: "handleSubscribe",
         payload: [peer.localDescription, meta],
       },
       peer

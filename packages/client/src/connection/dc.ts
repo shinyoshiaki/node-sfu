@@ -9,12 +9,13 @@ import {
   Publish,
   RPC,
   Subscribe,
-} from "../";
-import {
   AddMixedAudioTrack,
   ListenMixedAudio,
   RemoveMixedAudioTrack,
-} from "../../../core/src";
+  UnPublish,
+  HandleSubscribe,
+} from "../";
+import { HandleUnPublish } from "../../../core/src";
 
 export class DataChannelConnection {
   readonly onmessage = new Event<[string]>();
@@ -49,6 +50,15 @@ export class DataChannelConnection {
     return offer;
   }
 
+  async unPublish(payload: UnPublish["payload"]) {
+    this.sendRPC<UnPublish>({
+      type: "unPublish",
+      payload,
+    });
+    const [, offer] = await this.waitRPC<HandleUnPublish>("handleUnPublish");
+    return offer;
+  }
+
   async getMedias(payload: GetMedias["payload"]) {
     this.sendRPC<GetMedias>({
       type: "getMedias",
@@ -64,7 +74,7 @@ export class DataChannelConnection {
       type: "subscribe",
       payload,
     });
-    return await this.waitRPC<HandleOffer>("handleOffer");
+    return await this.waitRPC<HandleSubscribe>("handleSubscribe");
   }
 
   async listenMixedAudio(payload: ListenMixedAudio["payload"]) {
