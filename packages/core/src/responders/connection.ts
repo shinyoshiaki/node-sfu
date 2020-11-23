@@ -19,6 +19,7 @@ import {
   HandlePublish,
   Leave,
   ListenMixedAudio,
+  Publish,
   RemoveMixedAudioTrack,
   RPC,
   Subscribe,
@@ -83,10 +84,9 @@ export class Connection {
     );
   };
 
-  publish = async (
-    publisherId: string,
-    request: { kind: Kind; simulcast: boolean }[]
-  ) => {
+  publish = async (...args: Publish["payload"]) => {
+    const [publisherId, request] = args;
+
     this.room.publish(publisherId, request).then((responds) => {
       responds.forEach(({ peers, info }) =>
         peers.forEach((peer) => {
@@ -110,6 +110,9 @@ export class Connection {
       peer
     );
   };
+
+  // WIP
+  unpublish = (...args) => {};
 
   getMedias = (peerId: GetMedias["payload"][0]) => {
     const [peer, mediaInfos] = this.room.getMedias(peerId);

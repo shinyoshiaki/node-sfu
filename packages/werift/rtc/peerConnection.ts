@@ -264,15 +264,14 @@ export class RTCPeerConnection {
 
   /**
    * need createOffer
-   * @param sender
    */
-  removeTrack(sender: RTCRtpSender) {
-    const transceiver = this.transceivers.find(
-      (t) => t.sender.ssrc === sender.ssrc
-    );
+  removeTrack(transceiver: RTCRtpTransceiver) {
     if (transceiver.direction === "sendrecv")
       transceiver.direction = "recvonly";
-    else if (transceiver.direction === "sendonly")
+    else if (
+      transceiver.direction === "sendonly" ||
+      transceiver.direction === "recvonly"
+    )
       transceiver.direction = "inactive";
   }
 

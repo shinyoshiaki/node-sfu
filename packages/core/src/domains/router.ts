@@ -25,7 +25,7 @@ export class Router {
     }));
   }
 
-  getMedia(mediaId: string) {
+  getMedia(mediaId: string): Media {
     const media = this.medias[mediaId];
     if (!media) throw new Error();
     return media;

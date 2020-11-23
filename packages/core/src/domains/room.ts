@@ -45,7 +45,7 @@ export class Room {
       Object.entries(subscriber).forEach(([subscriberId, pair]) => {
         const peer = this.peers[subscriberId];
         if (!peer) return;
-        peer.removeTrack(pair.sender.sender);
+        peer.removeTrack(pair.sender);
         targets[subscriberId] = peer;
       });
     });
@@ -112,6 +112,14 @@ export class Room {
     );
 
     return responds;
+  }
+
+  // WIP
+  async unPublish(info: MediaInfo) {
+    const media = this.router.getMedia(info.mediaId);
+    const peer = this.peers[info.publisherId];
+    peer.removeTrack(media.tracks[0].receiver);
+    const subscribers = this.router.removeMedia(info.mediaId);
   }
 
   getMedias(peerId: string): [RTCPeerConnection, MediaInfo[]] {

@@ -33,8 +33,18 @@ export interface Publish extends RPC {
   payload: [string, RequestPublish[]];
 }
 
+export interface UnPublish extends RPC {
+  type: "unPublish";
+  payload: [MediaInfo];
+}
+
 export interface HandlePublish extends RPC {
   type: "handlePublish";
+  payload: [MediaInfo];
+}
+
+export interface HandleUnPublish extends RPC {
+  type: "handleUnPublish";
   payload: [MediaInfo];
 }
 
