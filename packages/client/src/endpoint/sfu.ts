@@ -1,4 +1,10 @@
-import { MediaInfo, RPC } from "../";
+import {
+  HandleJoin,
+  HandleLeave,
+  HandlePublish,
+  HandleUnPublish,
+  RPC,
+} from "../";
 import { DataChannelConnection } from "../connection/dc";
 import { Events } from "../context/events";
 import { SFU } from "../domain/sfu";
@@ -21,19 +27,26 @@ export class SFUEndpoint {
     });
   }
 
-  private handleLeave = async (
-    infos: MediaInfo[],
-    offer: RTCSessionDescription
-  ) => {
-    const answer = await this.sfu.handleLeave(infos, offer);
+  private handleLeave = async (...args: HandleLeave["payload"]) => {
+    const [infos, offer] = args;
+    const answer = await this.sfu.handleLeave(infos, offer as any);
     this.dcConnection.sendAnswer(answer);
   };
 
-  private handleJoin = async (peerId: string) => {
+  private handleJoin = async (...args: HandleJoin["payload"]) => {
+    const [peerId] = args;
     this.events.onJoin.execute(peerId);
   };
 
-  private handlePublish = (info: MediaInfo) => {
+  private handlePublish = (...args: HandlePublish["payload"]) => {
+    const [info] = args;
     this.events.onPublish.execute(info);
+  };
+
+  private handleUnPublish = async (...args: HandleUnPublish["payload"]) => {
+    const [info, offer] = args;
+    this.events.onUnPublish.execute(info);
+    const answer = await this.sfu.setOffer(offer as any);
+    await this.dcConnection.sendAnswer(answer);
   };
 }

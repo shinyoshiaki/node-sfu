@@ -25,6 +25,7 @@ import {
   Subscribe,
   UnPublish,
   HandleSubscribe,
+  HandleUnPublishDone,
 } from "../typings/rpc";
 
 export class Connection {
@@ -118,14 +119,16 @@ export class Connection {
 
     const { peers, peer } = await this.room.unPublish(info);
 
-    peers.forEach((peer) =>
-      this.sendRPC<HandleUnPublish>(
-        { type: "handleUnPublish", payload: [info, peer.localDescription] },
-        peer
-      )
-    );
-    this.sendRPC<HandleUnPublish>(
-      { type: "handleUnPublish", payload: [info, peer.localDescription] },
+    peers
+      .filter((p) => p.cname !== peer.cname)
+      .forEach((peer) =>
+        this.sendRPC<HandleUnPublish>(
+          { type: "handleUnPublish", payload: [info, peer.localDescription] },
+          peer
+        )
+      );
+    this.sendRPC<HandleUnPublishDone>(
+      { type: "handleUnPublishDone", payload: [peer.localDescription] },
       peer
     );
   };

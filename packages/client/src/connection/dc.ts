@@ -15,7 +15,7 @@ import {
   UnPublish,
   HandleSubscribe,
 } from "../";
-import { HandleUnPublish } from "../../../core/src";
+import { HandleUnPublishDone } from "../../../core/src";
 
 export class DataChannelConnection {
   readonly onmessage = new Event<[string]>();
@@ -55,7 +55,9 @@ export class DataChannelConnection {
       type: "unPublish",
       payload,
     });
-    const [, offer] = await this.waitRPC<HandleUnPublish>("handleUnPublish");
+    const [offer] = await this.waitRPC<HandleUnPublishDone>(
+      "handleUnPublishDone"
+    );
     return offer;
   }
 

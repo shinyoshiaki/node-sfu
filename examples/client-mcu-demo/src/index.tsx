@@ -1,5 +1,5 @@
 import App from "./App";
-import React, { createContext } from "react";
+import { createContext } from "react";
 import ReactDOM from "react-dom";
 import { ClientSDK } from "../../../packages/client/src";
 

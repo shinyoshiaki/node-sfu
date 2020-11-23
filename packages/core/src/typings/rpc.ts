@@ -48,6 +48,11 @@ export interface HandleUnPublish extends RPC {
   payload: [MediaInfo, RTCSessionDescription];
 }
 
+export interface HandleUnPublishDone extends RPC {
+  type: "handleUnPublishDone";
+  payload: [RTCSessionDescription];
+}
+
 export interface GetMedias extends RPC {
   type: "getMedias";
   payload: [string];

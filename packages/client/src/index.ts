@@ -19,4 +19,8 @@ export type {
   UnPublish,
   HandleSubscribe,
   MidPair,
+  HandleJoin,
+  HandleLeave,
+  HandlePublish,
+  HandleUnPublish,
 } from "../../core/src";

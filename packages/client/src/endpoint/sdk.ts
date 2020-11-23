@@ -68,6 +68,8 @@ export class ClientSDK {
   }
 
   async unPublish(info: MediaInfo) {
+    this.events.onUnPublish.execute(info);
+
     const offer = await this.dcConnection.unPublish([info]);
     const answer = await this.sfu.setOffer(offer as any);
 
