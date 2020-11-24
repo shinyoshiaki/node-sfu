@@ -10,7 +10,7 @@ import {
 } from "../../../werift";
 import { Connection } from "../responders/connection";
 import { MediaInfo, Router } from "./router";
-import { SubscriberType } from "./sfu/subscriber";
+import { Subscriber, SubscriberType } from "./sfu/subscriber";
 
 const log = debug("werift:sfu:room");
 
@@ -39,26 +39,39 @@ export class Room {
 
   async leave(peerId: string): Promise<[RTCPeerConnection[], MediaInfo[]]> {
     const { subscribers, infos } = this.router.leave(peerId);
-
-    const targets: { [subscriberId: string]: RTCPeerConnection } = {};
-    subscribers.forEach((subscriber) => {
-      Object.entries(subscriber).forEach(([subscriberId, pair]) => {
-        const peer = this.peers[subscriberId];
-        if (!peer) return;
-        peer.removeTrack(pair.sender);
-        targets[subscriberId] = peer;
-      });
-    });
-
     delete this.peers[peerId];
 
+    const peers = await this.retire(subscribers);
+
+    return [peers, infos];
+  }
+
+  private async retire(
+    subscribers: {
+      [subscriberId: string]: Subscriber;
+    }[]
+  ) {
+    const retires = subscribers.reduce(
+      (acc: { [subscriberId: string]: RTCPeerConnection }, subscriber) => {
+        Object.entries(subscriber).forEach(([subscriberId, pair]) => {
+          const peer = this.peers[subscriberId];
+          if (!peer) return;
+          peer.removeTrack(pair.sender);
+          acc[subscriberId] = peer;
+        });
+        return acc;
+      },
+      {}
+    );
+
     const peers = await Promise.all(
-      Object.values(targets).map(async (peer) => {
+      Object.values(retires).map(async (peer) => {
         await peer.setLocalDescription(peer.createOffer());
         return peer;
       })
     );
-    return [peers, infos];
+
+    return peers;
   }
 
   async publish(
@@ -114,12 +127,14 @@ export class Room {
     return responds;
   }
 
-  // WIP
   async unPublish(info: MediaInfo) {
     const media = this.router.getMedia(info.mediaId);
     const peer = this.peers[info.publisherId];
     peer.removeTrack(media.tracks[0].receiver);
     const subscribers = this.router.removeMedia(info.mediaId);
+    const peers = await this.retire([subscribers]);
+
+    return { peers, peer };
   }
 
   getMedias(peerId: string): [RTCPeerConnection, MediaInfo[]] {

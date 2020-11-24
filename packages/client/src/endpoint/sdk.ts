@@ -2,6 +2,7 @@ import { Kind, MediaInfo, RequestSubscribe, SubscriberType } from "../";
 import { DataChannelConnection } from "../connection/dc";
 import { HttpConnection } from "../connection/http";
 import { Events } from "../context/events";
+import { Media } from "../domain/media";
 import { SFU } from "../domain/sfu";
 import { PromiseQueue } from "../util";
 import { SFUEndpoint } from "./sfu";
@@ -14,6 +15,7 @@ export class ClientSDK {
   private readonly sfuEndpoint = new SFUEndpoint(this.events, this.sfu);
   private subscribeQueue = new PromiseQueue();
 
+  readonly media = new Media(this.events);
   readonly onPublish = this.events.onPublish;
   readonly onLeave = this.events.onLeave;
   readonly onJoin = this.events.onJoin;
@@ -62,6 +64,15 @@ export class ClientSDK {
       publishRequests,
     ]);
     const answer = await this.sfu.publish(requests, offer as any);
+    await this.dcConnection.sendAnswer(answer);
+  }
+
+  async unPublish(info: MediaInfo) {
+    this.events.onUnPublish.execute(info);
+
+    const offer = await this.dcConnection.unPublish([info]);
+    const answer = await this.sfu.setOffer(offer as any);
+
     await this.dcConnection.sendAnswer(answer);
   }
 

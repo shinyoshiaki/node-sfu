@@ -1,4 +1,4 @@
-import React, { FC, useContext, useEffect, useRef } from "react";
+import { FC, useContext, useEffect, useRef } from "react";
 import { Context } from ".";
 
 const App: FC = () => {

@@ -45,7 +45,12 @@ export interface HandlePublish extends RPC {
 
 export interface HandleUnPublish extends RPC {
   type: "handleUnPublish";
-  payload: [MediaInfo];
+  payload: [MediaInfo, RTCSessionDescription];
+}
+
+export interface HandleUnPublishDone extends RPC {
+  type: "handleUnPublishDone";
+  payload: [RTCSessionDescription];
 }
 
 export interface GetMedias extends RPC {
@@ -62,6 +67,16 @@ export type RequestSubscribe = { info: MediaInfo; type: SubscriberType };
 export interface Subscribe extends RPC {
   type: "subscribe";
   payload: [string, RequestSubscribe[]];
+}
+
+export type MidPair = {
+  mediaId: string;
+  mid: string;
+};
+
+export interface HandleSubscribe extends RPC {
+  type: "handleSubscribe";
+  payload: [RTCSessionDescription, MidPair[]];
 }
 
 export interface ListenMixedAudio extends RPC {
