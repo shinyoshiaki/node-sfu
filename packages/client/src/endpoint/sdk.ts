@@ -12,10 +12,10 @@ export class ClientSDK {
   private dcConnection!: DataChannelConnection;
   private readonly events = new Events();
   private readonly sfu = new SFU(this.events);
-  private readonly media = new Media(this.events);
   private readonly sfuEndpoint = new SFUEndpoint(this.events, this.sfu);
   private subscribeQueue = new PromiseQueue();
 
+  readonly media = new Media(this.events);
   readonly onPublish = this.events.onPublish;
   readonly onLeave = this.events.onLeave;
   readonly onJoin = this.events.onJoin;
