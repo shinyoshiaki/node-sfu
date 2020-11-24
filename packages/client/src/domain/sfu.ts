@@ -1,5 +1,5 @@
 import Event from "rx.mini";
-import { MediaInfo } from "..";
+import { MediaInfo, MidPair } from "..";
 import { Events } from "../context/events";
 
 export class SFU {
@@ -69,7 +69,7 @@ export class SFU {
   }
 
   async subscribe(
-    pairs: any[],
+    pairs: MidPair[],
     infos: MediaInfo[],
     offer: RTCSessionDescription
   ) {
@@ -93,7 +93,7 @@ export class SFU {
     return await this.setOffer(offer);
   }
 
-  private async setOffer(offer: RTCSessionDescription) {
+  async setOffer(offer: RTCSessionDescription) {
     await this.peer.setRemoteDescription(offer);
     const answer = await this.peer.createAnswer();
     await this.peer.setLocalDescription(answer);

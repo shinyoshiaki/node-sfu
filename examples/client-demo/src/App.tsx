@@ -1,24 +1,13 @@
-import React, { FC, useEffect, useRef, useState } from "react";
+import { FC, useContext, useEffect, useRef, useState } from "react";
+import { Context } from ".";
 import {
   ClientSDK,
   MediaInfo,
   SubscriberType,
 } from "../../../packages/client/src";
 
-const endpointURL = (() => {
-  //@ts-ignore
-  console.log(NODE_ENV);
-  //@ts-ignore
-  switch (NODE_ENV || "") {
-    case "dev":
-      return "http://localhost:12222";
-    default:
-      return "https://node-sfu.tk";
-  }
-})();
-
 const App: FC = () => {
-  const clientSDKRef = useRef<ClientSDK>();
+  const clientSDK = useContext(Context);
   const videos = useRef<HTMLVideoElement[]>([]);
   const [streams, setStreams] = useState<
     { stream: MediaStream; info: MediaInfo }[]
@@ -67,26 +56,23 @@ const App: FC = () => {
     console.log("joined");
   };
 
-  const changeQuality = (info: MediaInfo, type: SubscriberType) => {
-    const manager = clientSDKRef.current!;
-    manager.changeQuality(info, type);
-  };
-
   useEffect(() => {
-    const clientSDK = clientSDKRef.current;
-
-    if (!clientSDK) {
-      clientSDKRef.current = new ClientSDK(endpointURL);
-      init(clientSDKRef.current);
-      return;
-    }
-  }, [streams, clientSDKRef]);
+    init(clientSDK);
+  }, []);
 
   useEffect(() => {
     videos.current.forEach((v, i) => {
       if (streams[i]) v.srcObject = streams[i].stream;
     });
   }, [streams]);
+
+  const changeQuality = (info: MediaInfo, type: SubscriberType) => {
+    clientSDK.changeQuality(info, type);
+  };
+
+  const unPublish = (info: MediaInfo) => {
+    clientSDK.unPublish(info);
+  };
 
   return (
     <div>
@@ -97,6 +83,7 @@ const App: FC = () => {
             <button onClick={() => changeQuality(info, "low")}>low</button>
             <button onClick={() => changeQuality(info, "high")}>high</button>
             <button onClick={() => changeQuality(info, "auto")}>auto</button>
+            <button onClick={() => unPublish(info)}>un publish</button>
             <br />
             <video
               ref={(ref) => {
