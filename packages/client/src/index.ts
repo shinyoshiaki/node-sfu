@@ -23,4 +23,6 @@ export type {
   HandleLeave,
   HandlePublish,
   HandleUnPublish,
+  HandleListenMixedAudio,
+  HandleUnPublishDone,
 } from "../../core/src";

@@ -14,8 +14,9 @@ import {
   RemoveMixedAudioTrack,
   UnPublish,
   HandleSubscribe,
+  HandleListenMixedAudio,
+  HandleUnPublishDone,
 } from "../";
-import { HandleUnPublishDone } from "../../../core/src";
 
 export class DataChannelConnection {
   readonly onmessage = new Event<[string]>();
@@ -84,7 +85,7 @@ export class DataChannelConnection {
       type: "listenMixedAudio",
       payload,
     });
-    return await this.waitRPC<HandleOffer>("handleOffer");
+    return await this.waitRPC<HandleListenMixedAudio>("handleListenMixedAudio");
   }
 
   addMixedAudioTrack(payload: AddMixedAudioTrack["payload"]) {
@@ -120,6 +121,7 @@ export class DataChannelConnection {
     });
 
   private sendRPC<T extends RPC>(msg: T) {
+    console.log("sendRPC", msg);
     this.channel.send(JSON.stringify(msg));
   }
 }

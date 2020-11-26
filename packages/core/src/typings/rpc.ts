@@ -84,6 +84,16 @@ export interface ListenMixedAudio extends RPC {
   payload: [string, MediaInfo[]];
 }
 
+export type MixIdPair = {
+  mid: string;
+  mixId: string;
+};
+
+export interface HandleListenMixedAudio extends RPC {
+  type: "handleListenMixedAudio";
+  payload: [RTCSessionDescription, MixIdPair];
+}
+
 export interface AddMixedAudioTrack extends RPC {
   type: "addMixedAudioTrack";
   payload: [string, MediaInfo];

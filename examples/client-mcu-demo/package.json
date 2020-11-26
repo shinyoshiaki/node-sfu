@@ -16,7 +16,7 @@
   "scripts": {
     "build": "rm -rf build && NODE_ENV=prod webpack --mode production",
     "deploy": "echo \"empty\"",
-    "dev": "NODE_ENV=dev webpack-dev-server",
+    "dev": "NODE_ENV=dev webpack serve --mode development",
     "test": "echo \"empty\"",
     "type": "tsc --noEmit"
   },

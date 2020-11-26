@@ -78,16 +78,15 @@ export class Room {
     publisherId: string,
     request: { kind: Kind; simulcast: boolean }[]
   ) {
-    log("publish", publisherId, request);
+    console.log("publish", publisherId, request);
     const peer = this.peers[publisherId];
 
     const transceivers = request.map(({ kind, simulcast }): [
       RTCRtpTransceiver,
-      string,
       boolean
     ] => {
       if (!simulcast) {
-        return [peer.addTransceiver(kind, "recvonly"), kind, simulcast];
+        return [peer.addTransceiver(kind, "recvonly"), simulcast];
       } else {
         return [
           peer.addTransceiver("video", "recvonly", {
@@ -96,15 +95,14 @@ export class Room {
               { rid: "low", direction: "recv" },
             ],
           }),
-          kind,
           simulcast,
         ];
       }
     });
 
     const responds = await Promise.all(
-      transceivers.map(async ([receiver, kind, simulcast]) => {
-        const info = this.router.createMedia(publisherId, kind);
+      transceivers.map(async ([receiver, simulcast]) => {
+        const info = this.router.createMedia(publisherId, receiver.kind);
 
         if (simulcast) {
           await receiver.onTrack.asPromise();

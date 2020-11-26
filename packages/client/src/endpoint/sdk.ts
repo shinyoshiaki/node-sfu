@@ -2,21 +2,28 @@ import { Kind, MediaInfo, RequestSubscribe, SubscriberType } from "../";
 import { DataChannelConnection } from "../connection/dc";
 import { HttpConnection } from "../connection/http";
 import { Events } from "../context/events";
+import { MCU } from "../domain/mcu";
 import { Media } from "../domain/media";
 import { SFU } from "../domain/sfu";
 import { PromiseQueue } from "../util";
 import { SFUEndpoint } from "./sfu";
 
 export class ClientSDK {
+  private readonly peer: RTCPeerConnection = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  });
   private readonly httpConnection = new HttpConnection({ url: this.url });
   private dcConnection!: DataChannelConnection;
   private readonly events = new Events();
-  private readonly sfu = new SFU(this.events);
+  private readonly sfu = new SFU(this.peer, this.events);
   private readonly sfuEndpoint = new SFUEndpoint(this.events, this.sfu);
   private subscribeQueue = new PromiseQueue();
 
   readonly media = new Media(this.events);
+  readonly mcu = new MCU(this.peer);
+
   readonly onPublish = this.events.onPublish;
+  readonly onUnPublish = this.events.onUnPublish;
   readonly onLeave = this.events.onLeave;
   readonly onJoin = this.events.onJoin;
   readonly onTrack = this.events.onTrack;
@@ -102,15 +109,18 @@ export class ClientSDK {
       this.peerId,
       infos,
     ]);
-    const answer = await this.sfu.listenMixedAudio(offer as any, meta);
+    const answer = await this.mcu.listen(offer as any, meta.mixId);
+
     await this.dcConnection.sendAnswer(answer);
   }
 
   addMixedAudioTrack(mixerId: string, info: MediaInfo) {
+    this.mcu.add(mixerId, info);
     this.dcConnection.addMixedAudioTrack([mixerId, info]);
   }
 
   removeMixedAudioTrack(mixerId: string, info: MediaInfo) {
+    this.mcu.remove(mixerId, info);
     this.dcConnection.removeMixedAudioTrack([mixerId, info]);
   }
 

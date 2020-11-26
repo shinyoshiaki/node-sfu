@@ -4,15 +4,12 @@ import { Events } from "../context/events";
 
 export class SFU {
   private mediaInfoByMID: { [mid: string]: MediaInfo } = {};
-  private readonly peer: RTCPeerConnection = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-  });
 
   peerId!: string;
   roomName!: string;
   onIceCandidate = new Event<[RTCIceCandidate]>();
 
-  constructor(private events: Events) {
+  constructor(private peer: RTCPeerConnection, private events: Events) {
     this.peer.ontrack = (ev) => {
       const mid = ev.transceiver.mid!;
       this.events.onTrack.execute(ev.streams[0], this.mediaInfoByMID[mid]);
@@ -77,13 +74,6 @@ export class SFU {
       this.mediaInfoByMID[mid] = infos.find((v) => v.mediaId === mediaId)!;
     });
 
-    return this.setOffer(offer);
-  }
-
-  async listenMixedAudio(
-    offer: RTCSessionDescription,
-    meta: { mid: string; mixId: string }
-  ) {
     return this.setOffer(offer);
   }
 

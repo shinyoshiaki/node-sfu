@@ -26,6 +26,7 @@ import {
   UnPublish,
   HandleSubscribe,
   HandleUnPublishDone,
+  HandleListenMixedAudio,
 } from "../typings/rpc";
 
 export class Connection {
@@ -63,7 +64,7 @@ export class Connection {
   handleAnswer = async (peerId: string, answer: RTCSessionDescription) => {
     const peer = this.room.peers[peerId];
     await peer.setRemoteDescription(answer);
-
+    console.log(answer);
     this.sendRPC<HandleAnswerDone>(
       { type: "handleAnswerDone", payload: [] },
       peer
@@ -160,9 +161,9 @@ export class Connection {
 
   listenMixedAudio = async (...args: ListenMixedAudio["payload"]) => {
     const { peer, meta } = await this.room.listenMixedAudio(...args);
-    this.sendRPC<HandleOffer>(
+    this.sendRPC<HandleListenMixedAudio>(
       {
-        type: "handleOffer",
+        type: "handleListenMixedAudio",
         payload: [peer.localDescription, meta],
       },
       peer
