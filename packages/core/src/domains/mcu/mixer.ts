@@ -1,5 +1,4 @@
 import { OpusEncoder } from "@discordjs/opus";
-import { Input, Mixer } from "../../../../mixer";
 import { performance } from "perf_hooks";
 import { v4 } from "uuid";
 import { RTCRtpTransceiver } from "../../../../werift";
@@ -11,15 +10,13 @@ import {
 } from "../../../../werift/utils";
 import { RtpHeader, RtpPacket } from "../../../../werift/vendor/rtp";
 import { Media } from "../media/media";
-
-const MAX_FRAME_SIZE = (48000 * 60) / 1000;
-const PCM_LENGTH = MAX_FRAME_SIZE * 2 * 2;
+import { Input, Mixer } from "./lib";
 
 export class MCUMixer {
   id = "mix_" + v4();
 
   private encoder = new OpusEncoder(48000, 2);
-  private mixer = new Mixer({ sampleRate: 48000, channels: 2, sleep: 20 });
+  private mixer = new Mixer({ bit: 16 });
   private sequenceNumber = random16();
   private timestamp = random32();
   private now = performance.now();
@@ -34,7 +31,7 @@ export class MCUMixer {
   }
 
   inputMedia(media: Media) {
-    const input = this.mixer.input({ channels: 2, maxBuffer: PCM_LENGTH / 2 });
+    const input = this.mixer.input();
     const { unSubscribe } = media.tracks[0].track.onRtp.subscribe((packet) => {
       if (Object.values(this.disposer)[0].id === media.mediaId) {
         this.header = packet.header;
@@ -51,13 +48,14 @@ export class MCUMixer {
 
   removeMedia = (mediaId: string) => {
     const { stop, input } = this.disposer[mediaId];
-    this.mixer.removeInput(input);
+    input.remove();
     delete this.disposer[mediaId];
     stop();
   };
 
   listen() {
-    this.mixer.on("data", (data) => {
+    this.mixer.onData = (data) => {
+      if (!this.header) return;
       const encoded = this.encoder.encode(data);
 
       this.sequenceNumber = uint16Add(this.sequenceNumber, 1);
@@ -79,7 +77,7 @@ export class MCUMixer {
       });
       const rtp = new RtpPacket(header, encoded);
       this.sender.sendRtp(rtp);
-    });
+    };
   }
 
   close() {
