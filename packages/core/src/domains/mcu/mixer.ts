@@ -1,5 +1,5 @@
 import { OpusEncoder } from "@discordjs/opus";
-import { Input, Mixer } from "@shinyoshiaki/audio-mixer";
+import { Input, Mixer } from "../../../../mixer";
 import { performance } from "perf_hooks";
 import { v4 } from "uuid";
 import { RTCRtpTransceiver } from "../../../../werift";
@@ -24,8 +24,9 @@ export class MCUMixer {
   private timestamp = random32();
   private now = performance.now();
   private disposer: {
-    [mediaId: string]: { stop: () => void; input: Input };
+    [mediaId: string]: { stop: () => void; input: Input; id: string };
   } = {};
+  private header!: RtpHeader;
 
   constructor(medias: Media[], private sender: RTCRtpTransceiver) {
     medias.forEach((media) => this.inputMedia(media));
@@ -35,15 +36,23 @@ export class MCUMixer {
   inputMedia(media: Media) {
     const input = this.mixer.input({ channels: 2, maxBuffer: PCM_LENGTH / 2 });
     const { unSubscribe } = media.tracks[0].track.onRtp.subscribe((packet) => {
+      if (Object.values(this.disposer)[0].id === media.mediaId) {
+        this.header = packet.header;
+      }
       const decoded = this.encoder.decode(packet.payload);
       input.write(decoded);
     });
-    this.disposer[media.mediaId] = { stop: unSubscribe, input };
+    this.disposer[media.mediaId] = {
+      stop: unSubscribe,
+      input,
+      id: media.mediaId,
+    };
   }
 
   removeMedia = (mediaId: string) => {
     const { stop, input } = this.disposer[mediaId];
     this.mixer.removeInput(input);
+    delete this.disposer[mediaId];
     stop();
   };
 
@@ -61,7 +70,7 @@ export class MCUMixer {
 
       const header = new RtpHeader({
         sequenceNumber: this.sequenceNumber,
-        timestamp: Number(this.timestamp),
+        timestamp: this.header.timestamp,
         payloadType: 96,
         payloadOffset: 12,
         extension: true,

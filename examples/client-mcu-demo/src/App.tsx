@@ -67,7 +67,7 @@ const App: FC = () => {
     await clientSDK.publish([{ track: mediaStream.getTracks()[0] }]);
   };
 
-  async function getAudioStream(ab: ArrayBuffer) {
+  async function getAudioStream(ab: ArrayBuffer, gain: number) {
     const ctx = new AudioContext();
 
     const audioBuffer = await ctx.decodeAudioData(ab);
@@ -75,7 +75,11 @@ const App: FC = () => {
     source.buffer = audioBuffer;
     source.loop = true;
     source.start();
+    const gainNode = ctx.createGain();
+    source.connect(gainNode);
+    gainNode.gain.value = gain;
     const destination = ctx.createMediaStreamDestination();
+    gainNode.connect(destination);
     source.connect(destination);
 
     return destination.stream;
@@ -85,7 +89,7 @@ const App: FC = () => {
     target: { files },
   }: ChangeEvent<HTMLInputElement>) => {
     const file = files[0];
-    const stream = await getAudioStream(await file.arrayBuffer());
+    const stream = await getAudioStream(await file.arrayBuffer(), 0.1);
     await clientSDK.publish([{ track: stream.getTracks()[0] }]);
   };
 
