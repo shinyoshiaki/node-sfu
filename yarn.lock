@@ -2069,13 +2069,6 @@
     estree-walker "^2.0.1"
     picomatch "^2.2.2"
 
-"@shinyoshiaki/audio-mixer@^0.0.5":
-  version "0.0.5"
-  resolved "https://npm.pkg.github.com/download/@shinyoshiaki/audio-mixer/0.0.5/79b4ebfee26b751c5e9a10cb5b3be44f88c815405dd036ef75f3bf337af7ed9d#f27bfde73d6270c8d9bceec0c64b55371ad9a04a"
-  integrity sha512-3aodDxdItoaI2Ydc7xhONOtvG60iKoXmClfDUnEs/Uf3o7LSE88rWR8ljNz3N6ELyc2TFsdEZHqyvaqcAKXU5w==
-  dependencies:
-    underscore "^1.8.3"
-
 "@sinonjs/commons@^1.7.0":
   version "1.8.1"
   resolved "https://registry.yarnpkg.com/@sinonjs/commons/-/commons-1.8.1.tgz#e7df00f98a203324f6dc7cc606cad9d4a8ab2217"
@@ -10540,16 +10533,6 @@ unc-path-regex@^0.1.2:
   version "0.1.2"
   resolved "https://registry.yarnpkg.com/unc-path-regex/-/unc-path-regex-0.1.2.tgz#e73dd3d7b0d7c5ed86fbac6b0ae7d8c6a69d50fa"
   integrity sha1-5z3T17DXxe2G+6xrCufYxqadUPo=
-
-underscore@^1.12.0:
-  version "1.12.0"
-  resolved "https://registry.yarnpkg.com/underscore/-/underscore-1.12.0.tgz#4814940551fc80587cef7840d1ebb0f16453be97"
-  integrity sha512-21rQzss/XPMjolTiIezSu3JAjgagXKROtNrYFEOWK109qY1Uv2tVjPTZ1ci2HgvQDA16gHYSthQIJfB+XId/rQ==
-
-underscore@^1.8.3:
-  version "1.11.0"
-  resolved "https://registry.yarnpkg.com/underscore/-/underscore-1.11.0.tgz#dd7c23a195db34267186044649870ff1bab5929e"
-  integrity sha512-xY96SsN3NA461qIRKZ/+qox37YXPtSBswMGfiNptr+wrt6ds4HaMw23TP612fEyGekRE6LNRiLYr/aqbHXNedw==
 
 unicode-canonical-property-names-ecmascript@^1.0.4:
   version "1.0.4"
