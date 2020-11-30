@@ -5,7 +5,6 @@ export type {
   Kind,
   Publish,
   GetMedias,
-  HandleOffer,
   HandleMedias,
   Subscribe,
   RequestSubscribe,
@@ -25,4 +24,5 @@ export type {
   HandleUnPublish,
   HandleListenMixedAudio,
   HandleUnPublishDone,
+  HandlePublishDone,
 } from "../../core/src";

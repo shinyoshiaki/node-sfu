@@ -14,7 +14,7 @@ import {
   HandleJoin,
   HandleLeave,
   HandleMedias,
-  HandleOffer,
+  HandlePublishDone,
   HandlePublish,
   HandleUnPublish,
   Leave,
@@ -106,9 +106,9 @@ export class Connection {
     });
 
     const peer = await this.createOffer(publisherId);
-    this.sendRPC<HandleOffer>(
+    this.sendRPC<HandlePublishDone>(
       {
-        type: "handleOffer",
+        type: "handlePublishDone",
         payload: [peer.localDescription],
       },
       peer

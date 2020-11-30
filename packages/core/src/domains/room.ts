@@ -37,6 +37,10 @@ export class Room {
     return [peerId, peer.localDescription];
   }
 
+  /**
+   * negotiationneeded
+   * @param peerId
+   */
   async leave(peerId: string): Promise<[RTCPeerConnection[], MediaInfo[]]> {
     const { subscribers, infos } = this.router.leave(peerId);
     delete this.peers[peerId];
@@ -125,6 +129,10 @@ export class Room {
     return responds;
   }
 
+  /**
+   * negotiationneeded
+   * @param info
+   */
   async unPublish(info: MediaInfo) {
     const media = this.router.getMedia(info.mediaId);
     const peer = this.peers[info.publisherId];
@@ -141,6 +149,11 @@ export class Room {
     return [peer, mediaInfos];
   }
 
+  /**
+   * negotiationneeded
+   * @param subscriberId
+   * @param requests
+   */
   async subscribe(
     subscriberId: string,
     requests: { info: MediaInfo; type: SubscriberType }[]

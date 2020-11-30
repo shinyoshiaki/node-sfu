@@ -5,7 +5,6 @@ import {
   HandleAnswer,
   HandleCandidate,
   HandleMedias,
-  HandleOffer,
   Publish,
   RPC,
   Subscribe,
@@ -16,6 +15,7 @@ import {
   HandleSubscribe,
   HandleListenMixedAudio,
   HandleUnPublishDone,
+  HandlePublishDone,
 } from "../";
 
 export class DataChannelConnection {
@@ -47,7 +47,7 @@ export class DataChannelConnection {
       type: "publish",
       payload,
     });
-    const [offer] = await this.waitRPC<HandleOffer>("handleOffer");
+    const [offer] = await this.waitRPC<HandlePublishDone>("handlePublishDone");
     return offer;
   }
 

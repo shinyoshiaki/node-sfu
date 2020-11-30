@@ -43,6 +43,11 @@ export interface HandlePublish extends RPC {
   payload: [MediaInfo];
 }
 
+export interface HandlePublishDone extends RPC {
+  type: "handlePublishDone";
+  payload: [RTCSessionDescription];
+}
+
 export interface HandleUnPublish extends RPC {
   type: "handleUnPublish";
   payload: [MediaInfo, RTCSessionDescription];
@@ -117,11 +122,6 @@ export interface HandleJoin extends RPC {
 export interface HandleLeave extends RPC {
   type: "handleLeave";
   payload: [MediaInfo[], RTCSessionDescription];
-}
-
-export interface HandleOffer extends RPC {
-  type: "handleOffer";
-  payload: [RTCSessionDescription, ...any[]];
 }
 
 export interface ChangeQuality extends RPC {
