@@ -1,25 +1,17 @@
 import { OpusEncoder } from "@discordjs/opus";
-import { performance } from "perf_hooks";
 import { v4 } from "uuid";
 import { RTCRtpTransceiver } from "../../../../werift";
-import {
-  random16,
-  random32,
-  uint16Add,
-  uint32Add,
-} from "../../../../werift/utils";
+import { random16, uint16Add } from "../../../../werift/utils";
 import { RtpHeader, RtpPacket } from "../../../../werift/vendor/rtp";
 import { Media } from "../media/media";
 import { Input, Mixer } from "./lib";
 
 export class MCUMixer {
-  id = "mix_" + v4();
+  readonly id = "mix_" + v4();
 
-  private encoder = new OpusEncoder(48000, 2);
-  private mixer = new Mixer({ bit: 16 });
+  private readonly encoder = new OpusEncoder(48000, 2);
+  private readonly mixer = new Mixer({ bit: 16 });
   private sequenceNumber = random16();
-  private timestamp = random32();
-  private now = performance.now();
   private disposer: {
     [mediaId: string]: { stop: () => void; input: Input; id: string };
   } = {};
@@ -59,12 +51,6 @@ export class MCUMixer {
       const encoded = this.encoder.encode(data);
 
       this.sequenceNumber = uint16Add(this.sequenceNumber, 1);
-
-      const now = performance.now();
-      const delta = now - this.now;
-      this.now = now;
-      const frame = Math.floor(delta / 20);
-      this.timestamp = uint32Add(this.timestamp, 960n * BigInt(frame));
 
       const header = new RtpHeader({
         sequenceNumber: this.sequenceNumber,
