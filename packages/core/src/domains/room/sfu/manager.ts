@@ -4,11 +4,14 @@ import { SFU } from "./sfu";
 export class SFUManager {
   sfu: { [mediaId: string]: SFU } = {};
 
-  getSFU(media: Media) {
-    if (!this.sfu[media.mediaId]) {
-      const sfu = (this.sfu[media.mediaId] = new SFU(media));
-    }
-    return this.sfu[media.mediaId];
+  getSFU(mediaId: string) {
+    return this.sfu[mediaId];
+  }
+
+  createSFU(media: Media) {
+    return (this.sfu[media.mediaId] = new SFU(media, () =>
+      this.removeSFU(media.mediaId)
+    ));
   }
 
   private removeSFU(mediaId: string) {

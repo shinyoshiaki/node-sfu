@@ -103,7 +103,16 @@ export class Room {
     return { peers, infos };
   }
 
-  async unPublish(info: MediaInfo) {}
+  async unPublish(info: MediaInfo) {
+    const media = this.medias[info.mediaId];
+    delete this.medias[info.mediaId];
+
+    const peer = this.peers[info.publisherId];
+    peer.removeTrack(media.tracks[0].receiver);
+    await peer.setLocalDescription(peer.createOffer());
+
+    return peer;
+  }
 
   getMedias(peerId: string) {
     const peer = this.peers[peerId];
@@ -112,8 +121,11 @@ export class Room {
   }
 
   getSFU(info: MediaInfo): SFU {
+    if (this.sfuManager.getSFU(info.mediaId))
+      return this.sfuManager.getSFU(info.mediaId);
+
     const media = this.medias[info.mediaId];
-    return this.sfuManager.getSFU(media);
+    return this.sfuManager.createSFU(media);
   }
 
   getMCU(subscriberId: string, infos: MediaInfo[]) {}

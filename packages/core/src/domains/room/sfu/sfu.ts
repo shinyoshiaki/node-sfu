@@ -7,15 +7,20 @@ export class SFU {
     [subscriberId: string]: Subscriber;
   } = {};
 
-  constructor(readonly media: Media) {}
+  constructor(readonly media: Media, private dispose: () => void) {}
 
-  stop() {
+  async stop() {
+    this.dispose();
     this.media.tracks.forEach(({ stop }) => stop());
 
-    const peers = Object.values(this.subscribers).map(({ peer, sender }) => {
-      peer.removeTrack(sender);
-      return peer;
-    });
+    const peers = await Promise.all(
+      Object.values(this.subscribers).map(async ({ peer, sender }) => {
+        peer.removeTrack(sender);
+        await peer.setLocalDescription(peer.createOffer());
+        return peer;
+      })
+    );
+
     return peers;
   }
 
