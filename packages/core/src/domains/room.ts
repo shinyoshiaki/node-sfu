@@ -9,15 +9,19 @@ import {
   useSdesRTPStreamID,
 } from "../../../werift";
 import { Connection } from "../responders/connection";
-import { MediaInfo, Router } from "./router";
-import { Subscriber, SubscriberType } from "./sfu/subscriber";
+import { MCUManager } from "./mcu/manager";
+import { Media, MediaInfo } from "./media/media";
+import { SFUManager } from "./sfu/manager";
+import { SFU } from "./sfu/sfu";
 
 const log = debug("werift:sfu:room");
 
 export class Room {
-  readonly router = new Router();
-  readonly connection = new Connection(this as any);
+  readonly connection = new Connection(this);
+  readonly sfuManager = new SFUManager();
+  readonly mcuManager = new MCUManager();
   peers: { [peerId: string]: RTCPeerConnection } = {};
+  medias: { [mediaId: string]: Media } = {};
 
   async join() {
     const peerId = "p_" + v4();
@@ -37,52 +41,24 @@ export class Room {
     return [peerId, peer.localDescription];
   }
 
-  /**
-   * negotiationneeded
-   * @param peerId
-   */
-  async leave(peerId: string): Promise<[RTCPeerConnection[], MediaInfo[]]> {
-    const { subscribers, infos } = this.router.leave(peerId);
+  leave(peerId: string) {
     delete this.peers[peerId];
+    const infos = Object.values(this.medias)
+      .filter((media) => media.publisherId === peerId)
+      .map((media) => media.info);
 
-    const peers = await this.retire(subscribers);
+    infos.forEach((info) => {
+      delete this.medias[info.mediaId];
+    });
 
-    return [peers, infos];
-  }
-
-  private async retire(
-    subscribers: {
-      [subscriberId: string]: Subscriber;
-    }[]
-  ) {
-    const retires = subscribers.reduce(
-      (acc: { [subscriberId: string]: RTCPeerConnection }, subscriber) => {
-        Object.entries(subscriber).forEach(([subscriberId, pair]) => {
-          const peer = this.peers[subscriberId];
-          if (!peer) return;
-          peer.removeTrack(pair.sender);
-          acc[subscriberId] = peer;
-        });
-        return acc;
-      },
-      {}
-    );
-
-    const peers = await Promise.all(
-      Object.values(retires).map(async (peer) => {
-        await peer.setLocalDescription(peer.createOffer());
-        return peer;
-      })
-    );
-
-    return peers;
+    return infos;
   }
 
   async publish(
     publisherId: string,
     request: { kind: Kind; simulcast: boolean }[]
   ) {
-    console.log("publish", publisherId, request);
+    log("publish", publisherId, request);
     const peer = this.peers[publisherId];
 
     const transceivers = request.map(({ kind, simulcast }): [
@@ -104,101 +80,62 @@ export class Room {
       }
     });
 
-    const responds = await Promise.all(
+    const infos = await Promise.all(
       transceivers.map(async ([receiver, simulcast]) => {
-        const info = this.router.createMedia(publisherId, receiver.kind);
+        const media = new Media(publisherId, receiver);
+        this.medias[media.mediaId] = media;
+        const info = media.info;
 
         if (simulcast) {
           await receiver.onTrack.asPromise();
-          receiver.receiver.tracks.forEach((track) =>
-            this.router.addTrack(track, receiver, info.mediaId)
-          );
+          receiver.receiver.tracks.forEach((track) => media.addTrack(track));
         } else {
           const [track] = await receiver.onTrack.asPromise();
-          this.router.addTrack(track, receiver, info.mediaId);
+          media.addTrack(track);
         }
 
-        const peers = Object.values(this.peers).filter(
-          (others) => others.cname !== peer.cname
-        );
-
-        return { peers, info };
+        return info;
       })
     );
 
-    return responds;
+    const peers = Object.values(this.peers).filter(
+      (others) => others.cname !== peer.cname
+    );
+
+    return { peers, infos };
   }
 
-  /**
-   * negotiationneeded
-   * @param info
-   */
   async unPublish(info: MediaInfo) {
-    const media = this.router.getMedia(info.mediaId);
+    const media = this.medias[info.mediaId];
+    delete this.medias[info.mediaId];
+
     const peer = this.peers[info.publisherId];
     peer.removeTrack(media.tracks[0].receiver);
-    const subscribers = this.router.removeMedia(info.mediaId);
-    const peers = await this.retire([subscribers]);
+    await peer.setLocalDescription(peer.createOffer());
 
-    return { peers, peer };
+    return peer;
   }
 
-  getMedias(peerId: string): [RTCPeerConnection, MediaInfo[]] {
+  getMedias(peerId: string) {
     const peer = this.peers[peerId];
-    const mediaInfos = this.router.mediaInfos;
-    return [peer, mediaInfos];
+    const infos = Object.values(this.medias).map((media) => media.info);
+    return { peer, infos };
   }
 
-  /**
-   * negotiationneeded
-   * @param subscriberId
-   * @param requests
-   */
-  async subscribe(
-    subscriberId: string,
-    requests: { info: MediaInfo; type: SubscriberType }[]
-  ) {
-    const peer = this.peers[subscriberId];
+  getSFU(info: MediaInfo): SFU {
+    if (this.sfuManager.getSFU(info.mediaId))
+      return this.sfuManager.getSFU(info.mediaId);
 
-    const pairs = requests.map(({ info, type }) => {
-      const { mediaId, kind } = info;
-      const transceiver = peer.addTransceiver(kind as Kind, "sendonly");
-      this.router.subscribe(subscriberId, mediaId, transceiver, type);
-      return { mediaId, uuid: transceiver.uuid };
-    });
-    await peer.setLocalDescription(peer.createOffer());
-    const meta = pairs.map(({ mediaId, uuid }) => {
-      const transceiver = peer.transceivers.find((t) => t.uuid === uuid);
-      return { mediaId, mid: transceiver.mid };
-    });
-    return { peer, meta };
+    const media = this.medias[info.mediaId];
+    return this.sfuManager.createSFU(media);
   }
 
-  async listenMixedAudio(subscriberId: string, infos: MediaInfo[]) {
-    const peer = this.peers[subscriberId];
-    const transceiver = peer.addTransceiver("audio", "sendonly");
-    await peer.setLocalDescription(peer.createOffer());
-
-    infos = infos.filter((info) => info.publisherId !== subscriberId);
-
-    const mixId = this.router.listenMixedAudio(
-      infos.map((v) => v.mediaId),
-      transceiver
-    );
-    const meta = { mid: transceiver.mid, mixId };
-
-    return { peer, meta };
+  createMCU(infos: MediaInfo[], subscriber: RTCRtpTransceiver) {
+    const medias = infos.map((info) => this.medias[info.mediaId]);
+    return this.mcuManager.createMCU(medias, subscriber);
   }
 
-  addMixedAudioTrack(mixerId: string, info: MediaInfo) {
-    this.router.addMixedAudioTrack(mixerId, info.mediaId);
-  }
-
-  removeMixedAudioTrack(mixerId: string, info: MediaInfo) {
-    this.router.removeMixedAudioTrack(mixerId, info.mediaId);
-  }
-
-  changeQuality(subscriberId: string, info: MediaInfo, type: SubscriberType) {
-    this.router.changeQuality(subscriberId, info.mediaId, type);
+  getMCU(mcuId: string) {
+    return this.mcuManager.getMCU(mcuId);
   }
 }

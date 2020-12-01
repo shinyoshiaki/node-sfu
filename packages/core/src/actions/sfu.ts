@@ -1,7 +1,7 @@
 import { Kind } from "../../../werift";
-import { MediaInfo } from "../domains/room/media/media";
-import { Room } from "../domains/room/room";
-import { SubscriberType } from "../domains/room/sfu/subscriber";
+import { MediaInfo } from "../domains/media/media";
+import { Room } from "../domains/room";
+import { SubscriberType } from "../domains/sfu/subscriber";
 
 export async function subscribe(
   requests: { info: MediaInfo; type: SubscriberType }[],

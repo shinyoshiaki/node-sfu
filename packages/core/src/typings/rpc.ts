@@ -3,7 +3,7 @@ import {
   RTCIceCandidateJSON,
   RTCSessionDescription,
 } from "../../../werift";
-import { MediaInfo } from "../domains/router";
+import { MediaInfo } from "../domains/media/media";
 import { SubscriberType } from "../domains/sfu/subscriber";
 
 export interface RPC {

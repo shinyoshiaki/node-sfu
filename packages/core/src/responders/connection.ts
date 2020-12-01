@@ -12,7 +12,7 @@ import {
 } from "../actions/mcu";
 import { leave, unPublish } from "../actions/room";
 import { changeQuality, subscribe } from "../actions/sfu";
-import { Room } from "../domains/room/room";
+import { Room } from "../domains/room";
 import {
   AddMixedAudioTrack,
   ChangeQuality,

@@ -1,8 +1,8 @@
 import { OpusEncoder } from "@discordjs/opus";
 import { v4 } from "uuid";
-import { RTCRtpTransceiver } from "../../../../../werift";
-import { random16, uint16Add } from "../../../../../werift/utils";
-import { RtpHeader, RtpPacket } from "../../../../../werift/vendor/rtp";
+import { RTCRtpTransceiver } from "../../../../werift";
+import { random16, uint16Add } from "../../../../werift/utils";
+import { RtpHeader, RtpPacket } from "../../../../werift/vendor/rtp";
 import { Media } from "../media/media";
 import { Input, Mixer } from "./mixer";
 

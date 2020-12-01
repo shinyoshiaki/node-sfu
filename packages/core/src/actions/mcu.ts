@@ -1,5 +1,5 @@
-import { MediaInfo } from "../domains/room/media/media";
-import { Room } from "../domains/room/room";
+import { MediaInfo } from "../domains/media/media";
+import { Room } from "../domains/room";
 
 export const listenMixedAudio = (room: Room) => async (
   subscriberId: string,

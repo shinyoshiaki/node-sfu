@@ -1,29 +1,17 @@
 import { RTCRtpTransceiver } from "../../../../werift";
 import { Media } from "../media/media";
-import { MCUMixer } from "./mixer";
+import { MCU } from "./mcu";
 
 export class MCUManager {
-  mixers: { [mixerId: string]: MCUMixer } = {};
+  mcu: { [mcuId: string]: MCU } = {};
 
-  subscribe(medias: Media[], sender: RTCRtpTransceiver) {
-    const mixer = new MCUMixer(medias, sender);
-    this.mixers[mixer.id] = mixer;
-    return mixer.id;
+  getMCU(mcuId: string) {
+    return this.mcu[mcuId];
   }
 
-  addMedia(mixerId: string, media: Media) {
-    const mixer = this.mixers[mixerId];
-    mixer.inputMedia(media);
-  }
-
-  removeMedia(mixerId: string, mediaId: string) {
-    const mixer = this.mixers[mixerId];
-    mixer.removeMedia(mediaId);
-  }
-
-  close(mixerId: string) {
-    const mixer = this.mixers[mixerId];
-    mixer.close();
-    delete this.mixers[mixerId];
+  createMCU(medias: Media[], subscriber: RTCRtpTransceiver) {
+    const mcu = new MCU(medias, subscriber);
+    this.mcu[mcu.id] = mcu;
+    return mcu;
   }
 }
