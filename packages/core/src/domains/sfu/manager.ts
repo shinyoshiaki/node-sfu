@@ -1,14 +1,24 @@
 import { Media } from "../media/media";
-import { SFURouter } from "./router";
+import { SFU } from "./sfu";
 
 export class SFUManager {
-  routes: { [mediaId: string]: SFURouter } = {};
+  sfu: { [mediaId: string]: SFU } = {};
 
-  addRoute(media: Media) {
-    this.routes[media.mediaId] = new SFURouter(media);
+  getSFU(mediaId: string) {
+    return this.sfu[mediaId];
   }
 
-  getRoute(mediaId: string) {
-    return this.routes[mediaId];
+  createSFU(media: Media) {
+    return (this.sfu[media.mediaId] = new SFU(media, () =>
+      this.removeSFU(media.mediaId)
+    ));
+  }
+
+  leave(subscriberId: string) {
+    Object.values(this.sfu).forEach((sfu) => sfu.leave(subscriberId));
+  }
+
+  private removeSFU(mediaId: string) {
+    delete this.sfu[mediaId];
   }
 }

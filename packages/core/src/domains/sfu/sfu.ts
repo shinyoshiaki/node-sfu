@@ -1,27 +1,38 @@
-import { RTCRtpTransceiver } from "../../../../werift";
-import { Subscriber, SubscriberType } from "./subscriber";
+import { RTCPeerConnection, RTCRtpTransceiver } from "../../../../werift";
 import { Media } from "../media/media";
+import { Subscriber, SubscriberType } from "./subscriber";
 
-export class SFURouter {
+export class SFU {
   subscribers: {
     [subscriberId: string]: Subscriber;
   } = {};
 
-  constructor(public media: Media) {}
+  constructor(readonly media: Media, private dispose: () => void) {}
 
-  stop() {
+  async stop() {
+    this.dispose();
     this.media.tracks.forEach(({ stop }) => stop());
 
-    return this.subscribers;
+    const peers = await Promise.all(
+      Object.values(this.subscribers).map(async ({ peer, sender }) => {
+        peer.removeTrack(sender);
+        await peer.setLocalDescription(peer.createOffer());
+        return peer;
+      })
+    );
+
+    return peers;
   }
 
   subscribe(
     subscriberId: string,
+    peer: RTCPeerConnection,
     sender: RTCRtpTransceiver,
     type: SubscriberType
   ) {
     const subscriber = (this.subscribers[subscriberId] = new Subscriber(
       sender,
+      peer,
       this.media.tracks
     ));
     switch (type) {
@@ -45,11 +56,8 @@ export class SFURouter {
     subscriber.changeQuality(type);
   }
 
-  has(subscriberId: string) {
-    return !!this.subscribers[subscriberId];
-  }
-
-  unsubscribe(subscriberId: string) {
+  leave(subscriberId: string) {
+    const subscriber = this.subscribers[subscriberId];
     delete this.subscribers[subscriberId];
   }
 }

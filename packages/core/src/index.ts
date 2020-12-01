@@ -1,7 +1,7 @@
+export type { MediaInfo } from "./domains/media/media";
+export type { SubscriberType } from "./domains/sfu/subscriber";
 export { Connection } from "./responders/connection";
 export { Endpoint } from "./responders/endpoint";
 export { Room } from "./domains/room";
-export { SubscriberType } from "./domains/sfu/subscriber";
 export type { Kind, TransceiverOptions } from "../../werift";
-export { MediaInfo } from "./domains/router";
 export * from "./typings/rpc";

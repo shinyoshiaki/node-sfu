@@ -3,7 +3,7 @@ import {
   RTCIceCandidateJSON,
   RTCSessionDescription,
 } from "../../../werift";
-import { MediaInfo } from "../domains/router";
+import { MediaInfo } from "../domains/media/media";
 import { SubscriberType } from "../domains/sfu/subscriber";
 
 export interface RPC {
@@ -40,7 +40,7 @@ export interface UnPublish extends RPC {
 
 export interface HandlePublish extends RPC {
   type: "handlePublish";
-  payload: [MediaInfo];
+  payload: [MediaInfo[]];
 }
 
 export interface HandlePublishDone extends RPC {

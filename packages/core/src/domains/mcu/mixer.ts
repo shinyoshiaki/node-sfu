@@ -1,72 +1,56 @@
-import { OpusEncoder } from "@discordjs/opus";
-import { v4 } from "uuid";
-import { RTCRtpTransceiver } from "../../../../werift";
-import { random16, uint16Add } from "../../../../werift/utils";
-import { RtpHeader, RtpPacket } from "../../../../werift/vendor/rtp";
-import { Media } from "../media/media";
-import { Input, Mixer } from "./lib";
+export class Mixer {
+  inputs: { [id: string]: Input } = {};
+  pcm: { [id: string]: Buffer } = {};
+  onData: (buf: Buffer) => void = () => {};
 
-export class MCUMixer {
-  readonly id = "mix_" + v4();
+  constructor(private args: { bit: number }) {}
 
-  private readonly encoder = new OpusEncoder(48000, 2);
-  private readonly mixer = new Mixer({ bit: 16 });
-  private sequenceNumber = random16();
-  private disposer: {
-    [mediaId: string]: { stop: () => void; input: Input; id: string };
-  } = {};
-  private header!: RtpHeader;
+  input() {
+    const input = new Input(this);
+    this.inputs[input.id] = input;
 
-  constructor(medias: Media[], private sender: RTCRtpTransceiver) {
-    medias.forEach((media) => this.inputMedia(media));
-    this.listen();
+    return input;
   }
 
-  inputMedia(media: Media) {
-    const input = this.mixer.input();
-    const { unSubscribe } = media.tracks[0].track.onRtp.subscribe((packet) => {
-      if (Object.values(this.disposer)[0].id === media.mediaId) {
-        this.header = packet.header;
-      }
-      const decoded = this.encoder.decode(packet.payload);
-      input.write(decoded);
-    });
-    this.disposer[media.mediaId] = {
-      stop: unSubscribe,
-      input,
-      id: media.mediaId,
-    };
+  mixing() {
+    if (Object.keys(this.pcm).length === Object.keys(this.inputs).length) {
+      const inputs = Object.values(this.pcm);
+      const base = inputs.shift();
+      this.pcm = {};
+      const res = inputs.reduce(
+        (acc: number[], cur) => {
+          const next = acc.map((v, i) => this.mix(v, cur[i]));
+          return next;
+        },
+        [...base]
+      );
+      this.onData(Buffer.from(res));
+    }
   }
 
-  removeMedia = (mediaId: string) => {
-    const { stop, input } = this.disposer[mediaId];
-    input.remove();
-    delete this.disposer[mediaId];
-    stop();
-  };
+  private mix(a: number, b: number) {
+    const res = a + b;
+    const max = 1 << (this.args.bit - 1);
+    if (max < res) {
+      return max;
+    } else if (0 > res) {
+      return res;
+    }
+    return res;
+  }
+}
 
-  listen() {
-    this.mixer.onData = (data) => {
-      if (!this.header) return;
-      const encoded = this.encoder.encode(data);
+export class Input {
+  id = Math.random().toString();
+  constructor(private mixer: Mixer) {}
 
-      this.sequenceNumber = uint16Add(this.sequenceNumber, 1);
-
-      const header = new RtpHeader({
-        sequenceNumber: this.sequenceNumber,
-        timestamp: this.header.timestamp,
-        payloadType: 96,
-        payloadOffset: 12,
-        extension: true,
-        marker: false,
-        padding: false,
-      });
-      const rtp = new RtpPacket(header, encoded);
-      this.sender.sendRtp(rtp);
-    };
+  write(buf: Buffer) {
+    this.mixer.pcm[this.id] = buf;
+    this.mixer.mixing();
   }
 
-  close() {
-    Object.keys(this.disposer).forEach(this.removeMedia);
+  remove() {
+    delete this.mixer.inputs[this.id];
+    delete this.mixer.pcm[this.id];
   }
 }

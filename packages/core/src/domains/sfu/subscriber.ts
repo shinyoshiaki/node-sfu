@@ -1,6 +1,7 @@
 import debug from "debug";
 import {
   ReceiverEstimatedMaxBitrate,
+  RTCPeerConnection,
   RtcpPayloadSpecificFeedback,
   RTCRtpTransceiver,
 } from "../../../../werift";
@@ -15,7 +16,11 @@ export class Subscriber {
 
   state: SubscriberType = "single";
 
-  constructor(public sender: RTCRtpTransceiver, private tracks: Track[]) {}
+  constructor(
+    public sender: RTCRtpTransceiver,
+    readonly peer: RTCPeerConnection,
+    private tracks: Track[]
+  ) {}
 
   single() {
     this.state = "single";

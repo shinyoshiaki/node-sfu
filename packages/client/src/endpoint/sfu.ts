@@ -18,7 +18,7 @@ export class SFUEndpoint {
     this.dcConnection = dcConnection;
     this.dcConnection.onmessage.subscribe((data) => {
       const { type, payload } = JSON.parse(data) as RPC;
-      console.log(type, payload);
+      console.log("from sfu", type, payload);
       //@ts-ignore
       if (this[type]) {
         //@ts-ignore
@@ -39,8 +39,8 @@ export class SFUEndpoint {
   };
 
   private handlePublish = (...args: HandlePublish["payload"]) => {
-    const [info] = args;
-    this.events.onPublish.execute(info);
+    const [infos] = args;
+    infos.forEach((info) => this.events.onPublish.execute(info));
   };
 
   private handleUnPublish = async (...args: HandleUnPublish["payload"]) => {
