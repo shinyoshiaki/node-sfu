@@ -9,6 +9,7 @@ import {
   useSdesRTPStreamID,
 } from "../../../../werift";
 import { Connection } from "../../responders/connection";
+import { MCUManager } from "./mcu/manager";
 import { Media, MediaInfo } from "./media/media";
 import { SFUManager } from "./sfu/manager";
 import { SFU } from "./sfu/sfu";
@@ -18,6 +19,7 @@ const log = debug("werift:sfu:room");
 export class Room {
   readonly connection = new Connection(this);
   readonly sfuManager = new SFUManager();
+  readonly mcuManager = new MCUManager();
   peers: { [peerId: string]: RTCPeerConnection } = {};
   medias: { [mediaId: string]: Media } = {};
 
@@ -128,5 +130,12 @@ export class Room {
     return this.sfuManager.createSFU(media);
   }
 
-  getMCU(subscriberId: string, infos: MediaInfo[]) {}
+  createMCU(infos: MediaInfo[], subscriber: RTCRtpTransceiver) {
+    const medias = infos.map((info) => this.medias[info.mediaId]);
+    return this.mcuManager.createMCU(medias, subscriber);
+  }
+
+  getMCU(mcuId: string) {
+    return this.mcuManager.getMCU(mcuId);
+  }
 }
