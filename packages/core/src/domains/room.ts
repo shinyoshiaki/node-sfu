@@ -16,7 +16,7 @@ const log = debug("werift:sfu:room");
 
 export class Room {
   readonly router = new Router();
-  readonly connection = new Connection(this);
+  readonly connection = new Connection(this as any);
   peers: { [peerId: string]: RTCPeerConnection } = {};
 
   async join() {

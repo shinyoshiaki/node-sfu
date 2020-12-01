@@ -40,7 +40,7 @@ export interface UnPublish extends RPC {
 
 export interface HandlePublish extends RPC {
   type: "handlePublish";
-  payload: [MediaInfo];
+  payload: [MediaInfo[]];
 }
 
 export interface HandlePublishDone extends RPC {

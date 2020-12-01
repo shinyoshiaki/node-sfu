@@ -104,6 +104,8 @@ export class ClientSDK {
     });
   }
 
+  unsubscribe(info: MediaInfo) {}
+
   async listenMixedAudio(infos: MediaInfo[]) {
     const [offer, meta] = await this.dcConnection.listenMixedAudio([
       this.peerId,

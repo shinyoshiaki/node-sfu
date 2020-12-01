@@ -70,10 +70,6 @@ const App: FC = () => {
     clientSDK.changeQuality(info, type);
   };
 
-  const unPublish = (info: MediaInfo) => {
-    clientSDK.unPublish(info);
-  };
-
   return (
     <div>
       <div style={{ display: "flex", flexWrap: "wrap", width: "100%" }}>
@@ -83,7 +79,9 @@ const App: FC = () => {
             <button onClick={() => changeQuality(info, "low")}>low</button>
             <button onClick={() => changeQuality(info, "high")}>high</button>
             <button onClick={() => changeQuality(info, "auto")}>auto</button>
-            <button onClick={() => unPublish(info)}>un publish</button>
+            <button onClick={() => clientSDK.unPublish(info)}>
+              un publish
+            </button>
             <br />
             <video
               ref={(ref) => {
