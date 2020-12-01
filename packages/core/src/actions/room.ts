@@ -2,7 +2,9 @@ import { RTCPeerConnection } from "../../../werift";
 import { MediaInfo } from "../domains/room/media/media";
 import { Room } from "../domains/room/room";
 
-export async function leave(peerId: string, room: Room) {
+export const leave = (room: Room) => async (peerId: string) => {
+  room.sfuManager.leave(peerId);
+
   const infos = room.leave(peerId);
 
   const peers = (
@@ -20,7 +22,7 @@ export async function leave(peerId: string, room: Room) {
     }, []);
 
   return { peers, infos };
-}
+};
 
 export const unPublish = (room: Room) => async (info: MediaInfo) => {
   const publisher = await room.unPublish(info);

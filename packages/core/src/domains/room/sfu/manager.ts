@@ -14,6 +14,10 @@ export class SFUManager {
     ));
   }
 
+  leave(subscriberId: string) {
+    Object.values(this.sfu).forEach((sfu) => sfu.leave(subscriberId));
+  }
+
   private removeSFU(mediaId: string) {
     delete this.sfu[mediaId];
   }
