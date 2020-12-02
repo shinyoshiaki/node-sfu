@@ -1,37 +1,34 @@
 import { FC, useContext, useEffect, useRef, useState } from "react";
 import { Context } from ".";
-import {
-  ClientSDK,
-  MediaInfo,
-  SubscriberType,
-} from "../../../packages/client/src";
+import { MediaInfo, SubscriberType } from "../../../packages/client/src";
 
 const App: FC = () => {
-  const clientSDK = useContext(Context);
+  const client = useContext(Context);
   const videos = useRef<HTMLVideoElement[]>([]);
   const [streams, setStreams] = useState<
     { stream: MediaStream; info: MediaInfo }[]
   >([]);
 
-  const init = async (clientSDK: ClientSDK) => {
+  const init = async () => {
     const params = new URLSearchParams(window.location.hash.split("#")[1]);
 
     if (!params.has("room")) {
-      await clientSDK.create();
-      window.location.hash = `?room=${clientSDK.roomName}`;
-    } else clientSDK.roomName = params.get("room")!;
+      await client.apiCreate();
+      window.location.hash = `?room=${client.roomName}`;
+    } else client.roomName = params.get("room")!;
 
-    console.log("roomName", clientSDK.roomName);
+    console.log("roomName", client.roomName);
 
-    await clientSDK.join();
+    client.apiJoin();
+    await client.events.onConnect.asPromise();
 
-    clientSDK.onPublish.subscribe((info) => {
-      if (info.publisherId !== clientSDK.peerId) {
-        console.log(info, clientSDK.peerId);
-        clientSDK.subscribe([info]);
+    client.events.onPublish.subscribe((info) => {
+      if (info.publisherId !== client.peerId) {
+        console.log(info, client.peerId);
+        client.subscribe([info]);
       }
     });
-    clientSDK.onTrack.subscribe((stream, info) => {
+    client.events.onTrack.subscribe((stream, info) => {
       stream.onremovetrack = () => {
         setStreams((streams) =>
           streams.filter(({ stream: s }) => stream.id !== s.id)
@@ -39,7 +36,7 @@ const App: FC = () => {
       };
       setStreams((streams) => [...streams, { stream, info }]);
     });
-    clientSDK.onJoin.subscribe((peerId) => {
+    client.events.onJoin.subscribe((peerId) => {
       console.log("join", peerId);
     });
 
@@ -47,17 +44,17 @@ const App: FC = () => {
       video: true,
     });
 
-    await clientSDK.publish([
+    await client.publish([
       { track: mediaStream.getVideoTracks()[0], simulcast: true },
     ]);
     console.log("published");
-    const infos = await clientSDK.getTracks();
-    await clientSDK.subscribe(infos);
+    const infos = await client.getMedias();
+    await client.subscribe(infos);
     console.log("joined");
   };
 
   useEffect(() => {
-    init(clientSDK);
+    init();
   }, []);
 
   useEffect(() => {
@@ -67,7 +64,7 @@ const App: FC = () => {
   }, [streams]);
 
   const changeQuality = (info: MediaInfo, type: SubscriberType) => {
-    clientSDK.changeQuality(info, type);
+    // client.changeQuality(info, type);
   };
 
   return (
@@ -79,7 +76,11 @@ const App: FC = () => {
             <button onClick={() => changeQuality(info, "low")}>low</button>
             <button onClick={() => changeQuality(info, "high")}>high</button>
             <button onClick={() => changeQuality(info, "auto")}>auto</button>
-            <button onClick={() => clientSDK.unPublish(info)}>
+            <button
+              onClick={() => {
+                // client.unPublish(info);
+              }}
+            >
               un publish
             </button>
             <br />

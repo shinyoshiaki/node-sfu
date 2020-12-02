@@ -2,6 +2,7 @@ import App from "./App";
 import { createContext } from "react";
 import ReactDOM from "react-dom";
 import { ClientSDK } from "../../../packages/client/src";
+import { Client } from "./client";
 
 console.log("start");
 
@@ -17,8 +18,8 @@ const endpointURL = (() => {
   }
 })();
 
-const sdk = new ClientSDK(endpointURL);
-export const Context = createContext<ClientSDK>(sdk);
+const sdk = new Client(endpointURL);
+export const Context = createContext<Client>(sdk);
 
 ReactDOM.render(
   <Context.Provider value={sdk}>
