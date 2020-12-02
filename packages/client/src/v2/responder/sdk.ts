@@ -2,7 +2,7 @@ import { subscribe } from "../actions/sfu";
 import { join, publish } from "../actions/user";
 import { User } from "../domain/user";
 import { Connection } from "./connection";
-import { MediaInfo } from "../../";
+import { MediaInfo, SubscriberType } from "../../";
 import { SFUManager } from "../domain/sfu/manager";
 import { Events } from "../../context/events";
 
@@ -11,7 +11,10 @@ export class ClientSDK {
   connection = new Connection(this.events);
   sfu = new SFUManager(this.events, this.connection);
   user: User;
-  peerId!: string;
+
+  get peerId() {
+    return this.user.peerId;
+  }
 
   async join(roomName: string, peerId: string, offer: RTCSessionDescription) {
     const { answer, user, candidates } = await join(this.connection)(
@@ -20,7 +23,7 @@ export class ClientSDK {
       offer
     );
     this.user = user;
-    this.peerId = peerId;
+
     return { answer, candidates, user };
   }
 
@@ -34,5 +37,9 @@ export class ClientSDK {
 
   async getMedias() {
     return this.connection.getMedias();
+  }
+
+  changeQuality(info: MediaInfo, type: SubscriberType) {
+    this.connection.changeQuality([this.peerId, info, type]);
   }
 }

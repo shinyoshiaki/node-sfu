@@ -64,7 +64,7 @@ const App: FC = () => {
   }, [streams]);
 
   const changeQuality = (info: MediaInfo, type: SubscriberType) => {
-    // client.changeQuality(info, type);
+    client.changeQuality(info, type);
   };
 
   return (

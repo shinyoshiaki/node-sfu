@@ -9,6 +9,7 @@ import {
   HandleSubscribe,
   GetMedias,
   HandleMedias,
+  ChangeQuality,
 } from "../../";
 import { Events } from "../../context/events";
 
@@ -83,6 +84,13 @@ export class Connection {
     const [infos] = await this.waitRPC<HandleMedias>("handleMedias");
 
     return infos;
+  }
+
+  changeQuality(payload: ChangeQuality["payload"]) {
+    this.sendRPC<ChangeQuality>({
+      type: "changeQuality",
+      payload,
+    });
   }
 
   private waitRPC = <T extends RPC>(target: T["type"]) =>
