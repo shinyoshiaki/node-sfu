@@ -10,6 +10,10 @@ import {
   GetMedias,
   HandleMedias,
   ChangeQuality,
+  HandleLeave,
+  HandleJoin,
+  HandlePublish,
+  HandleUnPublish,
 } from "../../";
 import { Events } from "../../context/events";
 
@@ -23,7 +27,7 @@ export class Connection {
   });
   peerId!: string;
 
-  constructor(events: Events) {
+  constructor(private events: Events) {
     this.peer.ondatachannel = ({ channel }) => {
       this.channel = channel;
       events.onConnect.execute();
@@ -35,7 +39,40 @@ export class Connection {
       };
     };
     this.peer.ontrack = (ev) => this.ontrack.execute(ev);
+    this.onmessage.subscribe((data) => {
+      const { type, payload } = JSON.parse(data) as RPC;
+      console.log("from sfu", type, payload);
+      //@ts-ignore
+      if (this[type]) {
+        //@ts-ignore
+        this[type](...payload);
+      }
+    });
   }
+
+  private handleLeave = async (...args: HandleLeave["payload"]) => {
+    const [infos, offer] = args;
+    this.events.onLeave.execute(infos);
+    const answer = await this.setOffer(offer as any);
+    this.sendAnswer(answer);
+  };
+
+  private handleJoin = async (...args: HandleJoin["payload"]) => {
+    const [peerId] = args;
+    this.events.onJoin.execute(peerId);
+  };
+
+  private handlePublish = (...args: HandlePublish["payload"]) => {
+    const [infos] = args;
+    infos.forEach((info) => this.events.onPublish.execute(info));
+  };
+
+  private handleUnPublish = async (...args: HandleUnPublish["payload"]) => {
+    const [info, offer] = args;
+    this.events.onUnPublish.execute(info);
+    const answer = await this.setOffer(offer as any);
+    await this.sendAnswer(answer);
+  };
 
   async setOffer(offer: RTCSessionDescription) {
     await this.peer.setRemoteDescription(offer);
