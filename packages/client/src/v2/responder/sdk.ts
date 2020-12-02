@@ -31,6 +31,13 @@ export class ClientSDK {
     await publish(this.connection, this.user)(requests);
   }
 
+  async unPublish(info: MediaInfo) {
+    if (info.publisherId !== this.peerId) return;
+    this.events.onUnPublish.execute(info);
+
+    await this.connection.unPublish([info]);
+  }
+
   async subscribe(infos: MediaInfo[]) {
     subscribe(this.connection, this.sfu)(infos);
   }

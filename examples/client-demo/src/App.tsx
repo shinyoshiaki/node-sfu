@@ -76,13 +76,7 @@ const App: FC = () => {
             <button onClick={() => changeQuality(info, "low")}>low</button>
             <button onClick={() => changeQuality(info, "high")}>high</button>
             <button onClick={() => changeQuality(info, "auto")}>auto</button>
-            <button
-              onClick={() => {
-                // client.unPublish(info);
-              }}
-            >
-              un publish
-            </button>
+            <button onClick={() => client.unPublish(info)}>un publish</button>
             <br />
             <video
               ref={(ref) => {

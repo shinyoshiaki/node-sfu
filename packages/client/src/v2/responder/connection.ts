@@ -14,6 +14,8 @@ import {
   HandleJoin,
   HandlePublish,
   HandleUnPublish,
+  UnPublish,
+  HandleUnPublishDone,
 } from "../../";
 import { Events } from "../../context/events";
 
@@ -103,6 +105,18 @@ export class Connection {
     });
     const [offer] = await this.waitRPC<HandlePublishDone>("handlePublishDone");
     return offer;
+  }
+
+  async unPublish(payload: UnPublish["payload"]) {
+    this.sendRPC<UnPublish>({
+      type: "unPublish",
+      payload,
+    });
+    const [offer] = await this.waitRPC<HandleUnPublishDone>(
+      "handleUnPublishDone"
+    );
+    const answer = await this.setOffer(offer as any);
+    await this.sendAnswer(answer);
   }
 
   async subscribe(payload: Subscribe["payload"]) {
