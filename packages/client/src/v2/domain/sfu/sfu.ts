@@ -12,7 +12,7 @@ export class SFU {
     this.listen();
   }
 
-  listen() {
+  private listen() {
     this.connection.ontrack.subscribe(({ transceiver, streams }) => {
       const mid = transceiver.mid;
       if (this.mid === mid) this.events.onTrack.execute(streams[0], this.info);

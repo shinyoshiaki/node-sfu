@@ -5,11 +5,14 @@ import { Connection } from "./connection";
 import { MediaInfo, SubscriberType } from "../../";
 import { SFUManager } from "../domain/sfu/manager";
 import { Events } from "../../context/events";
+import { MCUManager } from "../domain/mcu/manager";
+import { listenMixedAudio } from "../actions/mcu";
 
 export class ClientSDK {
   events = new Events();
   connection = new Connection(this.events);
   sfu = new SFUManager(this.events, this.connection);
+  mcu = new MCUManager(this.events, this.connection);
   user: User;
 
   get peerId() {
@@ -44,6 +47,20 @@ export class ClientSDK {
 
   async getMedias() {
     return this.connection.getMedias();
+  }
+
+  async listenMixedAudio(infos: MediaInfo[]) {
+    return await listenMixedAudio(this.connection, this.mcu)(infos);
+  }
+
+  addMixedAudioTrack(mixerId: string, info: MediaInfo) {
+    this.mcu.getMixer(mixerId).add(info);
+    this.connection.addMixedAudioTrack([mixerId, info]);
+  }
+
+  removeMixedAudioTrack(mixerId: string, info: MediaInfo) {
+    this.mcu.getMixer(mixerId).remove(info);
+    this.connection.removeMixedAudioTrack([mixerId, info]);
   }
 
   changeQuality(info: MediaInfo, type: SubscriberType) {

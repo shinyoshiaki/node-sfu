@@ -16,6 +16,10 @@ import {
   HandleUnPublish,
   UnPublish,
   HandleUnPublishDone,
+  ListenMixedAudio,
+  HandleListenMixedAudio,
+  AddMixedAudioTrack,
+  RemoveMixedAudioTrack,
 } from "../../";
 import { Events } from "../../context/events";
 
@@ -140,6 +144,28 @@ export class Connection {
   changeQuality(payload: ChangeQuality["payload"]) {
     this.sendRPC<ChangeQuality>({
       type: "changeQuality",
+      payload,
+    });
+  }
+
+  async listenMixedAudio(payload: ListenMixedAudio["payload"]) {
+    this.sendRPC<ListenMixedAudio>({
+      type: "listenMixedAudio",
+      payload,
+    });
+    return await this.waitRPC<HandleListenMixedAudio>("handleListenMixedAudio");
+  }
+
+  addMixedAudioTrack(payload: AddMixedAudioTrack["payload"]) {
+    this.sendRPC<AddMixedAudioTrack>({
+      type: "addMixedAudioTrack",
+      payload,
+    });
+  }
+
+  removeMixedAudioTrack(payload: RemoveMixedAudioTrack["payload"]) {
+    this.sendRPC<RemoveMixedAudioTrack>({
+      type: "removeMixedAudioTrack",
       payload,
     });
   }
