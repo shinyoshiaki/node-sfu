@@ -1,21 +1,21 @@
 import Event from "rx.mini";
 import {
+  AddMixedAudioTrack,
   ChangeQuality,
   GetMedias,
   HandleAnswer,
   HandleCandidate,
+  HandleListenMixedAudio,
   HandleMedias,
+  HandlePublishDone,
+  HandleSubscribe,
+  HandleUnPublishDone,
+  ListenMixedAudio,
   Publish,
+  RemoveMixedAudioTrack,
   RPC,
   Subscribe,
-  AddMixedAudioTrack,
-  ListenMixedAudio,
-  RemoveMixedAudioTrack,
   UnPublish,
-  HandleSubscribe,
-  HandleListenMixedAudio,
-  HandleUnPublishDone,
-  HandlePublishDone,
 } from "../";
 
 export class DataChannelConnection {

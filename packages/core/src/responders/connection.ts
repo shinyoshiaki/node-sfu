@@ -20,10 +20,13 @@ import {
   HandleAnswerDone,
   HandleJoin,
   HandleLeave,
+  HandleListenMixedAudio,
   HandleMedias,
-  HandlePublishDone,
   HandlePublish,
+  HandlePublishDone,
+  HandleSubscribe,
   HandleUnPublish,
+  HandleUnPublishDone,
   Leave,
   ListenMixedAudio,
   Publish,
@@ -31,9 +34,6 @@ import {
   RPC,
   Subscribe,
   UnPublish,
-  HandleSubscribe,
-  HandleUnPublishDone,
-  HandleListenMixedAudio,
 } from "../typings/rpc";
 
 export class Connection {
