@@ -1,6 +1,6 @@
 {
   "name": "@shinyoshiaki/node-sfu-core",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "RTP,RTCP,SRTP,SRTCP implementation for TypeScript.",
   "keywords": [
     "WebRTC",
