@@ -1,5 +1,5 @@
-import { MediaInfo } from "../../../../";
-import { Events } from "../../../context/events";
+import { MediaInfo } from "../../../lib";
+import { Events } from "../../context/events";
 import { Connection } from "../../responder/connection";
 import { MCU } from "./mcu";
 

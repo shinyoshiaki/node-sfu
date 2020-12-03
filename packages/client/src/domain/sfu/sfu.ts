@@ -1,6 +1,6 @@
-import { MediaInfo } from "../../../";
+import { MediaInfo } from "../..";
 import { Connection } from "../../responder/connection";
-import { Events } from "../../../context/events";
+import { Events } from "../../context/events";
 
 export class SFU {
   constructor(

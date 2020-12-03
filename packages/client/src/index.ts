@@ -1,4 +1,4 @@
-export { ClientSDK } from "./v2/responder/sdk";
+export { ClientSDK } from "./responder/sdk";
 export type {
   MediaInfo,
   RPC,

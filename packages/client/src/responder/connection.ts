@@ -20,8 +20,8 @@ import {
   HandleListenMixedAudio,
   AddMixedAudioTrack,
   RemoveMixedAudioTrack,
-} from "../../";
-import { Events } from "../../context/events";
+} from "..";
+import { Events } from "../context/events";
 
 export class Connection {
   private channel!: RTCDataChannel;
