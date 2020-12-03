@@ -21,20 +21,20 @@ const App: FC = () => {
     const params = new URLSearchParams(window.location.hash.split("#")[1]);
 
     if (!params.has("room")) {
-      await clientSDK.create();
+      await clientSDK.apiCreate();
       window.location.hash = `?room=${clientSDK.roomName}`;
     } else clientSDK.roomName = params.get("room")!;
 
     console.log("roomName", clientSDK.roomName);
 
-    await clientSDK.join();
+    await clientSDK.apiJoin();
 
-    clientSDK.onTrack.subscribe((stream) => {
+    clientSDK.events.onTrack.subscribe((stream) => {
       console.log("onTrack", { stream });
       audio.srcObject = stream;
     });
 
-    const infos = (await clientSDK.getTracks()).filter(
+    const infos = (await clientSDK.getMedias()).filter(
       (info) => info.publisherId !== clientSDK.peerId && info.kind === "audio"
     );
     setInfos(infos);
@@ -43,14 +43,14 @@ const App: FC = () => {
   };
 
   const listen = () => {
-    clientSDK.onPublish.subscribe((info) => {
+    clientSDK.events.onPublish.subscribe((info) => {
       console.log("onPublish", info);
       if (info.publisherId === clientSDK.peerId) return;
       if (info.kind === "audio") {
         setInfos((prev) => [...prev, info]);
       }
     });
-    clientSDK.onUnPublish.subscribe((info) => {
+    clientSDK.events.onUnPublish.subscribe((info) => {
       setInfos((prev) => prev.filter((v) => v.mediaId !== info.mediaId));
     });
   };
