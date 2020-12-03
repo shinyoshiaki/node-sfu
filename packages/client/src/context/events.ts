@@ -1,5 +1,5 @@
 import Event from "rx.mini";
-import { MediaInfo } from "..";
+import { MediaInfo } from "../";
 
 export class Events {
   readonly onConnect = new Event();

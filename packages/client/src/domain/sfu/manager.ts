@@ -1,4 +1,4 @@
-import { MidPair, MediaInfo } from "../..";
+import { MidPair, MediaInfo } from "../../";
 import { Events } from "../../context/events";
 import { Connection } from "../../responder/connection";
 import { SFU } from "./sfu";
