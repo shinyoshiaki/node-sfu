@@ -102,16 +102,16 @@ export class Connection {
     await this.waitRPC("handleAnswerDone");
   };
 
-  async publish(payload: Publish["payload"]) {
+  publish = async (payload: Publish["payload"]) => {
     this.sendRPC<Publish>({
       type: "publish",
       payload,
     });
     const [offer] = await this.waitRPC<HandlePublishDone>("handlePublishDone");
     return offer;
-  }
+  };
 
-  async unPublish(payload: UnPublish["payload"]) {
+  unPublish = async (payload: UnPublish["payload"]) => {
     this.sendRPC<UnPublish>({
       type: "unPublish",
       payload,
@@ -121,17 +121,17 @@ export class Connection {
     );
     const answer = await this.setOffer(offer as any);
     await this.sendAnswer(answer);
-  }
+  };
 
-  async subscribe(payload: Subscribe["payload"]) {
+  subscribe = async (payload: Subscribe["payload"]) => {
     this.sendRPC<Subscribe>({
       type: "subscribe",
       payload,
     });
     return await this.waitRPC<HandleSubscribe>("handleSubscribe");
-  }
+  };
 
-  async getMedias() {
+  getMedias = async () => {
     this.sendRPC<GetMedias>({
       type: "getMedias",
       payload: [this.peerId],
@@ -139,22 +139,22 @@ export class Connection {
     const [infos] = await this.waitRPC<HandleMedias>("handleMedias");
 
     return infos;
-  }
+  };
 
-  changeQuality(payload: ChangeQuality["payload"]) {
+  changeQuality = (payload: ChangeQuality["payload"]) => {
     this.sendRPC<ChangeQuality>({
       type: "changeQuality",
       payload,
     });
-  }
+  };
 
-  async listenMixedAudio(payload: ListenMixedAudio["payload"]) {
+  listenMixedAudio = async (payload: ListenMixedAudio["payload"]) => {
     this.sendRPC<ListenMixedAudio>({
       type: "listenMixedAudio",
       payload,
     });
     return await this.waitRPC<HandleListenMixedAudio>("handleListenMixedAudio");
-  }
+  };
 
   addMixedAudioTrack(payload: AddMixedAudioTrack["payload"]) {
     this.sendRPC<AddMixedAudioTrack>({

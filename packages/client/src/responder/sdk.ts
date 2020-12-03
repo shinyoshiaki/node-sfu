@@ -1,4 +1,4 @@
-import { MediaInfo, SubscriberType } from "..";
+import { MediaInfo, SubscriberType } from "../";
 import { listenMixedAudio } from "../actions/mcu";
 import { subscribe } from "../actions/sfu";
 import { join, publish } from "../actions/user";
