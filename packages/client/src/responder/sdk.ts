@@ -1,12 +1,12 @@
+import { MediaInfo, SubscriberType } from "..";
+import { listenMixedAudio } from "../actions/mcu";
 import { subscribe } from "../actions/sfu";
 import { join, publish } from "../actions/user";
-import { User } from "../domain/user";
-import { Connection } from "./connection";
-import { MediaInfo, SubscriberType } from "..";
-import { SFUManager } from "../domain/sfu/manager";
 import { Events } from "../context/events";
 import { MCUManager } from "../domain/mcu/manager";
-import { listenMixedAudio } from "../actions/mcu";
+import { SFUManager } from "../domain/sfu/manager";
+import { User } from "../domain/user";
+import { Connection } from "./connection";
 
 export class ClientSDK {
   events = new Events();

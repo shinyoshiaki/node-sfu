@@ -1,6 +1,6 @@
-import { Connection } from "../responder/connection";
-import { MediaInfo, RequestSubscribe } from "../../";
+import { MediaInfo, RequestSubscribe } from "../";
 import { SFUManager } from "../domain/sfu/manager";
+import { Connection } from "../responder/connection";
 
 export const subscribe = (connection: Connection, sfu: SFUManager) => async (
   infos: MediaInfo[]

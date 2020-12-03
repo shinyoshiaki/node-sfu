@@ -1,6 +1,6 @@
+import { Kind } from "../";
 import { User } from "../domain/user";
 import { Connection } from "../responder/connection";
-import { Kind } from "../../";
 
 export const join = (connection: Connection) => async (
   roomName: string,

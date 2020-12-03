@@ -1,6 +1,6 @@
-import { Connection } from "../responder/connection";
-import { MediaInfo } from "../../";
+import { MediaInfo } from "../";
 import { MCUManager } from "../domain/mcu/manager";
+import { Connection } from "../responder/connection";
 
 export const listenMixedAudio = (
   connection: Connection,
