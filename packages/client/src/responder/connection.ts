@@ -20,7 +20,7 @@ import {
   HandleListenMixedAudio,
   AddMixedAudioTrack,
   RemoveMixedAudioTrack,
-} from "..";
+} from "../";
 import { Events } from "../context/events";
 
 export class Connection {
