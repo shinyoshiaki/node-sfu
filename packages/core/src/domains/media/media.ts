@@ -9,7 +9,8 @@ export class Media {
 
   constructor(
     readonly publisherId: string,
-    readonly transceiver: RTCRtpTransceiver
+    readonly transceiver: RTCRtpTransceiver,
+    readonly simulcast: boolean
   ) {}
 
   addTrack(rtpTrack: RtpTrack) {

@@ -54,46 +54,44 @@ export class Room {
     return infos;
   }
 
-  async publish(
+  createMedia(
     publisherId: string,
     request: { kind: Kind; simulcast: boolean }[]
   ) {
     log("publish", publisherId, request);
     const peer = this.peers[publisherId];
 
-    const transceivers = request.map(({ kind, simulcast }): [
-      RTCRtpTransceiver,
-      boolean
-    ] => {
-      if (!simulcast) {
-        return [peer.addTransceiver(kind, "recvonly"), simulcast];
-      } else {
-        return [
-          peer.addTransceiver("video", "recvonly", {
+    const medias = request.map(({ kind, simulcast }) => {
+      const transceiver = simulcast
+        ? peer.addTransceiver("video", "recvonly", {
             simulcast: [
               { rid: "high", direction: "recv" },
               { rid: "low", direction: "recv" },
             ],
-          }),
-          simulcast,
-        ];
-      }
+          })
+        : peer.addTransceiver(kind, "recvonly");
+      const media = new Media(publisherId, transceiver, simulcast);
+      this.medias[media.mediaId] = media;
+      return media;
     });
 
+    return { medias, peer };
+  }
+
+  async publish(medias: Media[], peer: RTCPeerConnection) {
     const infos = await Promise.all(
-      transceivers.map(async ([receiver, simulcast]) => {
-        const media = new Media(publisherId, receiver);
-        this.medias[media.mediaId] = media;
+      medias.map(async (media) => {
         const info = media.info;
 
-        if (simulcast) {
-          await receiver.onTrack.asPromise();
-          receiver.receiver.tracks.forEach((track) => media.addTrack(track));
+        if (media.simulcast) {
+          await media.transceiver.onTrack.asPromise();
+          media.transceiver.receiver.tracks.forEach((track) =>
+            media.addTrack(track)
+          );
         } else {
-          const [track] = await receiver.onTrack.asPromise();
+          const [track] = await media.transceiver.onTrack.asPromise();
           media.addTrack(track);
         }
-
         return info;
       })
     );

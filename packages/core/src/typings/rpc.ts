@@ -45,7 +45,7 @@ export interface HandlePublish extends RPC {
 
 export interface HandlePublishDone extends RPC {
   type: "handlePublishDone";
-  payload: [RTCSessionDescription];
+  payload: [RTCSessionDescription, MediaInfo[]];
 }
 
 export interface HandleUnPublish extends RPC {
