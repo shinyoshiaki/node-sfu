@@ -1,7 +1,7 @@
 import { MediaInfo, SubscriberType } from "../";
 import { listenMixedAudio } from "../actions/mcu";
 import { subscribe } from "../actions/sfu";
-import { join, publish } from "../actions/user";
+import { join, publish, unPublish } from "../actions/user";
 import { Events } from "../context/events";
 import { MCUManager } from "../domain/mcu/manager";
 import { SFUManager } from "../domain/sfu/manager";
@@ -31,14 +31,11 @@ export class ClientSDK {
   }
 
   async publish(requests: { track: MediaStreamTrack; simulcast?: boolean }[]) {
-    await publish(this.connection, this.user)(requests);
+    await publish(this.connection, this.user, this.events)(requests);
   }
 
   async unPublish(info: MediaInfo) {
-    if (info.publisherId !== this.peerId) return;
-    this.events.onUnPublish.execute(info);
-
-    await this.connection.unPublish([info]);
+    await unPublish(this.connection, this.user, this.events)(info);
   }
 
   async subscribe(infos: MediaInfo[]) {

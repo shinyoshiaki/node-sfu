@@ -107,8 +107,7 @@ export class Connection {
       type: "publish",
       payload,
     });
-    const [offer] = await this.waitRPC<HandlePublishDone>("handlePublishDone");
-    return offer;
+    return this.waitRPC<HandlePublishDone>("handlePublishDone");
   };
 
   unPublish = async (payload: UnPublish["payload"]) => {

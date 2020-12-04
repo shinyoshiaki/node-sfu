@@ -35,7 +35,7 @@
       "type": "node",
       "env": { "DEBUG": "werift:webrtc:*" },
       "request": "launch",
-      "program": "${workspaceRoot}/node_modules/ts-node/dist/bin.js",
+      "program": "${workspaceRoot}/node_modules/ts-node-dev/lib/bin.js",
       "protocol": "inspector",
       "args": [
         "--files",

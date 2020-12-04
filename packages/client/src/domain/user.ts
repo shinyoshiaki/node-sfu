@@ -1,4 +1,5 @@
 import Event from "rx.mini";
+import { MediaInfo } from "../../";
 import { Connection } from "../responder/connection";
 
 export class User {
@@ -7,6 +8,7 @@ export class User {
   peerId!: string;
   candidates: RTCIceCandidate[] = [];
   onCandidate = new Event<[RTCIceCandidate]>();
+  published: MediaInfo[] = [];
 
   constructor(readonly roomName: string, private connection: Connection) {}
 
