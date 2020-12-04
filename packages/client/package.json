@@ -29,7 +29,7 @@
     "dev": "cd example && yarn dev",
     "rollup": "rollup -c",
     "test": "echo \"empty\"",
-    "type": "tsc --noEmit"
+    "type": "tsc --noEmit -p ./tsconfig.json"
   },
   "dependencies": {
     "axios": "^0.21.0",

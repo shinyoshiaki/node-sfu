@@ -1,5 +1,5 @@
 import Event from "rx.mini";
-import { MediaInfo } from "../../";
+import { MediaInfo } from "../";
 import { Connection } from "../responder/connection";
 
 export class User {
