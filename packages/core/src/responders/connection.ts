@@ -71,7 +71,6 @@ export class Connection {
   handleAnswer = async (peerId: string, answer: RTCSessionDescription) => {
     const peer = this.room.peers[peerId];
     await peer.setRemoteDescription(answer);
-    console.log(answer);
     this.sendRPC<HandleAnswerDone>(
       { type: "handleAnswerDone", payload: [] },
       peer

@@ -70,6 +70,7 @@ export class Connection {
 
   private handlePublish = (...args: HandlePublish["payload"]) => {
     const [infos] = args;
+    console.warn({ infos });
     infos.forEach((info) => this.events.onPublish.execute(info));
   };
 

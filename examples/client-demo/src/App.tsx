@@ -23,7 +23,7 @@ const App: FC = () => {
     await client.events.onConnect.asPromise();
 
     listen();
-    await publish();
+    await publish(true);
     const infos = await client.getMedias();
     await client.subscribe(infos);
   };
@@ -69,19 +69,18 @@ const App: FC = () => {
     client.changeQuality(info, type);
   };
 
-  const publish = async () => {
+  const publish = async (simulcast: boolean) => {
     const mediaStream = await navigator.mediaDevices.getUserMedia({
       video: true,
     });
 
-    await client.publish([
-      { track: mediaStream.getTracks()[0], simulcast: true },
-    ]);
+    await client.publish([{ track: mediaStream.getTracks()[0], simulcast }]);
   };
 
   return (
     <div>
-      <button onClick={publish}>publish</button>
+      <button onClick={() => publish(true)}>publish simulcast</button>
+      <button onClick={() => publish(false)}>publish</button>
       <p>published</p>
       <div style={{ display: "flex" }}>
         {published.map((info, i) => (
