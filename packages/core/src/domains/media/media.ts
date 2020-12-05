@@ -25,6 +25,7 @@ export class Media {
       mediaId: this.mediaId,
       kind: this.kind,
       publisherId: this.publisherId,
+      simulcast: this.simulcast,
     };
   }
 }
@@ -33,4 +34,5 @@ export type MediaInfo = {
   mediaId: string;
   kind: string;
   publisherId: string;
+  simulcast: boolean;
 };

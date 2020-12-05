@@ -22,7 +22,12 @@ export class MCU {
   }
 
   get info(): MediaInfo {
-    return { mediaId: "mixer", kind: "mixer", publisherId: "server" };
+    return {
+      mediaId: "mixer",
+      kind: "mixer",
+      publisherId: "server",
+      simulcast: false,
+    };
   }
 
   add(info: MediaInfo) {

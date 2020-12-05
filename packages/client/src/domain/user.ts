@@ -33,11 +33,10 @@ export class User {
     offer: RTCSessionDescription
   ) {
     await this.peer.setRemoteDescription(offer);
-
     requests
       .map(({ track, simulcast }): [RTCRtpSender, boolean] => [
         this.peer.addTrack(track)!,
-        !!simulcast,
+        simulcast,
       ])
       .map(([sender, simulcast]) => {
         if (!simulcast) return;

@@ -1,8 +1,11 @@
 import { RTCPeerConnection } from "../../../werift";
 import { MediaInfo } from "../domains/media/media";
 import { Room } from "../domains/room";
+import Logger from "debug";
+const log = Logger("actions/room");
 
 export const leave = (room: Room) => async (peerId: string) => {
+  log("leave", peerId);
   room.sfuManager.leave(peerId);
 
   const infos = room.leave(peerId);

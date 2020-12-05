@@ -8,7 +8,7 @@ export const subscribe = (connection: Connection, sfu: SFUManager) => async (
   const requests: RequestSubscribe[] = infos.map((info) => {
     return {
       info,
-      type: info.kind === "audio" ? "single" : "high",
+      type: info.simulcast ? "high" : "single",
     };
   });
   const [offer, pairs] = await connection.subscribe([
