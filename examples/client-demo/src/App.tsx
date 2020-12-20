@@ -9,6 +9,8 @@ const App: FC = () => {
     { stream: MediaStream; info: MediaInfo }[]
   >([]);
   const [published, setPublished] = useState<MediaInfo[]>([]);
+  const [medias, setMedias] = useState<MediaInfo[]>([]);
+
   const init = async () => {
     const params = new URLSearchParams(window.location.hash.split("#")[1]);
 
@@ -23,18 +25,15 @@ const App: FC = () => {
     await client.events.onConnect.asPromise();
 
     listen();
-    await publish(true);
-    const infos = await client.getMedias();
-    await client.subscribe(infos);
+
+    await client.getMedias();
+    await publish(true, { video: true });
   };
 
   const listen = () => {
-    client.events.onPublish.subscribe((info) => {
-      client.publish;
-      if (info.publisherId !== client.peerId) {
-        console.log(info, client.peerId);
-        client.subscribe([info]);
-      }
+    client.events.onPublish.subscribe(() => {
+      console.log(client.medias);
+      setMedias(Object.values(client.medias));
     });
     client.events.onTrack.subscribe((stream, info) => {
       stream.onremovetrack = () => {
@@ -69,18 +68,32 @@ const App: FC = () => {
     client.changeQuality(info, type);
   };
 
-  const publish = async (simulcast: boolean) => {
-    const mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-    });
-
-    await client.publish([{ track: mediaStream.getTracks()[0], simulcast }]);
+  const publish = async (
+    simulcast: boolean,
+    constraints: MediaStreamConstraints
+  ) => {
+    const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+    await client.publish({ track: mediaStream.getTracks()[0], simulcast });
   };
 
   return (
     <div>
-      <button onClick={() => publish(true)}>publish simulcast</button>
-      <button onClick={() => publish(false)}>publish</button>
+      <button onClick={() => publish(true, { video: true })}>
+        publish simulcast
+      </button>
+      <button onClick={() => publish(false, { video: true })}>publish</button>
+      <button onClick={() => publish(false, { audio: true })}>
+        publish audio
+      </button>
+      <p>medias</p>
+      <div style={{ display: "flex" }}>
+        {medias.map((info, i) => (
+          <span key={i}>
+            <div>{JSON.stringify(info)}</div>
+            <button onClick={() => client.subscribe([info])}>subscribe</button>
+          </span>
+        ))}
+      </div>
       <p>published</p>
       <div style={{ display: "flex" }}>
         {published.map((info, i) => (
@@ -94,10 +107,17 @@ const App: FC = () => {
         {streams.map(({ info }, i) => (
           <div key={i}>
             <p>{`${info.mediaId} ${info.publisherId}`}</p>
-            <button onClick={() => changeQuality(info, "low")}>low</button>
-            <button onClick={() => changeQuality(info, "high")}>high</button>
-            <button onClick={() => changeQuality(info, "auto")}>auto</button>
-            <br />
+            {info.simulcast && (
+              <div>
+                <button onClick={() => changeQuality(info, "low")}>low</button>
+                <button onClick={() => changeQuality(info, "high")}>
+                  high
+                </button>
+                <button onClick={() => changeQuality(info, "auto")}>
+                  auto
+                </button>
+              </div>
+            )}
             <video
               ref={(ref) => {
                 const arr = videos.current;

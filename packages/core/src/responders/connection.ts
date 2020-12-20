@@ -97,11 +97,11 @@ export class Connection {
   publish = async (...args: Publish["payload"]) => {
     const [publisherId, request] = args;
 
-    const { medias, peer } = this.room.createMedia(publisherId, request);
-    this.room.publish(medias, peer).then(({ peers, infos }) => {
+    const { media, peer } = this.room.createMedia(publisherId, request);
+    this.room.publish(media, peer).then(({ peers, info }) => {
       peers.forEach((peer) => {
         this.sendRPC<HandlePublish>(
-          { type: "handlePublish", payload: [infos] },
+          { type: "handlePublish", payload: [info] },
           peer
         );
       });
@@ -111,7 +111,7 @@ export class Connection {
     this.sendRPC<HandlePublishDone>(
       {
         type: "handlePublishDone",
-        payload: [peer.localDescription, medias.map((v) => v.info)],
+        payload: [peer.localDescription, media.info],
       },
       peer
     );

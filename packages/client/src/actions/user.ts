@@ -17,21 +17,18 @@ export const publish = (
   connection: Connection,
   user: User,
   events: Events
-) => async (requests: { track: MediaStreamTrack; simulcast?: boolean }[]) => {
-  const publishRequests = requests.map(({ track, simulcast }) => ({
-    kind: track.kind as Kind,
-    simulcast: !!simulcast,
-  }));
-  const [offer, infos] = await connection.publish([
-    user.peerId,
-    publishRequests,
-  ]);
+) => async (request: { track: MediaStreamTrack; simulcast?: boolean }) => {
+  const publishRequest = {
+    kind: request.track.kind as Kind,
+    simulcast: !!request.simulcast,
+  };
+  const [offer, info] = await connection.publish([user.peerId, publishRequest]);
 
-  const answer = await user.publish(requests, offer as any);
+  const answer = await user.publish(request, offer as any);
   await connection.sendAnswer(answer);
 
-  user.published = [...user.published, ...infos];
-  infos.forEach((info) => events.onPublish.execute(info));
+  user.published = [...user.published, info];
+  events.onPublish.execute(info);
 };
 
 export const unPublish = (

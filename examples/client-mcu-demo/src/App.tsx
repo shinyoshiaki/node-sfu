@@ -64,7 +64,7 @@ const App: FC = () => {
     const mediaStream = await navigator.mediaDevices.getUserMedia({
       audio: true,
     });
-    await clientSDK.publish([{ track: mediaStream.getTracks()[0] }]);
+    await clientSDK.publish({ track: mediaStream.getTracks()[0] });
   };
 
   async function getAudioStream(ab: ArrayBuffer, gain: number) {
@@ -90,7 +90,7 @@ const App: FC = () => {
   }: ChangeEvent<HTMLInputElement>) => {
     const file = files[0];
     const stream = await getAudioStream(await file.arrayBuffer(), 0.1);
-    await clientSDK.publish([{ track: stream.getTracks()[0] }]);
+    await clientSDK.publish({ track: stream.getTracks()[0] });
   };
 
   const addAudio = async (info: MediaInfo) => {

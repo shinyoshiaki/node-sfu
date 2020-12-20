@@ -14,6 +14,16 @@ export class ClientSDK {
   sfu = new SFUManager(this.events, this.connection);
   mcu = new MCUManager(this.events, this.connection);
   user: User;
+  medias: { [id: string]: MediaInfo } = {};
+
+  constructor() {
+    this.events.onPublish.subscribe((info) => {
+      this.medias[info.mediaId] = info;
+    });
+    this.events.onUnPublish.subscribe((info) => {
+      delete this.medias[info.mediaId];
+    });
+  }
 
   get peerId() {
     return this.user.peerId;
@@ -30,8 +40,8 @@ export class ClientSDK {
     return { answer, candidates, user };
   }
 
-  async publish(requests: { track: MediaStreamTrack; simulcast?: boolean }[]) {
-    await publish(this.connection, this.user, this.events)(requests);
+  async publish(request: { track: MediaStreamTrack; simulcast?: boolean }) {
+    await publish(this.connection, this.user, this.events)(request);
   }
 
   async unPublish(info: MediaInfo) {
@@ -43,7 +53,15 @@ export class ClientSDK {
   }
 
   async getMedias() {
-    return this.connection.getMedias();
+    const medias = await this.connection.getMedias();
+    this.medias = medias.reduce(
+      (acc: { [mediaId: string]: MediaInfo }, cur) => {
+        acc[cur.mediaId] = cur;
+        return acc;
+      },
+      {}
+    );
+    return medias;
   }
 
   async listenMixedAudio(infos: MediaInfo[]) {
