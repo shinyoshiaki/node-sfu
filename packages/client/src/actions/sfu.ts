@@ -5,7 +5,7 @@ import { Connection } from "../responder/connection";
 export const subscribe = (connection: Connection, sfu: SFUManager) => async (
   infos: MediaInfo[]
 ) => {
-  if (sfu.checkSubscribe(infos)) return;
+  if (sfu.isSubscribed(infos)) return;
 
   const requests: RequestSubscribe[] = infos.map((info) => {
     return {

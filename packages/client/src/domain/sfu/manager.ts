@@ -9,7 +9,7 @@ export class SFUManager {
 
   constructor(private events: Events, private connection: Connection) {}
 
-  checkSubscribe(infos: MediaInfo[]) {
+  isSubscribed(infos: MediaInfo[]) {
     const check = !!infos.find((info) =>
       this.subscribed.find((v) => v.mediaId === info.mediaId)
     );

@@ -37,12 +37,15 @@ export class User {
     const transceiver = this.peer.getTransceivers().slice(-1)[0];
     transceiver.sender.replaceTrack(request.track);
     transceiver.direction = "sendonly";
-    const params = transceiver.sender.getParameters();
-    params.encodings = [
-      { maxBitrate: 680000, scaleResolutionDownBy: 1, rid: "high" },
-      { maxBitrate: 36000, scaleResolutionDownBy: 4, rid: "low" },
-    ];
-    transceiver.sender.setParameters(params);
+
+    if (request.simulcast) {
+      const params = transceiver.sender.getParameters();
+      params.encodings = [
+        { maxBitrate: 680000, scaleResolutionDownBy: 1, rid: "high" },
+        { maxBitrate: 36000, scaleResolutionDownBy: 4, rid: "low" },
+      ];
+      transceiver.sender.setParameters(params);
+    }
 
     await this.peer.setLocalDescription(await this.peer.createAnswer());
     return this.peer.localDescription;

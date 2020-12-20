@@ -54,10 +54,13 @@ export class ClientSDK {
 
   async getMedias() {
     const medias = await this.connection.getMedias();
-    this.medias = medias.reduce((acc: {}, cur) => {
-      acc[cur.mediaId] = cur;
-      return acc;
-    }, {});
+    this.medias = medias.reduce(
+      (acc: { [mediaId: string]: MediaInfo }, cur) => {
+        acc[cur.mediaId] = cur;
+        return acc;
+      },
+      {}
+    );
     return medias;
   }
 
