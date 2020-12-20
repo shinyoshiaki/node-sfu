@@ -29,24 +29,20 @@ export class User {
   };
 
   async publish(
-    requests: { track: MediaStreamTrack; simulcast?: boolean }[],
+    request: { track: MediaStreamTrack; simulcast?: boolean },
     offer: RTCSessionDescription
   ) {
     await this.peer.setRemoteDescription(offer);
-    requests
-      .map(({ track, simulcast }): [RTCRtpSender, boolean] => [
-        this.peer.addTrack(track)!,
-        simulcast,
-      ])
-      .map(([sender, simulcast]) => {
-        if (!simulcast) return;
-        const params = sender.getParameters();
-        params.encodings = [
-          { maxBitrate: 680000, scaleResolutionDownBy: 1, rid: "high" },
-          { maxBitrate: 36000, scaleResolutionDownBy: 4, rid: "low" },
-        ];
-        sender.setParameters(params);
-      });
+
+    const transceiver = this.peer.getTransceivers().slice(-1)[0];
+    transceiver.sender.replaceTrack(request.track);
+    transceiver.direction = "sendonly";
+    const params = transceiver.sender.getParameters();
+    params.encodings = [
+      { maxBitrate: 680000, scaleResolutionDownBy: 1, rid: "high" },
+      { maxBitrate: 36000, scaleResolutionDownBy: 4, rid: "low" },
+    ];
+    transceiver.sender.setParameters(params);
 
     await this.peer.setLocalDescription(await this.peer.createAnswer());
     return this.peer.localDescription;

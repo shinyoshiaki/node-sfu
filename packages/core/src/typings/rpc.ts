@@ -30,7 +30,7 @@ export type RequestPublish = { kind: Kind; simulcast: boolean };
 
 export interface Publish extends RPC {
   type: "publish";
-  payload: [string, RequestPublish[]];
+  payload: [string, RequestPublish];
 }
 
 export interface UnPublish extends RPC {
@@ -40,12 +40,12 @@ export interface UnPublish extends RPC {
 
 export interface HandlePublish extends RPC {
   type: "handlePublish";
-  payload: [MediaInfo[]];
+  payload: [MediaInfo];
 }
 
 export interface HandlePublishDone extends RPC {
   type: "handlePublishDone";
-  payload: [RTCSessionDescription, MediaInfo[]];
+  payload: [RTCSessionDescription, MediaInfo];
 }
 
 export interface HandleUnPublish extends RPC {

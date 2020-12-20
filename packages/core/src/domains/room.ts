@@ -56,51 +56,39 @@ export class Room {
 
   createMedia(
     publisherId: string,
-    request: { kind: Kind; simulcast: boolean }[]
+    { simulcast, kind }: { kind: Kind; simulcast: boolean }
   ) {
-    log("publish", publisherId, request);
+    log("publish", publisherId, { simulcast, kind });
     const peer = this.peers[publisherId];
 
-    const medias = request.map(({ kind, simulcast }) => {
-      const transceiver = simulcast
-        ? peer.addTransceiver("video", "recvonly", {
-            simulcast: [
-              { rid: "high", direction: "recv" },
-              { rid: "low", direction: "recv" },
-            ],
-          })
-        : peer.addTransceiver(kind, "recvonly");
-      const media = new Media(publisherId, transceiver, simulcast);
-      this.medias[media.mediaId] = media;
-      return media;
-    });
+    const transceiver = simulcast
+      ? peer.addTransceiver("video", "recvonly", {
+          simulcast: [
+            { rid: "high", direction: "recv" },
+            { rid: "low", direction: "recv" },
+          ],
+        })
+      : peer.addTransceiver(kind, "recvonly");
+    const media = new Media(publisherId, transceiver, simulcast);
+    this.medias[media.mediaId] = media;
 
-    return { medias, peer };
+    return { media, peer };
   }
 
-  async publish(medias: Media[], peer: RTCPeerConnection) {
-    const infos = await Promise.all(
-      medias.map(async (media) => {
-        const info = media.info;
+  async publish(media: Media, peer: RTCPeerConnection) {
+    if (media.simulcast) {
+      await media.transceiver.onTrack.asPromise();
+      media.transceiver.receiver.tracks.forEach((track) =>
+        media.addTrack(track)
+      );
+    } else {
+      const [track] = await media.transceiver.onTrack.asPromise();
+      media.addTrack(track);
+    }
 
-        if (media.simulcast) {
-          await media.transceiver.onTrack.asPromise();
-          media.transceiver.receiver.tracks.forEach((track) =>
-            media.addTrack(track)
-          );
-        } else {
-          const [track] = await media.transceiver.onTrack.asPromise();
-          media.addTrack(track);
-        }
-        return info;
-      })
-    );
+    const peers = Object.values(this.peers);
 
-    const peers = Object.values(this.peers).filter(
-      (others) => others.cname !== peer.cname
-    );
-
-    return { peers, infos };
+    return { peers, info: media.info };
   }
 
   async unPublish(info: MediaInfo) {
