@@ -1,6 +1,7 @@
 import { FC, useContext, useEffect, useRef, useState } from "react";
 import { Context } from ".";
 import { MediaInfo, SubscriberType } from "../../../packages/client/src";
+import { Box, Button, Flex, Stack, Badge } from "@chakra-ui/react";
 
 const App: FC = () => {
   const client = useContext(Context);
@@ -31,10 +32,6 @@ const App: FC = () => {
   };
 
   const listen = () => {
-    client.events.onPublish.subscribe(() => {
-      console.log(client.medias);
-      setMedias(Object.values(client.medias));
-    });
     client.events.onTrack.subscribe((stream, info) => {
       stream.onremovetrack = () => {
         setStreams((streams) =>
@@ -46,12 +43,14 @@ const App: FC = () => {
     client.events.onJoin.subscribe((peerId) => {
       console.log("join", peerId);
     });
-    client.events.onPublish.subscribe(() =>
-      setPublished(client.user.published)
-    );
-    client.events.onUnPublish.subscribe(() =>
-      setPublished(client.user.published)
-    );
+    client.events.onPublish.subscribe(() => {
+      setPublished(client.user.published);
+      setMedias(Object.values(client.medias));
+    });
+    client.events.onUnPublish.subscribe(() => {
+      setPublished(client.user.published);
+      setMedias(Object.values(client.medias));
+    });
   };
 
   useEffect(() => {
@@ -77,46 +76,62 @@ const App: FC = () => {
   };
 
   return (
-    <div>
-      <button onClick={() => publish(true, { video: true })}>
-        publish simulcast
-      </button>
-      <button onClick={() => publish(false, { video: true })}>publish</button>
-      <button onClick={() => publish(false, { audio: true })}>
-        publish audio
-      </button>
-      <p>medias</p>
-      <div style={{ display: "flex" }}>
-        {medias.map((info, i) => (
-          <span key={i}>
-            <div>{JSON.stringify(info)}</div>
-            <button onClick={() => client.subscribe([info])}>subscribe</button>
-          </span>
-        ))}
-      </div>
-      <p>published</p>
-      <div style={{ display: "flex" }}>
-        {published.map((info, i) => (
-          <span key={i}>
-            <div>{JSON.stringify(info)}</div>
-            <button onClick={() => client.unPublish(info)}>un publish</button>
-          </span>
-        ))}
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", width: "100%" }}>
+    <Box>
+      <Stack direction="row">
+        <Button onClick={() => publish(true, { video: true })}>
+          publish simulcast
+        </Button>
+        <Button onClick={() => publish(false, { video: true })}>publish</Button>
+        <Button onClick={() => publish(false, { audio: true })}>
+          publish audio
+        </Button>
+      </Stack>
+      <Box p={2}>
+        <Badge>published</Badge>
+        <Box p={2}>
+          <Flex flexWrap="wrap">
+            {published.map((info, i) => (
+              <Box key={i}>
+                <Button onClick={() => client.unPublish(info)}>
+                  un publish
+                </Button>
+                <div>{JSON.stringify(info)}</div>
+              </Box>
+            ))}
+          </Flex>
+        </Box>
+      </Box>
+
+      <Box p={2}>
+        <Badge>medias</Badge>
+        <Box p={2}>
+          <Flex flexWrap="wrap">
+            {medias.map((info, i) => (
+              <Box key={i}>
+                <Button onClick={() => client.subscribe([info])}>
+                  subscribe
+                </Button>
+                <div>{JSON.stringify(info)}</div>
+              </Box>
+            ))}
+          </Flex>
+        </Box>
+      </Box>
+
+      <Flex style={{ display: "flex", flexWrap: "wrap", width: "100%" }}>
         {streams.map(({ info }, i) => (
-          <div key={i}>
+          <Box key={i}>
             <p>{`${info.mediaId} ${info.publisherId}`}</p>
             {info.simulcast && (
-              <div>
-                <button onClick={() => changeQuality(info, "low")}>low</button>
-                <button onClick={() => changeQuality(info, "high")}>
+              <Box>
+                <Button onClick={() => changeQuality(info, "low")}>low</Button>
+                <Button onClick={() => changeQuality(info, "high")}>
                   high
-                </button>
-                <button onClick={() => changeQuality(info, "auto")}>
+                </Button>
+                <Button onClick={() => changeQuality(info, "auto")}>
                   auto
-                </button>
-              </div>
+                </Button>
+              </Box>
             )}
             <video
               ref={(ref) => {
@@ -127,10 +142,10 @@ const App: FC = () => {
               autoPlay
               style={{ background: "black" }}
             />
-          </div>
+          </Box>
         ))}
-      </div>
-    </div>
+      </Flex>
+    </Box>
   );
 };
 

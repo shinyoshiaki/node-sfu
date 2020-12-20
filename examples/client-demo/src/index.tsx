@@ -1,7 +1,7 @@
 import App from "./App";
 import { createContext } from "react";
 import ReactDOM from "react-dom";
-import { ClientSDK } from "../../../packages/client/src";
+import { ChakraProvider } from "@chakra-ui/react";
 import { Client } from "./client";
 
 console.log("start");
@@ -22,8 +22,10 @@ const sdk = new Client(endpointURL);
 export const Context = createContext<Client>(sdk);
 
 ReactDOM.render(
-  <Context.Provider value={sdk}>
-    <App />
-  </Context.Provider>,
+  <ChakraProvider>
+    <Context.Provider value={sdk}>
+      <App />
+    </Context.Provider>
+  </ChakraProvider>,
   document.getElementById("root")
 );
