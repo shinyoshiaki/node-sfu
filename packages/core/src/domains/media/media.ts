@@ -20,6 +20,10 @@ export class Media {
     this.tracks.push(track);
   }
 
+  stop() {
+    this.tracks.forEach((track) => track.stop());
+  }
+
   get info(): MediaInfo {
     return {
       mediaId: this.mediaId,

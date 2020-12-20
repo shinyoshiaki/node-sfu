@@ -43,9 +43,13 @@ export class Room {
 
   leave(peerId: string) {
     delete this.peers[peerId];
+
     const infos = Object.values(this.medias)
       .filter((media) => media.publisherId === peerId)
-      .map((media) => media.info);
+      .map((media) => {
+        media.stop();
+        return media.info;
+      });
 
     infos.forEach((info) => {
       delete this.medias[info.mediaId];

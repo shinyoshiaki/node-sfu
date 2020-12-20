@@ -123,7 +123,7 @@ const App: FC = () => {
           <Box key={i}>
             <p>{`${info.mediaId} ${info.publisherId}`}</p>
             {info.simulcast && (
-              <Box>
+              <Stack direction="row">
                 <Button onClick={() => changeQuality(info, "low")}>low</Button>
                 <Button onClick={() => changeQuality(info, "high")}>
                   high
@@ -131,7 +131,7 @@ const App: FC = () => {
                 <Button onClick={() => changeQuality(info, "auto")}>
                   auto
                 </Button>
-              </Box>
+              </Stack>
             )}
             <video
               ref={(ref) => {
