@@ -501,7 +501,9 @@ export class RTCPeerConnection {
             this.signalingState
           )
         ) {
-          throw new Error("Cannot handle answer in signaling state");
+          throw new Error(
+            `Cannot handle answer in signaling state ${this.signalingState}`
+          );
         }
       }
     }

@@ -41,21 +41,27 @@ export class Room {
     return [peerId, peer.localDescription];
   }
 
-  leave(peerId: string) {
+  getUserMedias(peerId: string) {
+    const medias = Object.values(this.medias).filter(
+      (media) => media.publisherId === peerId
+    );
+    return medias;
+  }
+
+  async leave(peerId: string) {
     delete this.peers[peerId];
 
-    const infos = Object.values(this.medias)
-      .filter((media) => media.publisherId === peerId)
-      .map((media) => {
-        media.stop();
-        return media.info;
-      });
+    const medias = this.getUserMedias(peerId);
+    await Promise.all(
+      medias.map((media) => {
+        const sfu = this.getSFU(media);
+        return sfu.stop();
+      })
+    );
 
-    infos.forEach((info) => {
-      delete this.medias[info.mediaId];
+    medias.forEach((media) => {
+      delete this.medias[media.mediaId];
     });
-
-    return infos;
   }
 
   createMedia(
@@ -117,6 +123,9 @@ export class Room {
       return this.sfuManager.getSFU(info.mediaId);
 
     const media = this.medias[info.mediaId];
+    if (!media) {
+      throw new Error();
+    }
     return this.sfuManager.createSFU(media);
   }
 

@@ -1,4 +1,3 @@
-import { RTCPeerConnection } from "../../../werift";
 import { MediaInfo } from "../domains/media/media";
 import { Room } from "../domains/room";
 import Logger from "debug";
@@ -7,24 +6,11 @@ const log = Logger("actions/room");
 export const leave = (room: Room) => async (peerId: string) => {
   log("leave", peerId);
   room.sfuManager.leave(peerId);
+  const infos = room.getUserMedias(peerId).map((media) => media.info);
 
-  const infos = room.leave(peerId);
+  await room.leave(peerId);
 
-  const peers = (
-    await Promise.all(
-      infos.map((info) => {
-        const sfu = room.getSFU(info);
-        return sfu.stop();
-      })
-    )
-  )
-    .flatMap((v) => v)
-    .reduce((acc: RTCPeerConnection[], cur) => {
-      if (!acc.find((peer) => peer.cname === cur.cname)) acc.push(cur);
-      return acc;
-    }, []);
-
-  return { peers, infos };
+  return { peers: Object.values(room.peers), infos };
 };
 
 export const unPublish = (room: Room) => async (info: MediaInfo) => {

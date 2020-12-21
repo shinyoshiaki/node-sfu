@@ -59,8 +59,10 @@ export class Connection {
   private handleLeave = async (...args: HandleLeave["payload"]) => {
     const [infos, offer] = args;
     this.events.onLeave.execute(infos);
-    const answer = await this.setOffer(offer as any);
-    this.sendAnswer(answer);
+    if (offer) {
+      const answer = await this.setOffer(offer as any);
+      this.sendAnswer(answer);
+    }
   };
 
   private handleJoin = async (...args: HandleJoin["payload"]) => {

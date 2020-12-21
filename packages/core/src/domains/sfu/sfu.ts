@@ -11,7 +11,7 @@ export class SFU {
 
   async stop() {
     this.dispose();
-    this.media.tracks.forEach(({ stop }) => stop());
+    this.media.stop();
 
     const peers = await Promise.all(
       Object.values(this.subscribers).map(async ({ peer, sender }) => {
@@ -57,6 +57,7 @@ export class SFU {
   }
 
   leave(subscriberId: string) {
+    // todo fix
     const subscriber = this.subscribers[subscriberId];
     delete this.subscribers[subscriberId];
   }

@@ -23,6 +23,12 @@ export class ClientSDK {
     this.events.onUnPublish.subscribe((info) => {
       delete this.medias[info.mediaId];
     });
+    this.events.onLeave.subscribe((infos) => {
+      infos.forEach((info) => {
+        delete this.medias[info.mediaId];
+        this.events.onUnPublish.execute(info);
+      });
+    });
   }
 
   get peerId() {

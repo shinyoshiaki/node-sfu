@@ -56,8 +56,10 @@ export class Connection {
 
     peer.iceConnectionStateChange.subscribe((state) => {
       if (state === "disconnected") {
-        this.leave(peerId);
-        peer.close();
+        if (this.room.peers[peerId]) {
+          this.leave(peerId);
+          peer.close();
+        }
       }
     });
   }
@@ -86,12 +88,20 @@ export class Connection {
 
   leave = async (peerId: Leave["payload"][0]) => {
     const { peers, infos } = await leave(this.room)(peerId);
-    peers.forEach((peer) =>
+    peers.forEach((peer) => {
+      const offer =
+        peer.signalingState === "have-local-offer"
+          ? peer.localDescription
+          : undefined;
+
       this.sendRPC<HandleLeave>(
-        { type: "handleLeave", payload: [infos, peer.localDescription] },
+        {
+          type: "handleLeave",
+          payload: [infos, offer],
+        },
         peer
-      )
-    );
+      );
+    });
   };
 
   publish = async (...args: Publish["payload"]) => {

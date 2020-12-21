@@ -121,7 +121,7 @@ export interface HandleJoin extends RPC {
 
 export interface HandleLeave extends RPC {
   type: "handleLeave";
-  payload: [MediaInfo[], RTCSessionDescription];
+  payload: [MediaInfo[], RTCSessionDescription | undefined];
 }
 
 export interface ChangeQuality extends RPC {
