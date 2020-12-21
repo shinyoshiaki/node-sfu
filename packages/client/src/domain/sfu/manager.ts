@@ -23,4 +23,11 @@ export class SFUManager {
       this.sfu[info.mediaId] = new SFU(this.connection, this.events, info, mid);
     });
   }
+
+  unsubscribe(info: MediaInfo) {
+    const sfu = this.sfu[info.mediaId];
+    this.subscribed = this.subscribed.filter((v) => v.mediaId !== info.mediaId);
+    delete this.sfu[info.mediaId];
+    sfu.stop();
+  }
 }

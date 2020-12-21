@@ -1,9 +1,10 @@
 import { Box, Button, Center, Stack, Text } from "@chakra-ui/react";
-import { FC, useContext, useEffect, useRef } from "react";
+import { FC, useContext, useEffect, useRef, useState } from "react";
 import { ClientContext } from "../..";
 import { MediaInfo, SubscriberType } from "../../../../../packages/client/src";
 
 export const Media: FC<{ info: MediaInfo }> = ({ info }) => {
+  const [stream, setStream] = useState<MediaStream>();
   const videoRef = useRef<HTMLVideoElement>(null);
   const client = useContext(ClientContext);
 
@@ -11,9 +12,10 @@ export const Media: FC<{ info: MediaInfo }> = ({ info }) => {
     client.events.onTrack.subscribe((stream, { mediaId }) => {
       if (mediaId !== info.mediaId) return;
       stream.onremovetrack = () => {
-        videoRef.current = undefined;
+        setStream(undefined);
       };
       videoRef.current.srcObject = stream;
+      setStream(stream);
     });
   }, []);
 
@@ -29,7 +31,12 @@ export const Media: FC<{ info: MediaInfo }> = ({ info }) => {
         </Text>
       ))}
       <Stack direction="row" p={1}>
-        <Button onClick={() => client.subscribe([info])}>subscribe</Button>
+        <Button onClick={() => client.subscribe([info])} disabled={!!stream}>
+          subscribe
+        </Button>
+        <Button onClick={() => client.unsubscribe(info)} disabled={!stream}>
+          unsubscribe
+        </Button>
       </Stack>
       {info.simulcast && (
         <Stack direction="row" p={1}>
@@ -42,7 +49,11 @@ export const Media: FC<{ info: MediaInfo }> = ({ info }) => {
         <video
           ref={videoRef}
           autoPlay
-          style={{ background: "black", maxWidth: 400 }}
+          style={{
+            background: "black",
+            maxWidth: 400,
+            height: stream ? "auto" : 0,
+          }}
         />
       </Center>
     </Box>

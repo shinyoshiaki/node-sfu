@@ -29,6 +29,17 @@ export async function subscribe(
   return { peer, meta };
 }
 
+export const unsubscribe = (room: Room) => async (
+  info: MediaInfo,
+  subscriberId: string
+) => {
+  const peer = room.peers[subscriberId];
+  const sender = room.getSFU(info).unsubscribe(subscriberId);
+  peer.removeTrack(sender);
+  await peer.setLocalDescription(peer.createOffer());
+  return peer;
+};
+
 export function changeQuality(
   subscriberId: string,
   info: MediaInfo,

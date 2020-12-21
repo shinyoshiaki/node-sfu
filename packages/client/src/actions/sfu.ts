@@ -21,3 +21,12 @@ export const subscribe = (connection: Connection, sfu: SFUManager) => async (
   const answer = await connection.setOffer(offer as any);
   await connection.sendAnswer(answer);
 };
+
+export const unsubscribe = (connection: Connection, sfu: SFUManager) => async (
+  info: MediaInfo
+) => {
+  const [offer] = await connection.unsubscribe([info, connection.peerId]);
+  sfu.unsubscribe(info);
+  const answer = await connection.setOffer(offer as any);
+  await connection.sendAnswer(answer);
+};

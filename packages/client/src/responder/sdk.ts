@@ -1,6 +1,6 @@
 import { MediaInfo, SubscriberType } from "../";
 import { listenMixedAudio } from "../actions/mcu";
-import { subscribe } from "../actions/sfu";
+import { subscribe, unsubscribe } from "../actions/sfu";
 import { join, publish, unPublish } from "../actions/user";
 import { Events } from "../context/events";
 import { MCUManager } from "../domain/mcu/manager";
@@ -55,7 +55,11 @@ export class ClientSDK {
   }
 
   async subscribe(infos: MediaInfo[]) {
-    subscribe(this.connection, this.sfu)(infos);
+    await subscribe(this.connection, this.sfu)(infos);
+  }
+
+  async unsubscribe(info: MediaInfo) {
+    await unsubscribe(this.connection, this.sfu)(info);
   }
 
   async getMedias() {

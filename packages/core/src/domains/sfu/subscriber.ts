@@ -110,4 +110,9 @@ export class Subscriber {
     });
     this.stopRTP = unSubscribe;
   }
+
+  unsubscribe() {
+    this.stopRTP();
+    this.stopWatchREMB();
+  }
 }

@@ -21,6 +21,7 @@ import {
   Subscribe,
   UnPublish,
 } from "../";
+import { HandleUnSubscribe, UnSubscribe } from "../../../core/src";
 import { Events } from "../context/events";
 
 export class Connection {
@@ -130,6 +131,14 @@ export class Connection {
       payload,
     });
     return await this.waitRPC<HandleSubscribe>("handleSubscribe");
+  };
+
+  unsubscribe = async (payload: UnSubscribe["payload"]) => {
+    this.sendRPC<UnSubscribe>({
+      type: "unsubscribe",
+      payload,
+    });
+    return await this.waitRPC<HandleUnSubscribe>("handleUnsubscribe");
   };
 
   getMedias = async () => {

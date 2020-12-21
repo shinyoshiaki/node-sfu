@@ -84,6 +84,16 @@ export interface HandleSubscribe extends RPC {
   payload: [RTCSessionDescription, MidPair[]];
 }
 
+export interface UnSubscribe extends RPC {
+  type: "unsubscribe";
+  payload: [MediaInfo, string];
+}
+
+export interface HandleUnSubscribe extends RPC {
+  type: "handleUnsubscribe";
+  payload: [RTCSessionDescription];
+}
+
 export interface ListenMixedAudio extends RPC {
   type: "listenMixedAudio";
   payload: [string, MediaInfo[]];

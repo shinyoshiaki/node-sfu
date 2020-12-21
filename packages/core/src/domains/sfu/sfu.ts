@@ -51,6 +51,13 @@ export class SFU {
     }
   }
 
+  unsubscribe(subscriberId: string) {
+    const subscriber = this.subscribers[subscriberId];
+    this.subscribers[subscriberId].unsubscribe();
+    delete this.subscribers[subscriberId];
+    return subscriber.sender;
+  }
+
   changeQuality(subscriberId: string, type: SubscriberType) {
     const subscriber = this.subscribers[subscriberId];
     subscriber.changeQuality(type);

@@ -18,4 +18,8 @@ export class SFU {
       if (this.mid === mid) this.events.onTrack.execute(streams[0], this.info);
     });
   }
+
+  stop() {
+    this.events.onUnsubscribe.execute(this.info);
+  }
 }

@@ -11,7 +11,7 @@ import {
   removeMixedAudioTrack,
 } from "../actions/mcu";
 import { leave, unPublish } from "../actions/room";
-import { changeQuality, subscribe } from "../actions/sfu";
+import { changeQuality, subscribe, unsubscribe } from "../actions/sfu";
 import { Room } from "../domains/room";
 import {
   AddMixedAudioTrack,
@@ -27,6 +27,7 @@ import {
   HandleSubscribe,
   HandleUnPublish,
   HandleUnPublishDone,
+  HandleUnSubscribe,
   Leave,
   ListenMixedAudio,
   Publish,
@@ -34,6 +35,7 @@ import {
   RPC,
   Subscribe,
   UnPublish,
+  UnSubscribe,
 } from "../typings/rpc";
 
 export class Connection {
@@ -165,6 +167,17 @@ export class Connection {
       {
         type: "handleSubscribe",
         payload: [peer.localDescription, meta],
+      },
+      peer
+    );
+  };
+
+  unsubscribe = async (...args: UnSubscribe["payload"]) => {
+    const peer = await unsubscribe(this.room)(...args);
+    this.sendRPC<HandleUnSubscribe>(
+      {
+        type: "handleUnsubscribe",
+        payload: [peer.localDescription],
       },
       peer
     );

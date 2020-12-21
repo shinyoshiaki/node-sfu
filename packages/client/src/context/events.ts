@@ -8,4 +8,5 @@ export class Events {
   readonly onLeave = new Event<[MediaInfo[]]>();
   readonly onJoin = new Event<[string]>();
   readonly onTrack = new Event<[MediaStream, MediaInfo]>();
+  readonly onUnsubscribe = new Event<[MediaInfo]>();
 }
