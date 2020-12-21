@@ -1,4 +1,4 @@
-import { ClientSDK } from "../../../packages/client/src";
+import { ClientSDK } from "../../../../packages/client/src";
 import { HttpConnection } from "./http";
 
 export class Client extends ClientSDK {
