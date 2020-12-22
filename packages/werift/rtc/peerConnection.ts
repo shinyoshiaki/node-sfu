@@ -509,7 +509,10 @@ export class RTCPeerConnection {
     }
 
     description.media.forEach((media) => {
-      if (!media.iceParams.usernameFragment || !media.iceParams.password)
+      if (
+        media.direction !== "inactive" &&
+        (!media.iceParams.usernameFragment || !media.iceParams.password)
+      )
         throw new Error("ICE username fragment or password is missing");
     });
 

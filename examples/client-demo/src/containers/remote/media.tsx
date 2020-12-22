@@ -11,11 +11,12 @@ export const Media: FC<{ info: MediaInfo }> = ({ info }) => {
   useEffect(() => {
     client.events.onTrack.subscribe((stream, { mediaId }) => {
       if (mediaId !== info.mediaId) return;
-      stream.onremovetrack = () => {
-        setStream(undefined);
-      };
       videoRef.current.srcObject = stream;
       setStream(stream);
+    });
+    client.events.onUnsubscribe.subscribe(({ mediaId }) => {
+      if (mediaId !== info.mediaId) return;
+      setStream(undefined);
     });
   }, []);
 

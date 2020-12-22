@@ -36,11 +36,11 @@ export class SessionDescription {
 
   static parse(sdp: string) {
     const dtlsFingerprints: RTCDtlsFingerprint[] = [];
-    let dtlsRole = "";
-    let iceOptions = undefined;
-    let iceLite = false;
-    let icePassword = "";
-    let iceUsernameFragment = "";
+    let dtlsRole: string;
+    let iceOptions: string;
+    let iceLite: boolean = false;
+    let icePassword: string;
+    let iceUsernameFragment: string;
 
     const [sessionLines, mediaGroups] = groupLines(sdp);
 
@@ -495,7 +495,9 @@ export class GroupDescription {
 
 function ipAddressFromSdp(sdp: string) {
   const m = sdp.match(/^IN (IP4|IP6) ([^ ]+)$/);
-  if (!m) throw new Error("exception");
+  if (!m) {
+    throw new Error("exception");
+  }
   return m[2];
 }
 
