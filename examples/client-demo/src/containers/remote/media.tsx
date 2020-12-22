@@ -39,7 +39,7 @@ export const Media: FC<{ info: MediaInfo }> = ({ info }) => {
           unsubscribe
         </Button>
       </Stack>
-      {info.simulcast && (
+      {stream && info.simulcast && (
         <Stack direction="row" p={1}>
           <Button onClick={() => changeQuality(info, "low")}>low</Button>
           <Button onClick={() => changeQuality(info, "high")}>high</Button>

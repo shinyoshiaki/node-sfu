@@ -2,7 +2,6 @@ import debug from "debug";
 import { v4 } from "uuid";
 import {
   Kind,
-  RTCPeerConnection,
   RTCRtpTransceiver,
   useAbsSendTime,
   useSdesMid,
@@ -11,6 +10,7 @@ import {
 import { Connection } from "../responders/connection";
 import { MCUManager } from "./mcu/manager";
 import { Media, MediaInfo } from "./media/media";
+import { PeerConnection } from "./peer";
 import { SFUManager } from "./sfu/manager";
 import { SFU } from "./sfu/sfu";
 
@@ -20,12 +20,12 @@ export class Room {
   readonly connection = new Connection(this);
   readonly sfuManager = new SFUManager();
   readonly mcuManager = new MCUManager();
-  peers: { [peerId: string]: RTCPeerConnection } = {};
+  peers: { [peerId: string]: PeerConnection } = {};
   medias: { [mediaId: string]: Media } = {};
 
   async join() {
     const peerId = "p_" + v4();
-    const peer = new RTCPeerConnection({
+    const peer = new PeerConnection({
       stunServer: ["stun.l.google.com", 19302],
       headerExtensions: {
         video: [useSdesMid(1), useAbsSendTime(2), useSdesRTPStreamID(3)],
@@ -71,11 +71,12 @@ export class Room {
     log("publish", publisherId, { simulcast, kind });
     const peer = this.peers[publisherId];
 
+    const simulcastId = peer.simulcastIndex++;
     const transceiver = simulcast
       ? peer.addTransceiver("video", "recvonly", {
           simulcast: [
-            { rid: "high", direction: "recv" },
-            { rid: "low", direction: "recv" },
+            { rid: simulcastId + "high", direction: "recv" },
+            { rid: simulcastId + "low", direction: "recv" },
           ],
         })
       : peer.addTransceiver(kind, "recvonly");
@@ -85,7 +86,7 @@ export class Room {
     return { media, peer };
   }
 
-  async publish(media: Media, peer: RTCPeerConnection) {
+  async publish(media: Media) {
     if (media.simulcast) {
       await media.transceiver.onTrack.asPromise();
       media.transceiver.receiver.tracks.forEach((track) =>

@@ -40,10 +40,16 @@ export class User {
 
     if (request.simulcast) {
       const params = transceiver.sender.getParameters();
-      params.encodings = [
-        { maxBitrate: 680000, scaleResolutionDownBy: 1, rid: "high" },
-        { maxBitrate: 36000, scaleResolutionDownBy: 4, rid: "low" },
-      ];
+      params.encodings[0] = {
+        ...params.encodings[0],
+        maxBitrate: 680000,
+        scaleResolutionDownBy: 1,
+      };
+      params.encodings[1] = {
+        ...params.encodings[1],
+        maxBitrate: 36000,
+        scaleResolutionDownBy: 4,
+      };
       transceiver.sender.setParameters(params);
     }
 

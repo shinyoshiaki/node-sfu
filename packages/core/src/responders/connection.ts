@@ -110,7 +110,7 @@ export class Connection {
     const [publisherId, request] = args;
 
     const { media, peer } = this.room.createMedia(publisherId, request);
-    this.room.publish(media, peer).then(({ peers, info }) => {
+    this.room.publish(media).then(({ peers, info }) => {
       peers.forEach((peer) => {
         this.sendRPC<HandlePublish>(
           { type: "handlePublish", payload: [info] },

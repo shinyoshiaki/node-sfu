@@ -99,7 +99,7 @@ export class Subscriber {
     const track =
       state === "single"
         ? this.tracks[0].track
-        : this.tracks.find(({ track }) => track.rid === state).track;
+        : this.tracks.find(({ track }) => track.rid.includes(state)).track;
 
     const [rtp] = await track.onRtp.asPromise();
     this.sender.replaceRtp(rtp.header);

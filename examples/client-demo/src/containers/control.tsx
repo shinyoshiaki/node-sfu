@@ -5,7 +5,7 @@ import { ClientContext } from "..";
 export const Control: FC = () => {
   const client = useContext(ClientContext);
 
-  const publish = async (
+  const publishMedia = async (
     simulcast: boolean,
     constraints: MediaStreamConstraints
   ) => {
@@ -13,14 +13,24 @@ export const Control: FC = () => {
     await client.publish({ track: mediaStream.getTracks()[0], simulcast });
   };
 
+  const publishDisplay = async (simulcast: boolean) => {
+    const mediaStream = await (navigator.mediaDevices as any).getDisplayMedia();
+    await client.publish({ track: mediaStream.getTracks()[0], simulcast });
+  };
+
   return (
     <Stack direction="row">
-      <Button onClick={() => publish(true, { video: true })}>
+      <Button onClick={() => publishMedia(true, { video: true })}>
         publish simulcast
       </Button>
-      <Button onClick={() => publish(false, { video: true })}>publish</Button>
-      <Button onClick={() => publish(false, { audio: true })}>
+      <Button onClick={() => publishMedia(false, { video: true })}>
+        publish
+      </Button>
+      <Button onClick={() => publishMedia(false, { audio: true })}>
         publish audio
+      </Button>
+      <Button onClick={() => publishDisplay(true)}>
+        publish simulcast display
       </Button>
     </Stack>
   );

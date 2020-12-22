@@ -1,13 +1,13 @@
-import { FC, useContext, useEffect, useRef, useState } from "react";
+import { FC, useContext, useEffect, useState } from "react";
 import { ClientContext } from ".";
-import { MediaInfo, SubscriberType } from "../../../packages/client/src";
-import { Box, Button, Flex, Stack, Badge } from "@chakra-ui/react";
+import { Box, Stack, Text } from "@chakra-ui/react";
 import { Control } from "./containers/control";
 import { Medias } from "./containers/remote/medias";
 import { Published } from "./containers/local/published";
 
 const App: FC = () => {
   const client = useContext(ClientContext);
+  const [peerId, setPeerId] = useState("");
 
   const init = async () => {
     const params = new URLSearchParams(window.location.hash.split("#")[1]);
@@ -19,6 +19,7 @@ const App: FC = () => {
 
     console.log("roomName", client.roomName);
     client.apiJoin();
+    client.events.onConnect.subscribe(() => setPeerId(client.peerId));
   };
 
   useEffect(() => {
@@ -27,13 +28,12 @@ const App: FC = () => {
 
   return (
     <Box>
-      <Control />
-      <Box p={2}>
+      <Text>peerId : {peerId}</Text>
+      <Stack p={2}>
+        <Control />
         <Published />
-      </Box>
-      <Box p={2}>
         <Medias />
-      </Box>
+      </Stack>
     </Box>
   );
 };
