@@ -1,6 +1,7 @@
 import { FC, useContext } from "react";
 import { Box, Button, Flex, Stack, Badge } from "@chakra-ui/react";
 import { ClientContext } from "..";
+import { Selector } from "../components/selector";
 
 export const Control: FC = () => {
   const client = useContext(ClientContext);
@@ -20,18 +21,17 @@ export const Control: FC = () => {
 
   return (
     <Stack direction="row">
-      <Button onClick={() => publishMedia(true, { video: true })}>
-        publish simulcast
-      </Button>
-      <Button onClick={() => publishMedia(false, { video: true })}>
-        publish
-      </Button>
-      <Button onClick={() => publishMedia(false, { audio: true })}>
+      <Selector
+        button="publish camera"
+        onClick={(res) => publishMedia(res, { video: true })}
+      />
+      <Button onClick={() => publishMedia(false, { audio: true })} top={1}>
         publish audio
       </Button>
-      <Button onClick={() => publishDisplay(true)}>
-        publish simulcast display
-      </Button>
+      <Selector
+        button="publish display"
+        onClick={(res) => publishDisplay(res)}
+      />
     </Stack>
   );
 };
