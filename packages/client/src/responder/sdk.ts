@@ -47,7 +47,7 @@ export class ClientSDK {
   }
 
   async publish(request: { track: MediaStreamTrack; simulcast?: boolean }) {
-    await publish(this.connection, this.user, this.events)(request);
+    return await publish(this.connection, this.user, this.events)(request);
   }
 
   async unPublish(info: MediaInfo) {

@@ -29,6 +29,7 @@ export const publish = (
 
   user.published = [...user.published, info];
   events.onPublish.execute(info);
+  return info;
 };
 
 export const unPublish = (
