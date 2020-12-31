@@ -1,4 +1,4 @@
-import { Kind } from "../../../werift";
+import { Kind } from "../../../werift/webrtc/src";
 import { MediaInfo } from "../domains/media/media";
 import { Room } from "../domains/room";
 import { SubscriberType } from "../domains/sfu/subscriber";

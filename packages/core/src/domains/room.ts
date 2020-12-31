@@ -6,7 +6,7 @@ import {
   useAbsSendTime,
   useSdesMid,
   useSdesRTPStreamID,
-} from "../../../werift";
+} from "../../../werift/webrtc/src";
 import { Connection } from "../responders/connection";
 import { MCUManager } from "./mcu/manager";
 import { Media, MediaInfo } from "./media/media";

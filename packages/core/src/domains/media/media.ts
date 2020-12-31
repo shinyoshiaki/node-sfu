@@ -1,5 +1,5 @@
 import { v4 } from "uuid";
-import { RTCRtpTransceiver, RtpTrack } from "../../../../werift";
+import { RTCRtpTransceiver, RtpTrack } from "../../../../werift/webrtc/src";
 import { Track } from "./track";
 
 export class Media {

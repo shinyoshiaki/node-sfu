@@ -3,7 +3,7 @@ import { Room } from "../../../../packages/core/src";
 import {
   RTCIceCandidateJSON,
   RTCSessionDescription,
-} from "../../../../packages/werift";
+} from "../../../../packages/werift/webrtc/src";
 
 const workerPath = process.argv[3];
 const workerLoaderPath =

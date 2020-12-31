@@ -1,4 +1,7 @@
-import { RTCIceCandidateJSON, RTCSessionDescription } from "../../../werift";
+import {
+  RTCIceCandidateJSON,
+  RTCSessionDescription,
+} from "../../../werift/webrtc/src";
 import { Room } from "../domains/room";
 
 export class Endpoint {

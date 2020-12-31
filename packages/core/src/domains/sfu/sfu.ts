@@ -1,4 +1,7 @@
-import { RTCPeerConnection, RTCRtpTransceiver } from "../../../../werift";
+import {
+  RTCPeerConnection,
+  RTCRtpTransceiver,
+} from "../../../../werift/webrtc/src";
 import { Media } from "../media/media";
 import { Subscriber, SubscriberType } from "./subscriber";
 

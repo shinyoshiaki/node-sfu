@@ -1,4 +1,4 @@
-import { RTCRtpTransceiver, RtpTrack } from "../../../../werift";
+import { RTCRtpTransceiver, RtpTrack } from "../../../../werift/webrtc/src";
 
 export class Track {
   rtcpId: any;

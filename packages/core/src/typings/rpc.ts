@@ -2,7 +2,7 @@ import {
   Kind,
   RTCIceCandidateJSON,
   RTCSessionDescription,
-} from "../../../werift";
+} from "../../../werift/webrtc/src";
 import { MediaInfo } from "../domains/media/media";
 import { SubscriberType } from "../domains/sfu/subscriber";
 

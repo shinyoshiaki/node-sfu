@@ -1,4 +1,4 @@
-import { RTCRtpTransceiver } from "../../../../werift";
+import { RTCRtpTransceiver } from "../../../../werift/webrtc/src";
 import { Media } from "../media/media";
 import { MCU } from "./mcu";
 

@@ -4,7 +4,7 @@ import {
   RTCIceCandidateJSON,
   RTCPeerConnection,
   RTCSessionDescription,
-} from "../../../werift";
+} from "../../../werift/webrtc/src";
 import {
   addMixedAudioTrack,
   listenMixedAudio,
