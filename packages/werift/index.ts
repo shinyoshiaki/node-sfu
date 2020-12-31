@@ -1,25 +1,25 @@
-export { RTCDataChannel } from "./rtc/dataChannel";
+export { RTCDataChannel } from "./webrtc/dataChannel";
 export {
   useSdesMid,
   useSdesRTPStreamID,
   useAbsSendTime,
-} from "./rtc/extension/rtpExtension";
-export { RTCRtpCodecParameters } from "./rtc/media/parameters";
+} from "./webrtc/extension/rtpExtension";
+export { RTCRtpCodecParameters } from "./webrtc/media/parameters";
 export {
   Direction,
   RTCRtpTransceiver,
   TransceiverOptions,
-} from "./rtc/media/rtpTransceiver";
-export { RtpTrack } from "./rtc/media/track";
-export { PeerConfig, RTCPeerConnection } from "./rtc/peerConnection";
-export { RTCSessionDescription } from "./rtc/sdp";
-export { RTCCertificate } from "./rtc/transport/dtls";
+} from "./webrtc/media/rtpTransceiver";
+export { RtpTrack } from "./webrtc/media/track";
+export { PeerConfig, RTCPeerConnection } from "./webrtc/peerConnection";
+export { RTCSessionDescription } from "./webrtc/sdp";
+export { RTCCertificate } from "./webrtc/transport/dtls";
 export {
   RTCIceCandidateJSON,
   RTCIceGatherer,
   RTCIceTransport,
-} from "./rtc/transport/ice";
-export { RTCSctpTransport } from "./rtc/transport/sctp";
+} from "./webrtc/transport/ice";
+export { RTCSctpTransport } from "./webrtc/transport/sctp";
 export { Kind } from "./typings/domain";
 export { IceOptions } from "./vendor/ice";
 export { RtcpPayloadSpecificFeedback } from "./vendor/rtp/rtcp/psfb";
