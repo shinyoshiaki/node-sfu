@@ -26,6 +26,7 @@
     "@emotion/styled": "^11.0.0",
     "axios": "^0.21.1",
     "framer-motion": "^3.1.4",
+    "rc-upload": "^3.3.4",
     "react": "^17.0.1",
     "react-dom": "^17.0.1"
   },
