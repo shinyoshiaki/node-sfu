@@ -25,7 +25,9 @@ export class MCU {
   inputMedia(media: Media) {
     const input = this.mixer.input();
     const { unSubscribe } = media.tracks[0].track.onRtp.subscribe((packet) => {
-      if (Object.values(this.disposer)[0].id === media.mediaId) {
+      const disposer = Object.values(this.disposer)[0];
+      if (!disposer) return;
+      if (disposer.id === media.mediaId) {
         this.header = packet.header;
       }
       const decoded = this.encoder.decode(packet.payload);

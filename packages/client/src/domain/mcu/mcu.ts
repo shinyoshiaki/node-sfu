@@ -1,9 +1,12 @@
+import Event from "rx.mini";
 import { MediaInfo } from "../../";
 import { Events } from "../../context/events";
 import { Connection } from "../../responder/connection";
 
 export class MCU {
   infos: { [mediaId: string]: MediaInfo } = {};
+  onAdded = new Event<[MediaInfo]>();
+  onRemoved = new Event<[MediaInfo]>();
 
   constructor(
     private connection: Connection,
@@ -25,16 +28,18 @@ export class MCU {
     return {
       mediaId: "mixer",
       kind: "mixer",
-      publisherId: "server",
+      publisherId: this.id,
       simulcast: false,
     };
   }
 
   add(info: MediaInfo) {
     this.infos[info.mediaId] = info;
+    this.onAdded.execute(info);
   }
 
   remove(info: MediaInfo) {
     delete this.infos[info.mediaId];
+    this.onRemoved.execute(info);
   }
 }

@@ -15,6 +15,7 @@ export class ClientSDK {
   mcu = new MCUManager(this.events, this.connection);
   user: User;
   medias: { [id: string]: MediaInfo } = {};
+  streams: { [id: string]: { stream: MediaStream; info: MediaInfo } } = {};
 
   constructor() {
     this.events.onPublish.subscribe((info) => {
@@ -22,12 +23,16 @@ export class ClientSDK {
     });
     this.events.onUnPublish.subscribe((info) => {
       delete this.medias[info.mediaId];
+      delete this.streams[info.mediaId];
     });
     this.events.onLeave.subscribe((infos) => {
       infos.forEach((info) => {
         delete this.medias[info.mediaId];
         this.events.onUnPublish.execute(info);
       });
+    });
+    this.events.onTrack.subscribe((stream, info) => {
+      this.streams[info.mediaId] = { info, stream };
     });
   }
 
@@ -75,7 +80,11 @@ export class ClientSDK {
   }
 
   async listenMixedAudio(infos: MediaInfo[]) {
-    return await listenMixedAudio(this.connection, this.mcu)(infos);
+    return await listenMixedAudio(
+      this.connection,
+      this.mcu,
+      this.events
+    )(infos);
   }
 
   addMixedAudioTrack(mixerId: string, info: MediaInfo) {

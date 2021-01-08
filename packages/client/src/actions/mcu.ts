@@ -1,10 +1,12 @@
 import { MediaInfo } from "../";
+import { Events } from "../context/events";
 import { MCUManager } from "../domain/mcu/manager";
 import { Connection } from "../responder/connection";
 
 export const listenMixedAudio = (
   connection: Connection,
-  mcuManager: MCUManager
+  mcuManager: MCUManager,
+  events: Events
 ) => async (infos: MediaInfo[]) => {
   const [offer, meta] = await connection.listenMixedAudio([
     connection.peerId,
@@ -13,5 +15,6 @@ export const listenMixedAudio = (
   const mcu = mcuManager.listen(meta.mixId, meta.mid, infos);
   const answer = await connection.setOffer(offer as any);
   await connection.sendAnswer(answer);
+  events.onMixerCreated.execute(mcu);
   return mcu;
 };

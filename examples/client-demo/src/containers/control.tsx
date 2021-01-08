@@ -26,22 +26,29 @@ export const Control: FC = () => {
     await client.publish({ track: stream.getTracks()[0] });
   };
 
+  const createMixer = () => {
+    client.listenMixedAudio([]);
+  };
+
   return (
     <Stack direction="row">
       <Selector
         button="publish camera"
         onClick={(res) => publishMedia(res, { video: true })}
       />
-      <Button onClick={() => publishMedia(false, { audio: true })} top={1}>
-        publish audio
-      </Button>
-      <FilePicker onSelect={publishFile} top={1}>
-        publish file
-      </FilePicker>
       <Selector
         button="publish display"
         onClick={(res) => publishDisplay(res)}
       />
+      <FilePicker onSelect={publishFile} top={1}>
+        publish file
+      </FilePicker>
+      <Button onClick={() => publishMedia(false, { audio: true })} top={1}>
+        publish audio
+      </Button>
+      <Button onClick={createMixer} top={1}>
+        create Mixer
+      </Button>
     </Stack>
   );
 };
