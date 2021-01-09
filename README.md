@@ -1,4 +1,4 @@
-# node-sfu "WIP"
+# node-sfu 
 
 Pure node.js WebRTC SFU  
 100％ written in TypeScript
