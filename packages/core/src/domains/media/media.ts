@@ -1,5 +1,9 @@
 import { v4 } from "uuid";
-import { RTCRtpTransceiver, RtpTrack } from "../../../../werift/webrtc/src";
+import {
+  Kind,
+  RTCRtpTransceiver,
+  RtpTrack,
+} from "../../../../werift/webrtc/src";
 import { Track } from "./track";
 
 export class Media {
@@ -36,7 +40,9 @@ export class Media {
 
 export type MediaInfo = {
   mediaId: string;
-  kind: string;
+  kind: MediaInfoKind;
   publisherId: string;
   simulcast: boolean;
 };
+
+type MediaInfoKind = Kind | "mixer";
