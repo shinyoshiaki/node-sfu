@@ -119,14 +119,24 @@ export class Connection {
       });
     });
 
-    await this.createOffer(publisherId);
-    this.sendRPC<HandlePublishDone>(
-      {
-        type: "handlePublishDone",
-        payload: [peer.localDescription, media.info],
-      },
-      peer
-    );
+    if (media.kind === "application") {
+      this.sendRPC<HandlePublishDone>(
+        {
+          type: "handlePublishDone",
+          payload: [media.info, undefined],
+        },
+        peer
+      );
+    } else {
+      await this.createOffer(publisherId);
+      this.sendRPC<HandlePublishDone>(
+        {
+          type: "handlePublishDone",
+          payload: [media.info, peer.localDescription],
+        },
+        peer
+      );
+    }
   };
 
   unPublish = async (...args: UnPublish["payload"]) => {
@@ -163,13 +173,23 @@ export class Connection {
     requests: Subscribe["payload"][1]
   ) => {
     const { peer, meta } = await subscribe(requests, subscriberId, this.room);
-    this.sendRPC<HandleSubscribe>(
-      {
-        type: "handleSubscribe",
-        payload: [peer.localDescription, meta],
-      },
-      peer
-    );
+    if (meta.length > 0) {
+      this.sendRPC<HandleSubscribe>(
+        {
+          type: "handleSubscribe",
+          payload: [meta, peer.localDescription],
+        },
+        peer
+      );
+    } else {
+      this.sendRPC<HandleSubscribe>(
+        {
+          type: "handleSubscribe",
+          payload: [meta, undefined],
+        },
+        peer
+      );
+    }
   };
 
   unsubscribe = async (...args: UnSubscribe["payload"]) => {

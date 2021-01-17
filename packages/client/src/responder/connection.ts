@@ -29,6 +29,8 @@ export class Connection {
   private readonly onmessage = new Event<[string]>();
 
   readonly ontrack = new Event<[RTCTrackEvent]>();
+  readonly ondatachannel = new Event<[RTCDataChannel]>();
+  datachannels: { [label: string]: RTCDataChannel } = {};
   readonly peer: RTCPeerConnection = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   });
@@ -36,14 +38,20 @@ export class Connection {
 
   constructor(private events: Events) {
     this.peer.ondatachannel = ({ channel }) => {
-      this.channel = channel;
-      events.onConnect.execute();
-      this.peer.onicecandidate = ({ candidate }) => {
-        if (candidate) this.sendCandidate(candidate);
-      };
-      channel.onmessage = ({ data }) => {
-        this.onmessage.execute(data);
-      };
+      console.warn({ channel });
+      if (channel.label === "sfu") {
+        this.channel = channel;
+        events.onConnect.execute();
+        this.peer.onicecandidate = ({ candidate }) => {
+          if (candidate) this.sendCandidate(candidate);
+        };
+        channel.onmessage = ({ data }) => {
+          this.onmessage.execute(data);
+        };
+      } else {
+        this.datachannels[channel.label] = channel;
+        this.ondatachannel.execute(channel);
+      }
     };
     this.peer.ontrack = (ev) => this.ontrack.execute(ev);
     this.onmessage.subscribe((data) => {
@@ -87,7 +95,7 @@ export class Connection {
     await this.peer.setRemoteDescription(offer);
     const answer = await this.peer.createAnswer();
     await this.peer.setLocalDescription(answer);
-    return this.peer.localDescription;
+    return this.peer.localDescription!;
   }
 
   sendCandidate = (candidate: RTCIceCandidate) => {

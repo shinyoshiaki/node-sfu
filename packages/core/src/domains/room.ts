@@ -64,37 +64,44 @@ export class Room {
     });
   }
 
-  createMedia(
-    publisherId: string,
-    { simulcast, kind }: { kind: Kind; simulcast: boolean }
-  ) {
+  createMedia(publisherId: string, { simulcast, kind }: CreateMediaRequest) {
     log("publish", publisherId, { simulcast, kind });
     const peer = this.peers[publisherId];
 
-    const simulcastId = peer.simulcastIndex++;
-    const transceiver = simulcast
-      ? peer.addTransceiver("video", "recvonly", {
-          simulcast: [
-            { rid: simulcastId + "high", direction: "recv" },
-            { rid: simulcastId + "low", direction: "recv" },
-          ],
-        })
-      : peer.addTransceiver(kind, "recvonly");
-    const media = new Media(publisherId, transceiver, simulcast);
+    const media = new Media(kind, publisherId);
     this.medias[media.mediaId] = media;
+
+    if (kind === "application") {
+      // todo handle exist
+      const datachannel = peer.createDataChannel("messaging");
+      media.initData(datachannel);
+    } else {
+      const simulcastId = peer.simulcastIndex++;
+      const transceiver = simulcast
+        ? peer.addTransceiver("video", "recvonly", {
+            simulcast: [
+              { rid: simulcastId + "high", direction: "recv" },
+              { rid: simulcastId + "low", direction: "recv" },
+            ],
+          })
+        : peer.addTransceiver(kind, "recvonly");
+      media.initAV(transceiver, simulcast);
+    }
 
     return { media, peer };
   }
 
   async publish(media: Media) {
-    if (media.simulcast) {
-      await media.transceiver.onTrack.asPromise();
-      media.transceiver.receiver.tracks.forEach((track) =>
-        media.addTrack(track)
-      );
-    } else {
-      const [track] = await media.transceiver.onTrack.asPromise();
-      media.addTrack(track);
+    if (media.kind !== "application") {
+      if (media.simulcast) {
+        await media.transceiver.onTrack.asPromise();
+        media.transceiver.receiver.tracks.forEach((track) =>
+          media.addTrack(track)
+        );
+      } else {
+        const [track] = await media.transceiver.onTrack.asPromise();
+        media.addTrack(track);
+      }
     }
 
     const peers = Object.values(this.peers);
@@ -139,3 +146,5 @@ export class Room {
     return this.mcuManager.getMCU(mcuId);
   }
 }
+
+export type CreateMediaRequest = { kind: Kind; simulcast: boolean };

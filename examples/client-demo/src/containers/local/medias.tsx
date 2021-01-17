@@ -2,8 +2,9 @@ import { Badge, Box, Button, Flex, Text } from "@chakra-ui/react";
 import { FC, useContext, useEffect, useState } from "react";
 import { ClientContext } from "../..";
 import { MediaInfo } from "../../../../../packages/core/src";
+import { PublishedMedia } from "./media";
 
-export const Published: FC = () => {
+export const PublishedMedias: FC = () => {
   const client = useContext(ClientContext);
   const [published, setPublished] = useState<MediaInfo[]>([]);
 
@@ -19,17 +20,9 @@ export const Published: FC = () => {
   return (
     <Box>
       <Badge>published</Badge>
-
       <Flex flexWrap="wrap">
         {published.map((info) => (
-          <Box key={info.mediaId} borderWidth="1px" padding={1}>
-            {Object.entries(info).map(([k, v]) => (
-              <Text key={k}>
-                {k} : {v.toString()}
-              </Text>
-            ))}
-            <Button onClick={() => client.unPublish(info)}>un publish</Button>
-          </Box>
+          <PublishedMedia info={info} key={info.mediaId} />
         ))}
       </Flex>
     </Box>

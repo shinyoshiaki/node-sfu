@@ -8,18 +8,38 @@ export const subscribe = (connection: Connection, sfu: SFUManager) => async (
   if (sfu.isSubscribed(infos)) return;
 
   const requests: RequestSubscribe[] = infos.map((info) => {
-    return {
-      info,
-      type: info.simulcast ? "high" : "single",
-    };
+    if (info.kind === "application") {
+      return {
+        info,
+      };
+    } else {
+      return {
+        info,
+        type: info.simulcast ? "high" : "single",
+      };
+    }
   });
-  const [offer, pairs] = await connection.subscribe([
+  const [pairs, offer] = await connection.subscribe([
     connection.peerId,
     requests,
   ]);
-  sfu.subscribe(pairs, infos);
-  const answer = await connection.setOffer(offer as any);
-  await connection.sendAnswer(answer);
+
+  let datachannel: RTCDataChannel | undefined =
+    connection.datachannels["messaging"];
+  console.warn("start", datachannel);
+  const dcExist = infos.find((info) => info.kind === "application");
+  if (dcExist && !datachannel) {
+    [datachannel] = await connection.ondatachannel.watch(
+      (dc) => dc.label === "messaging"
+    );
+  }
+  console.warn("done");
+  sfu.subscribe(infos, pairs, datachannel);
+
+  if (offer) {
+    const answer = await connection.setOffer(offer as any);
+    await connection.sendAnswer(answer);
+  }
 };
 
 export const unsubscribe = (connection: Connection, sfu: SFUManager) => async (

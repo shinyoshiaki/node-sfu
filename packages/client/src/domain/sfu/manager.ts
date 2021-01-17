@@ -4,7 +4,7 @@ import { Connection } from "../../responder/connection";
 import { SFU } from "./sfu";
 
 export class SFUManager {
-  sfu: { [mediaId: string]: SFU } = {};
+  private sfu: { [mediaId: string]: SFU } = {};
   subscribed: MediaInfo[] = [];
 
   constructor(private events: Events, private connection: Connection) {}
@@ -16,11 +16,25 @@ export class SFUManager {
     return check;
   }
 
-  subscribe(pairs: MidPair[], infos: MediaInfo[]) {
+  subscribe(
+    infos: MediaInfo[],
+    pairs: MidPair[],
+    datachannel?: RTCDataChannel
+  ) {
     this.subscribed = [...this.subscribed, ...infos];
     infos.forEach((info) => {
-      const mid = pairs.find(({ mediaId }) => info.mediaId === mediaId)?.mid;
-      this.sfu[info.mediaId] = new SFU(this.connection, this.events, info, mid);
+      const sfu = (this.sfu[info.mediaId] = new SFU(
+        this.connection,
+        this.events,
+        info
+      ));
+      if (info.kind === "application") {
+        if (!datachannel) throw new Error();
+        sfu.initData(datachannel);
+      } else {
+        const mid = pairs.find(({ mediaId }) => info.mediaId === mediaId)?.mid!;
+        sfu.initAV(mid);
+      }
     });
   }
 
@@ -29,5 +43,9 @@ export class SFUManager {
     this.subscribed = this.subscribed.filter((v) => v.mediaId !== info.mediaId);
     delete this.sfu[info.mediaId];
     sfu.stop();
+  }
+
+  getSFU(mediaId: string) {
+    return this.sfu[mediaId];
   }
 }

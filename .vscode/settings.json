@@ -4,6 +4,7 @@
 	"tslint.autoFixOnSave": true,
 	"typescript.tsdk": "node_modules/typescript/lib",
 	"cSpell.words": [
+		"datachannels",
 		"decompressor",
 		"rtp",
 		"srtcp",

@@ -17,15 +17,22 @@ export const publish = (
   connection: Connection,
   user: User,
   events: Events
-) => async (request: { track: MediaStreamTrack; simulcast?: boolean }) => {
+) => async (request: {
+  track?: MediaStreamTrack;
+  simulcast?: boolean;
+  kind: Kind;
+}) => {
   const publishRequest = {
-    kind: request.track.kind as Kind,
+    kind: request.kind,
     simulcast: !!request.simulcast,
   };
-  const [offer, info] = await connection.publish([user.peerId, publishRequest]);
+  const [info, offer] = await connection.publish([user.peerId, publishRequest]);
 
-  const answer = await user.publish(request, offer as any);
-  await connection.sendAnswer(answer);
+  // todo fix
+  if (request.kind !== "application") {
+    const peer = await user.publish(request, offer as RTCSessionDescription);
+    await connection.sendAnswer(peer.localDescription!);
+  }
 
   user.published = [...user.published, info];
   events.onPublish.execute(info);

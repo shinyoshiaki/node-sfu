@@ -9,6 +9,7 @@ export class Events {
   readonly onLeave = new Event<[MediaInfo[]]>();
   readonly onJoin = new Event<[string]>();
   readonly onTrack = new Event<[MediaStream, MediaInfo]>();
+  readonly onDataChannel = new Event<[RTCDataChannel]>();
   readonly onUnsubscribe = new Event<[MediaInfo]>();
   readonly onMixerCreated = new Event<[MCU]>();
 }
