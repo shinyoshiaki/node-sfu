@@ -19,22 +19,21 @@ export const subscribe = (connection: Connection, sfu: SFUManager) => async (
       };
     }
   });
-  const [pairs, offer] = await connection.subscribe([
+  const [midPairs, offer] = await connection.subscribe([
     connection.peerId,
     requests,
   ]);
 
   let datachannel: RTCDataChannel | undefined =
     connection.datachannels["messaging"];
-  console.warn("start", datachannel);
+
   const dcExist = infos.find((info) => info.kind === "application");
   if (dcExist && !datachannel) {
     [datachannel] = await connection.ondatachannel.watch(
       (dc) => dc.label === "messaging"
     );
   }
-  console.warn("done");
-  sfu.subscribe(infos, pairs, datachannel);
+  sfu.subscribe(infos, midPairs, datachannel);
 
   if (offer) {
     const answer = await connection.setOffer(offer as any);

@@ -60,4 +60,4 @@ export type MediaInfo = {
   simulcast: boolean;
 };
 
-type MediaInfoKind = Kind | "mixer";
+export type MediaInfoKind = Kind | "mixer";

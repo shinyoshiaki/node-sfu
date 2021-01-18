@@ -3,7 +3,7 @@ import { FC, useContext, useEffect, useRef, useState } from "react";
 import { ClientContext } from "../..";
 import { MediaInfo, SubscriberType } from "../../../../../packages/client/src";
 
-export const Media: FC<{ info: MediaInfo }> = ({ info }) => {
+export const RemoteMedia: FC<{ info: MediaInfo }> = ({ info }) => {
   const [stream, setStream] = useState<MediaStream>();
   const [data, setData] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);

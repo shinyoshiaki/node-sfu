@@ -1,10 +1,10 @@
-import { Badge, Box, Button, Center, Flex, Stack } from "@chakra-ui/react";
-import { FC, useContext, useEffect, useRef, useState } from "react";
+import { Badge, Box, Flex } from "@chakra-ui/react";
+import { FC, useContext, useEffect, useState } from "react";
 import { ClientContext } from "../..";
-import { MediaInfo, SubscriberType } from "../../../../../packages/core/src";
-import { Media } from "./media";
+import { MediaInfo } from "../../../../../packages/core/src";
+import { RemoteMedia } from "./media";
 
-export const Medias: FC = () => {
+export const RemoteMedias: FC = () => {
   const [medias, setMedias] = useState<MediaInfo[]>([]);
 
   const client = useContext(ClientContext);
@@ -26,7 +26,7 @@ export const Medias: FC = () => {
       <Badge>medias</Badge>
       <Flex flexWrap="wrap">
         {medias.map((info) => (
-          <Media info={info} key={info.mediaId} />
+          <RemoteMedia info={info} key={info.mediaId} />
         ))}
       </Flex>
     </Box>

@@ -3,7 +3,7 @@ import { ChangeEvent, FC, useContext, useState } from "react";
 import { ClientContext } from "../..";
 import { MediaInfo } from "../../../../../packages/core/src";
 
-export const PublishedMedia: FC<{ info: MediaInfo }> = ({ info }) => {
+export const LocalMedia: FC<{ info: MediaInfo }> = ({ info }) => {
   const client = useContext(ClientContext);
 
   const isData = info.kind === "application";
