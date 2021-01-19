@@ -8,6 +8,7 @@ import {
   useSdesRTPStreamID,
 } from "../../../werift/webrtc/src";
 import { Connection } from "../responders/connection";
+import { sleep } from "../utils/helper";
 import { MCUManager } from "./mcu/manager";
 import { Media, MediaInfo } from "./media/media";
 import { PeerConnection } from "./peer";
@@ -34,7 +35,7 @@ export class Room {
     });
     this.peers[peerId] = peer;
 
-    const channel = peer.createDataChannel("sfu");
+    const channel = peer.createDataChannel("__sfu");
     this.connection.listen(channel, peer, peerId);
 
     await peer.setLocalDescription(peer.createOffer());
@@ -104,6 +105,10 @@ export class Room {
         const [track] = await media.transceiver.onTrack.asPromise();
         media.addTrack(track);
       }
+    } else {
+      // todo fix
+      // cause of datachannel send stuck
+      await sleep(100);
     }
 
     const peers = Object.values(this.peers);

@@ -57,7 +57,12 @@ export class ClientSDK {
     simulcast?: boolean;
     kind: Kind;
   }) {
-    return await publish(this.connection, this.user, this.events)(request);
+    return await publish(
+      this.connection,
+      this.user,
+      this.events,
+      this.sfu
+    )(request);
   }
 
   async unPublish(info: MediaInfo) {

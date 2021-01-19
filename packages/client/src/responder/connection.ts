@@ -38,14 +38,21 @@ export class Connection {
 
   constructor(private events: Events) {
     this.peer.ondatachannel = ({ channel }) => {
-      console.warn({ channel });
-      if (channel.label === "sfu") {
+      if (channel.label === "__sfu") {
         this.channel = channel;
         events.onConnect.execute();
         this.peer.onicecandidate = ({ candidate }) => {
           if (candidate) this.sendCandidate(candidate);
         };
         channel.onmessage = ({ data }) => {
+          const { type, payload } = JSON.parse(data) as RPC;
+          console.log("from sfu", type, payload);
+          //@ts-ignore
+          if (this[type]) {
+            //@ts-ignore
+            this[type](...payload);
+          }
+
           this.onmessage.execute(data);
         };
       } else {
@@ -54,15 +61,6 @@ export class Connection {
       }
     };
     this.peer.ontrack = (ev) => this.ontrack.execute(ev);
-    this.onmessage.subscribe((data) => {
-      const { type, payload } = JSON.parse(data) as RPC;
-      console.log("from sfu", type, payload);
-      //@ts-ignore
-      if (this[type]) {
-        //@ts-ignore
-        this[type](...payload);
-      }
-    });
   }
 
   private handleLeave = async (...args: HandleLeave["payload"]) => {

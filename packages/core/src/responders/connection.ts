@@ -234,9 +234,9 @@ export class Connection {
     changeQuality(subscriberId, info, type, this.room);
   };
 
-  private sendRPC<T extends RPC>(msg: T, peer: RTCPeerConnection) {
-    const channel = peer.sctpTransport.channelByLabel("sfu");
+  private async sendRPC<T extends RPC>(msg: T, peer: RTCPeerConnection) {
+    const channel = peer.sctpTransport.channelByLabel("__sfu");
     if (!channel) return;
-    channel.send(JSON.stringify(msg));
+    await channel.send(JSON.stringify(msg));
   }
 }

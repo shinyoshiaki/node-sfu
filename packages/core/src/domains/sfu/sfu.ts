@@ -18,8 +18,10 @@ export class SFU {
 
     const peers = await Promise.all(
       Object.values(this.subscribers).map(async ({ peer, sender }) => {
-        peer.removeTrack(sender);
-        await peer.setLocalDescription(peer.createOffer());
+        if (sender) {
+          peer.removeTrack(sender);
+          await peer.setLocalDescription(peer.createOffer());
+        }
         return peer;
       })
     );
