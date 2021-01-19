@@ -14,7 +14,7 @@
     "resolveJsonModule": true,
     "downlevelIteration": true,
     "jsx": "react",
-    "strictNullChecks": true
+    "strictNullChecks": false
   },
   "include": ["src"]
 }
