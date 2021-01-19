@@ -28,7 +28,7 @@ export const RemoteMedia: FC<{ info: MediaInfo }> = ({ info }) => {
   const subscribe = async () => {
     await client.subscribe([info]);
     client.sfu
-      .getSFU(info.mediaId)
+      .getConsumer(info.mediaId)
       .onMessage.subscribe((data) => setData(data));
   };
 

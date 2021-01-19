@@ -72,8 +72,10 @@ export class Room {
     this.medias[media.mediaId] = media;
 
     if (kind === "application") {
-      // todo handle exist
-      const datachannel = peer.createDataChannel("messaging");
+      const label = `__messaging:${media.mediaId}`;
+      const datachannel =
+        peer.sctpTransport.channelByLabel(label) ||
+        peer.createDataChannel(label);
       media.initData(datachannel);
     } else {
       const simulcastId = peer.simulcastIndex++;

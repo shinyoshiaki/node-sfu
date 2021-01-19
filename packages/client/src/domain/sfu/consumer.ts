@@ -22,11 +22,9 @@ export class Consumer {
   }
 
   initData(datachannel: RTCDataChannel) {
-    console.warn("initdata");
     this.events.onDataChannel.execute(datachannel);
     this.datachannel = datachannel;
     datachannel.onmessage = (ev) => {
-      console.warn(ev);
       this.onMessage.execute(ev.data);
     };
     return this;

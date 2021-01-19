@@ -96,13 +96,14 @@ export class Subscriber {
   }
 
   listenDataChannel() {
+    const label = `__messaging:${this.media.mediaId}`;
+    const sender = this.peer.sctpTransport.channelByLabel(label);
+    if (!sender) {
+      this.peer.createDataChannel(label);
+    }
     this.media.onMessage.subscribe((msg) => {
-      const sender = this.peer.sctpTransport.channelByLabel("messaging");
-      if (sender) {
-        sender.send(msg);
-      } else {
-        this.peer.createDataChannel("messaging");
-      }
+      const sender = this.peer.sctpTransport.channelByLabel(label);
+      if (sender) sender.send(msg);
     });
   }
 

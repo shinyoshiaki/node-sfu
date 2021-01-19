@@ -10,8 +10,8 @@ export const LocalMedia: FC<{ info: MediaInfo }> = ({ info }) => {
   const [data, setData] = useState("");
   const onData = ({ target: { value } }: ChangeEvent<HTMLTextAreaElement>) => {
     setData(value);
-    client.connection.datachannels["messaging"].send(value);
-    // todo impl
+    // todo fix
+    client.connection.datachannels[`__messaging:${info.mediaId}`].send(value);
   };
 
   return (
