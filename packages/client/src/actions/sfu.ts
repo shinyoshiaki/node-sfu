@@ -24,21 +24,29 @@ export const subscribe = (connection: Connection, sfu: SFUManager) => async (
     requests,
   ]);
 
-  let datachannel: RTCDataChannel | undefined =
-    connection.datachannels["messaging"];
+  const dcPairs = await Promise.all(
+    infos
+      .filter((v) => v.kind === "application")
+      .map(async (v) => {
+        const label = `__messaging:${v.mediaId}`;
+        let dc = connection.datachannels[label];
+        if (!dc) {
+          [dc] = await connection.ondatachannel.watch(
+            (dc) => dc.label === label
+          );
+        }
+        return { dc, mediaId: v.mediaId };
+      })
+  );
 
-  const dcExist = infos.find((info) => info.kind === "application");
-  if (dcExist && !datachannel) {
-    [datachannel] = await connection.ondatachannel.watch(
-      (dc) => dc.label === "messaging"
-    );
-  }
-  sfu.subscribe(infos, midPairs, datachannel);
+  const consumers = sfu.subscribe(infos, midPairs, dcPairs);
 
   if (offer) {
     const answer = await connection.setOffer(offer as any);
     await connection.sendAnswer(answer);
   }
+
+  return consumers;
 };
 
 export const unsubscribe = (connection: Connection, sfu: SFUManager) => async (

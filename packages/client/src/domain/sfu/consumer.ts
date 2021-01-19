@@ -1,11 +1,12 @@
-import { MediaInfo } from "../../";
+import { MediaInfo } from "../..";
 import { Connection } from "../../responder/connection";
 import { Events } from "../../context/events";
 import Event from "rx.mini";
 
-export class SFU {
+export class Consumer {
   datachannel: RTCDataChannel;
   readonly onMessage = new Event<[any]>();
+
   constructor(
     private connection: Connection,
     private events: Events,

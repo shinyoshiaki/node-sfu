@@ -1,10 +1,10 @@
 import { MidPair, MediaInfo } from "../../";
 import { Events } from "../../context/events";
 import { Connection } from "../../responder/connection";
-import { SFU } from "./sfu";
+import { Consumer } from "./consumer";
 
 export class SFUManager {
-  private sfu: { [mediaId: string]: SFU } = {};
+  private consumers: { [mediaId: string]: Consumer } = {};
   subscribed: MediaInfo[] = [];
 
   constructor(private events: Events, private connection: Connection) {}
@@ -18,34 +18,39 @@ export class SFUManager {
 
   subscribe(
     infos: MediaInfo[],
-    pairs: MidPair[],
-    datachannel?: RTCDataChannel
+    midPairs: MidPair[],
+    dcPairs: {
+      dc: RTCDataChannel;
+      mediaId: string;
+    }[]
   ) {
     this.subscribed = [...this.subscribed, ...infos];
-    infos.forEach((info) => {
-      const sfu = (this.sfu[info.mediaId] = new SFU(
+    return infos.map((info) => {
+      const consumer = (this.consumers[info.mediaId] = new Consumer(
         this.connection,
         this.events,
         info
       ));
       if (info.kind === "application") {
-        if (!datachannel) throw new Error();
-        sfu.initData(datachannel);
+        const dc = dcPairs.find((v) => v.mediaId === info.mediaId)?.dc!;
+        consumer.initData(dc);
       } else {
-        const mid = pairs.find(({ mediaId }) => info.mediaId === mediaId)?.mid!;
-        sfu.initAV(mid);
+        const mid = midPairs.find(({ mediaId }) => info.mediaId === mediaId)
+          ?.mid!;
+        consumer.initAV(mid);
       }
+      return consumer;
     });
   }
 
   unsubscribe(info: MediaInfo) {
-    const sfu = this.sfu[info.mediaId];
+    const consumer = this.consumers[info.mediaId];
     this.subscribed = this.subscribed.filter((v) => v.mediaId !== info.mediaId);
-    delete this.sfu[info.mediaId];
-    sfu.stop();
+    delete this.consumers[info.mediaId];
+    consumer.stop();
   }
 
-  getSFU(mediaId: string) {
-    return this.sfu[mediaId];
+  getConsumer(mediaId: string) {
+    return this.consumers[mediaId];
   }
 }
