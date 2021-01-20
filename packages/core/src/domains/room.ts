@@ -121,7 +121,9 @@ export class Room {
     delete this.medias[info.mediaId];
 
     const peer = this.peers[info.publisherId];
-    peer.removeTrack(media.tracks[0].receiver);
+    if (media.tracks.length > 0) {
+      peer.removeTrack(media.tracks[0].receiver);
+    }
     await peer.setLocalDescription(peer.createOffer());
 
     return peer;

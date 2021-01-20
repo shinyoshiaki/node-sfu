@@ -9,37 +9,45 @@ export const subscribe = (connection: Connection, sfu: SFUManager) => async (
 
   const requests: RequestSubscribe[] = infos.map((info) => {
     if (info.kind === "application") {
-      return {
-        info,
-      };
+      return { info };
     } else {
-      return {
-        info,
-        type: info.simulcast ? "high" : "single",
-      };
+      const type = info.simulcast ? "high" : "single";
+      return { info, type };
     }
   });
-  const [midPairs, offer] = await connection.subscribe([
+  const [mediaIdPairs, offer] = await connection.subscribe([
     connection.peerId,
     requests,
   ]);
 
-  const dcPairs = await Promise.all(
-    infos
-      .filter((v) => v.kind === "application")
-      .map(async (v) => {
-        const label = `__messaging:${v.mediaId}`;
-        let dc = connection.datachannels[label];
-        if (!dc) {
-          [dc] = await connection.ondatachannel.watch(
-            (dc) => dc.label === label
-          );
+  const mediaMap = (
+    await Promise.all(
+      mediaIdPairs.map(async ({ label, mediaId, mid }) => {
+        if (label) {
+          const [dc] =
+            [connection.datachannels[label]] ||
+            (await connection.ondatachannel.watch((dc) => dc.label === label));
+          return { dc, mediaId };
+        } else {
+          return { mid, mediaId };
         }
-        return { dc, mediaId: v.mediaId };
       })
+    )
+  ).reduce(
+    (
+      acc: {
+        [mediaId: string]: Partial<{ dc: RTCDataChannel; mid: string }>;
+      },
+      cur
+    ) => {
+      if (cur.dc) acc[cur.mediaId] = { dc: cur.dc };
+      else acc[cur.mediaId] = { mid: cur.mid };
+      return acc;
+    },
+    {}
   );
 
-  const consumers = sfu.subscribe(infos, midPairs, dcPairs);
+  const consumers = sfu.subscribe(infos, mediaMap);
 
   if (offer) {
     const answer = await connection.setOffer(offer as any);

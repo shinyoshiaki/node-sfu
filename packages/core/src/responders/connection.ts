@@ -172,12 +172,16 @@ export class Connection {
     subscriberId: Subscribe["payload"][0],
     requests: Subscribe["payload"][1]
   ) => {
-    const { peer, meta } = await subscribe(requests, subscriberId, this.room);
-    if (meta.length > 0) {
+    const { peer, mediaIdPairs } = await subscribe(
+      requests,
+      subscriberId,
+      this.room
+    );
+    if (mediaIdPairs.find((v) => v.mid)) {
       this.sendRPC<HandleSubscribe>(
         {
           type: "handleSubscribe",
-          payload: [meta, peer.localDescription],
+          payload: [mediaIdPairs, peer.localDescription],
         },
         peer
       );
@@ -185,7 +189,7 @@ export class Connection {
       this.sendRPC<HandleSubscribe>(
         {
           type: "handleSubscribe",
-          payload: [meta, undefined],
+          payload: [mediaIdPairs, undefined],
         },
         peer
       );

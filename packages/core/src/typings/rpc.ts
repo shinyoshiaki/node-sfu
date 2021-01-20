@@ -74,14 +74,15 @@ export interface Subscribe extends RPC {
   payload: [string, RequestSubscribe[]];
 }
 
-export type MidPair = {
+export type MediaIdPair = {
   mediaId: string;
-  mid: string;
+  mid?: string;
+  label?: string;
 };
 
 export interface HandleSubscribe extends RPC {
   type: "handleSubscribe";
-  payload: [MidPair[], RTCSessionDescription | undefined];
+  payload: [MediaIdPair[], RTCSessionDescription | undefined];
 }
 
 export interface UnSubscribe extends RPC {

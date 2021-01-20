@@ -105,6 +105,7 @@ export class Subscriber {
       const sender = this.peer.sctpTransport.channelByLabel(label);
       if (sender) sender.send(msg);
     });
+    return label;
   }
 
   private async subscribe(state: SubscriberType) {

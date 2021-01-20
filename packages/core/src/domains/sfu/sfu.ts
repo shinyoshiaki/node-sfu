@@ -61,7 +61,7 @@ export class SFU {
       peer,
       this.media
     ));
-    subscriber.listenDataChannel();
+    return subscriber.listenDataChannel();
   }
 
   unsubscribe(subscriberId: string) {

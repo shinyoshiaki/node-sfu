@@ -16,8 +16,8 @@ export async function subscribe(
 
     const sfu = room.getSFU(info);
     if (kind === "application") {
-      sfu.subscribeData(subscriberId, peer);
-      return { mediaId };
+      const label = sfu.subscribeData(subscriberId, peer);
+      return { mediaId, label };
     } else {
       const transceiver = peer.addTransceiver(kind as Kind, "sendonly");
       sfu.subscribeAV(subscriberId, peer, transceiver, type);
@@ -29,15 +29,20 @@ export async function subscribe(
     await peer.setLocalDescription(peer.createOffer());
   }
 
-  const meta = pairs
-    .map(({ mediaId, uuid }) => {
-      if (!uuid) return;
-      const transceiver = peer.transceivers.find((t) => t.uuid === uuid);
-      return { mediaId, mid: transceiver.mid };
+  const mediaIdPairs = pairs
+    .map(({ mediaId, uuid, label }) => {
+      if (uuid) {
+        const transceiver = peer.transceivers.find((t) => t.uuid === uuid);
+        return { mediaId, mid: transceiver.mid };
+      }
+      if (label) {
+        return { mediaId, label };
+      }
+      return;
     })
     .filter((v) => v);
 
-  return { peer, meta };
+  return { peer, mediaIdPairs };
 }
 
 export const unsubscribe = (room: Room) => async (

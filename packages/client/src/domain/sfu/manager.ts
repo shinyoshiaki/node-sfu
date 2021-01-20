@@ -1,4 +1,4 @@
-import { MidPair, MediaInfo } from "../../";
+import { MediaIdPair, MediaInfo } from "../../";
 import { Events } from "../../context/events";
 import { Connection } from "../../responder/connection";
 import { Consumer } from "./consumer";
@@ -31,11 +31,9 @@ export class SFUManager {
 
   subscribe(
     infos: MediaInfo[],
-    midPairs: MidPair[],
-    dcPairs: {
-      dc: RTCDataChannel;
-      mediaId: string;
-    }[]
+    mediaMap: {
+      [mediaId: string]: Partial<{ dc: RTCDataChannel; mid: string }>;
+    }
   ) {
     this.subscribed = [...this.subscribed, ...infos];
     return infos.map((info) => {
@@ -44,13 +42,10 @@ export class SFUManager {
         this.events,
         info
       ));
-      if (info.kind === "application") {
-        const dc = dcPairs.find((v) => v.mediaId === info.mediaId)?.dc!;
-        consumer.initData(dc);
+      if (mediaMap[info.mediaId].dc) {
+        consumer.initData(mediaMap[info.mediaId].dc);
       } else {
-        const mid = midPairs.find(({ mediaId }) => info.mediaId === mediaId)
-          ?.mid!;
-        consumer.initAV(mid);
+        consumer.initAV(mediaMap[info.mediaId].mid);
       }
       return consumer;
     });
