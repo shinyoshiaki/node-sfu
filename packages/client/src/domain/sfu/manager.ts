@@ -27,6 +27,7 @@ export class SFUManager {
       producer.datachannel = datachannel;
     }
     this.producers[info.mediaId] = producer;
+    return producer;
   }
 
   subscribe(
