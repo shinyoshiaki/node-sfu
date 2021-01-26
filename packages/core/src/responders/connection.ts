@@ -212,7 +212,7 @@ export class Connection {
     this.sendRPC<HandleListenMixedAudio>(
       {
         type: "handleListenMixedAudio",
-        payload: [peer.localDescription, meta],
+        payload: [meta, peer.localDescription],
       },
       peer
     );
@@ -239,7 +239,7 @@ export class Connection {
   };
 
   private async sendRPC<T extends RPC>(msg: T, peer: RTCPeerConnection) {
-    const channel = peer.sctpTransport.channelByLabel("__sfu");
+    const channel = peer.sctpTransport!.channelByLabel("__sfu");
     if (!channel) return;
     await channel.send(JSON.stringify(msg));
   }

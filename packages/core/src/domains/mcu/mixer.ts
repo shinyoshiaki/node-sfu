@@ -22,7 +22,7 @@ export class Mixer {
           const next = acc.map((v, i) => this.mix(v, cur[i]));
           return next;
         },
-        [...base]
+        [...(base || [])]
       );
       this.onData(Buffer.from(res));
     }

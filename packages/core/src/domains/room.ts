@@ -75,7 +75,7 @@ export class Room {
     if (kind === "application") {
       const label = `__messaging:${media.mediaId}`;
       const datachannel =
-        peer.sctpTransport.channelByLabel(label) ||
+        peer.sctpTransport!.channelByLabel(label) ||
         peer.createDataChannel(label);
       media.initData(datachannel);
     } else {
@@ -95,7 +95,7 @@ export class Room {
   }
 
   async publish(media: Media) {
-    if (media.kind !== "application") {
+    if (media.kind !== "application" && media.transceiver) {
       if (media.simulcast) {
         await media.transceiver.onTrack.asPromise();
         media.transceiver.receiver.tracks.forEach((track) =>

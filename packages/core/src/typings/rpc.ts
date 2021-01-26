@@ -101,13 +101,13 @@ export interface ListenMixedAudio extends RPC {
 }
 
 export type MixIdPair = {
-  mid: string;
+  mid?: string;
   mixId: string;
 };
 
 export interface HandleListenMixedAudio extends RPC {
   type: "handleListenMixedAudio";
-  payload: [RTCSessionDescription, MixIdPair];
+  payload: [MixIdPair, RTCSessionDescription];
 }
 
 export interface AddMixedAudioTrack extends RPC {

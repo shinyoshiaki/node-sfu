@@ -8,11 +8,11 @@ export const listenMixedAudio = (
   mcuManager: MCUManager,
   events: Events
 ) => async (infos: MediaInfo[]) => {
-  const [offer, meta] = await connection.listenMixedAudio([
+  const [meta, offer] = await connection.listenMixedAudio([
     connection.peerId,
     infos,
   ]);
-  const mcu = mcuManager.listen(meta.mixId, meta.mid, infos);
+  const mcu = mcuManager.listen(meta.mixId, meta.mid!, infos);
   const answer = await connection.setOffer(offer as any);
   await connection.sendAnswer(answer);
   events.onMixerCreated.execute(mcu);

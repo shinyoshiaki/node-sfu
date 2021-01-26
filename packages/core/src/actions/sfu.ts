@@ -2,7 +2,7 @@ import { Kind } from "../../../werift/webrtc/src";
 import { MediaInfo } from "../domains/media/media";
 import { Room } from "../domains/room";
 import { SubscriberType } from "../domains/sfu/subscriber";
-import { RequestSubscribe } from "../typings/rpc";
+import { MediaIdPair, RequestSubscribe } from "../typings/rpc";
 
 export async function subscribe(
   requests: RequestSubscribe[],
@@ -33,6 +33,7 @@ export async function subscribe(
     .map(({ mediaId, uuid, label }) => {
       if (uuid) {
         const transceiver = peer.transceivers.find((t) => t.uuid === uuid);
+        if (!transceiver) throw new Error();
         return { mediaId, mid: transceiver.mid };
       }
       if (label) {
@@ -40,7 +41,7 @@ export async function subscribe(
       }
       return;
     })
-    .filter((v) => v);
+    .filter((v) => v) as MediaIdPair[];
 
   return { peer, mediaIdPairs };
 }
@@ -51,8 +52,10 @@ export const unsubscribe = (room: Room) => async (
 ) => {
   const peer = room.peers[subscriberId];
   const sender = room.getSFU(info).unsubscribe(subscriberId);
-  peer.removeTrack(sender);
-  await peer.setLocalDescription(peer.createOffer());
+  if (sender) {
+    peer.removeTrack(sender);
+    await peer.setLocalDescription(peer.createOffer());
+  }
   return peer;
 };
 

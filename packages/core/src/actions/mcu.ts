@@ -1,5 +1,6 @@
 import { MediaInfo } from "../domains/media/media";
 import { Room } from "../domains/room";
+import { MixIdPair } from "../typings/rpc";
 
 export const listenMixedAudio = (room: Room) => async (
   subscriberId: string,
@@ -10,7 +11,7 @@ export const listenMixedAudio = (room: Room) => async (
   await peer.setLocalDescription(peer.createOffer());
 
   const mcu = room.createMCU(infos, transceiver);
-  const meta = { mid: transceiver.mid, mixId: mcu.id };
+  const meta: MixIdPair = { mid: transceiver.mid, mixId: mcu.id };
 
   return { peer, meta };
 };

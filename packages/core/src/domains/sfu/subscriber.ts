@@ -26,22 +26,22 @@ export class Subscriber {
 
   listenSingle() {
     this.state = "single";
-    this.subscribe(this.state);
+    this.subscribeAV(this.state);
   }
 
   listenHigh() {
     this.state = "high";
-    this.subscribe(this.state);
+    this.subscribeAV(this.state);
   }
 
   listenLow() {
     this.state = "low";
-    this.subscribe(this.state);
+    this.subscribeAV(this.state);
   }
 
   listenAuto() {
     this.state = "auto";
-    this.subscribe("high");
+    this.subscribeAV("high");
     this.watchREMB();
   }
 
@@ -49,6 +49,7 @@ export class Subscriber {
   readonly threshold = 10;
   stopWatchREMB: () => void = () => {};
   private watchREMB() {
+    if (!this.sender) return;
     const { unSubscribe } = this.sender.sender.onRtcp.subscribe((rtcp) => {
       if (rtcp.type === RtcpPayloadSpecificFeedback.type) {
         const psfb = rtcp as RtcpPayloadSpecificFeedback;
@@ -60,7 +61,7 @@ export class Subscriber {
               console.log("low");
               this.state = "low";
               this.stopRTP();
-              this.subscribe(this.state);
+              this.subscribeAV(this.state);
               this.count = 0;
             }
             this.count++;
@@ -69,7 +70,7 @@ export class Subscriber {
               console.log("high");
               this.state = "high";
               this.stopRTP();
-              this.subscribe(this.state);
+              this.subscribeAV(this.state);
               this.count = 0;
             }
             this.count--;
@@ -92,37 +93,40 @@ export class Subscriber {
       this.state = "high";
     }
 
-    this.subscribe(this.state);
+    this.subscribeAV(this.state);
   }
 
   listenDataChannel() {
     const label = `__messaging:${this.media.mediaId}`;
-    const sender = this.peer.sctpTransport.channelByLabel(label);
+    const sender = this.peer.sctpTransport!.channelByLabel(label);
     if (!sender) {
       this.peer.createDataChannel(label);
     }
     this.media.onMessage.subscribe((msg) => {
-      const sender = this.peer.sctpTransport.channelByLabel(label);
+      const sender = this.peer.sctpTransport!.channelByLabel(label);
       if (sender) sender.send(msg);
     });
     return label;
   }
 
-  private async subscribe(state: SubscriberType) {
-    log("on subscribe", this.sender.uuid, state);
+  private async subscribeAV(state: SubscriberType) {
+    const sender = this.sender;
+    if (!sender) throw new Error();
+
+    log("on subscribe", sender.uuid, state);
 
     const track =
       state === "single"
         ? this.media.tracks[0].track
-        : this.media.tracks.find(({ track }) => track.rid.includes(state))
+        : this.media.tracks.find(({ track }) => track.rid!.includes(state))!
             .track;
 
     const [rtp] = await track.onRtp.asPromise();
-    this.sender.replaceRtp(rtp.header);
-    log("replace track", this.sender.uuid, rtp.header.ssrc);
+    sender.replaceRtp(rtp.header);
+    log("replace track", sender.uuid, rtp.header.ssrc);
 
     const { unSubscribe } = track.onRtp.subscribe((rtp) => {
-      this.sender.sendRtp(rtp);
+      sender.sendRtp(rtp);
     });
     this.stopRTP = unSubscribe;
   }

@@ -42,10 +42,11 @@ export class SFUManager {
         this.events,
         info
       ));
-      if (mediaMap[info.mediaId].dc) {
-        consumer.initData(mediaMap[info.mediaId].dc);
+      const { dc, mid } = mediaMap[info.mediaId];
+      if (dc) {
+        consumer.initData(dc);
       } else {
-        consumer.initAV(mediaMap[info.mediaId].mid);
+        consumer.initAV(mid!);
       }
       return consumer;
     });

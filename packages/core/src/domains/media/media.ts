@@ -12,9 +12,9 @@ export class Media {
   readonly mediaId = "m_" + v4();
   readonly onMessage = new Event<[Buffer | string]>();
   tracks: Track[] = [];
-  transceiver: RTCRtpTransceiver;
-  simulcast: boolean;
-  datachannel: RTCDataChannel;
+  transceiver?: RTCRtpTransceiver;
+  simulcast!: boolean;
+  datachannel?: RTCDataChannel;
 
   constructor(readonly kind: Kind, readonly publisherId: string) {}
 
@@ -35,7 +35,7 @@ export class Media {
   addTrack(rtpTrack: RtpTrack) {
     if (this.kind !== rtpTrack.kind) throw new Error();
 
-    const track = new Track(rtpTrack, this.transceiver);
+    const track = new Track(rtpTrack, this.transceiver!);
     this.tracks.push(track);
   }
 
