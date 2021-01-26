@@ -8,15 +8,15 @@ export class TransportWideCC {
   count = TransportWideCC.count;
   length = 2;
 
-  senderSsrc: number;
-  mediaSsrc: number;
-  baseSequenceNumber: number;
-  packetStatusCount: number;
-  referenceTime: number;
-  fbPktCount: number;
+  senderSsrc!: number;
+  mediaSsrc!: number;
+  baseSequenceNumber!: number;
+  packetStatusCount!: number;
+  referenceTime!: number;
+  fbPktCount!: number;
   packetChunks: (RunLengthChunk | StatusVectorChunk)[] = [];
   recvDeltas: RecvDelta[] = [];
-  header: RtcpHeader;
+  header!: RtcpHeader;
 
   constructor(props: Partial<TransportWideCC> = {}) {
     Object.assign(this, props);
@@ -48,7 +48,7 @@ export class TransportWideCC {
         0,
         1
       );
-      let iPacketStatus: RunLengthChunk | StatusVectorChunk;
+      let iPacketStatus: RunLengthChunk | StatusVectorChunk | undefined;
       switch (type) {
         case PacketChunk.TypeTCCRunLengthChunk:
           {
@@ -110,6 +110,7 @@ export class TransportWideCC {
           }
           break;
       }
+      if (!iPacketStatus) throw new Error();
       packetStatusPos += 2;
       packetChunks.push(iPacketStatus);
     }
@@ -166,7 +167,7 @@ export class TransportWideCC {
             return undefined;
           }
         })
-        .filter((v) => v != undefined)
+        .filter((v) => v) as Buffer[]
     );
 
     const buf = Buffer.concat([constBuf, chunks, deltas]);
@@ -190,9 +191,9 @@ export class TransportWideCC {
 // |T| S |       Run Length        |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 export class RunLengthChunk {
-  type: number;
-  packetStatus: number;
-  runLength: number;
+  type!: number;
+  packetStatus!: number;
+  runLength!: number;
 
   constructor(props: Partial<RunLengthChunk> = {}) {
     Object.assign(this, props);
@@ -223,9 +224,9 @@ export class RunLengthChunk {
 // |T|S|       symbol list         |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 export class StatusVectorChunk {
-  type: number;
-  symbolSize: number;
-  symbolList: number[];
+  type!: number;
+  symbolSize!: number;
+  symbolList: number[] = [];
 
   constructor(props: Partial<StatusVectorChunk> = {}) {
     Object.assign(this, props);
@@ -271,16 +272,16 @@ export class StatusVectorChunk {
 }
 
 export class RecvDelta {
-  type: number;
-  delta: number;
+  type!: number;
+  delta!: number;
 
   constructor(props: Partial<RecvDelta> = {}) {
     Object.assign(this, props);
   }
 
   static deSerialize(data: Buffer) {
-    let type: number;
-    let delta: number;
+    let type: number | undefined;
+    let delta: number | undefined;
 
     if (data.length === 1) {
       type = PacketStatus.TypeTCCPacketReceivedSmallDelta;
@@ -289,6 +290,8 @@ export class RecvDelta {
       type = PacketStatus.TypeTCCPacketReceivedLargeDelta;
       delta = 250 * data.readInt16BE();
     }
+
+    if (type === undefined || delta === undefined) throw new Error();
 
     return new RecvDelta({ type, delta });
   }

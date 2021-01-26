@@ -13,7 +13,7 @@ export class RtcpPayloadSpecificFeedback {
   static type = 206;
   type = RtcpPayloadSpecificFeedback.type;
 
-  feedback: Feedback;
+  feedback!: Feedback;
 
   constructor(props: Partial<RtcpPayloadSpecificFeedback> = {}) {
     Object.assign(this, props);
@@ -30,7 +30,7 @@ export class RtcpPayloadSpecificFeedback {
   }
 
   static deSerialize(data: Buffer, header: RtcpHeader) {
-    let feedback: Feedback;
+    let feedback: Feedback | undefined;
 
     switch (header.count) {
       case FullIntraRequest.count:

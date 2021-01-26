@@ -36,11 +36,11 @@ export class RTCIceGatherer {
     }
   }
 
-  getLocalCandidates() {
+  get localCandidates() {
     return this.connection.localCandidates.map(candidateFromIce);
   }
 
-  getLocalParameters() {
+  get localParameters() {
     const params = new RTCIceParameters({
       usernameFragment: this.connection.localUserName,
       password: this.connection.localPassword,
@@ -117,8 +117,8 @@ export class RTCIceCandidate {
   toJSON(): RTCIceCandidateJSON {
     return {
       candidate: candidateToSdp(this),
-      sdpMLineIndex: this.sdpMLineIndex,
-      sdpMid: this.sdpMid,
+      sdpMLineIndex: this.sdpMLineIndex!,
+      sdpMid: this.sdpMid!,
     };
   }
 
@@ -134,8 +134,8 @@ export class RTCIceCandidate {
 
 export class RTCIceParameters {
   iceLite: boolean = false;
-  usernameFragment?: string;
-  password?: string;
+  usernameFragment!: string;
+  password!: string;
 
   constructor(props: Partial<RTCIceParameters> = {}) {
     Object.assign(this, props);

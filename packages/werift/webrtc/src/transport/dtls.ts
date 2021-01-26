@@ -37,15 +37,16 @@ export class RTCDtlsTransport {
   state = DtlsState.NEW;
   role: DtlsRole = "auto";
   dataReceiver?: (buf: Buffer) => void;
-  srtp: SrtpSession;
-  srtcp: SrtcpSession;
-  router?: RtpRouter;
+  srtp!: SrtpSession;
+  srtcp!: SrtcpSession;
+
   transportSequenceNumber = 0;
 
   private localCertificate: RTCCertificate;
 
   constructor(
     readonly iceTransport: RTCIceTransport,
+    readonly router: RtpRouter,
     readonly certificates: RTCCertificate[],
     private readonly srtpProfiles: number[] = []
   ) {
@@ -53,7 +54,7 @@ export class RTCDtlsTransport {
     this.localCertificate = certificate;
   }
 
-  getLocalParameters() {
+  get localParameters() {
     return new RTCDtlsParameters(
       this.localCertificate ? this.localCertificate.getFingerprints() : []
     );
@@ -95,9 +96,11 @@ export class RTCDtlsTransport {
         this.setState(DtlsState.CLOSED);
       };
 
-      if (((this.dtls as any) as DtlsClient).connect) {
+      //@ts-ignore
+      if (this.dtls.connect) {
         await sleep(100);
-        ((this.dtls as any) as DtlsClient).connect();
+        //@ts-ignore
+        this.dtls.connect();
       }
     });
 
@@ -118,6 +121,7 @@ export class RTCDtlsTransport {
       remoteKey,
       remoteSalt,
     } = this.dtls.extractSessionKeys();
+    if (!this.dtls.srtp.srtpProfile) throw new Error("need srtpProfile");
     const config = {
       keys: {
         localMasterKey: localKey,

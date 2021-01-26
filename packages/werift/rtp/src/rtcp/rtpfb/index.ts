@@ -7,8 +7,8 @@ type Feedback = GenericNack | TransportWideCC;
 export class RtcpTransportLayerFeedback {
   static type = 205;
   type = RtcpTransportLayerFeedback.type;
-  feedback: Feedback;
-  header: RtcpHeader;
+  feedback!: Feedback;
+  header!: RtcpHeader;
 
   constructor(props: Partial<RtcpTransportLayerFeedback> = {}) {
     Object.assign(this, props);
@@ -20,7 +20,7 @@ export class RtcpTransportLayerFeedback {
   }
 
   static deSerialize(data: Buffer, header: RtcpHeader) {
-    let feedback: Feedback;
+    let feedback: Feedback | undefined;
 
     switch (header.count) {
       case GenericNack.count:

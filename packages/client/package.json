@@ -1,7 +1,7 @@
 {
   "name": "@shinyoshiaki/node-sfu-client",
   "version": "0.0.20",
-  "description": "> TODO: description",
+  "description": "Pure TypeScript WebRTC MediaServer (SFU/MCU)",
   "homepage": "https://github.com/shinyoshiaki/node-sfu#readme",
   "bugs": {
     "url": "https://github.com/shinyoshiaki/node-sfu/issues"

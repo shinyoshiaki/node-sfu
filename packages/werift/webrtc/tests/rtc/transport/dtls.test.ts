@@ -1,6 +1,7 @@
 import { RTCCertificate, RTCDtlsTransport } from "../../../src/transport/dtls";
 import { RTCIceGatherer, RTCIceTransport } from "../../../src";
 import { sleep } from "../../../src/helper";
+import { RtpRouter } from "../../../src/media/router";
 
 describe("RTCDtlsTransportTest", () => {
   test("dtls_test_data", async () => {
@@ -21,14 +22,18 @@ export async function dtlsTransportPair() {
   transport2.connection.iceControlling = false;
 
   const certificate1 = RTCCertificate.unsafe_useDefaultCertificate();
-  const session1 = new RTCDtlsTransport(transport1, [certificate1]);
+  const session1 = new RTCDtlsTransport(transport1, new RtpRouter(), [
+    certificate1,
+  ]);
 
   const certificate2 = RTCCertificate.unsafe_useDefaultCertificate();
-  const session2 = new RTCDtlsTransport(transport2, [certificate2]);
+  const session2 = new RTCDtlsTransport(transport2, new RtpRouter(), [
+    certificate2,
+  ]);
 
   await Promise.all([
-    session1.start(session2.getLocalParameters()),
-    session2.start(session1.getLocalParameters()),
+    session1.start(session2.localParameters),
+    session2.start(session1.localParameters),
   ]);
 
   if (session1.role === "client") {
@@ -55,14 +60,14 @@ export const iceTransportPair = async () => {
 
   await Promise.all([gatherer1.gather(), gatherer2.gather()]);
 
-  gatherer2.getLocalCandidates().forEach(transport1.addRemoteCandidate);
-  gatherer1.getLocalCandidates().forEach(transport2.addRemoteCandidate);
+  gatherer2.localCandidates.forEach(transport1.addRemoteCandidate);
+  gatherer1.localCandidates.forEach(transport2.addRemoteCandidate);
   expect(transport1.state).toBe("new");
   expect(transport2.state).toBe("new");
 
   await Promise.all([
-    transport1.start(gatherer2.getLocalParameters()),
-    transport2.start(gatherer1.getLocalParameters()),
+    transport1.start(gatherer2.localParameters),
+    transport2.start(gatherer1.localParameters),
   ]);
 
   return [transport1, transport2];
