@@ -18,8 +18,10 @@ export class SFU {
 
     const peers = await Promise.all(
       Object.values(this.subscribers).map(async ({ peer, sender }) => {
-        peer.removeTrack(sender);
-        await peer.setLocalDescription(peer.createOffer());
+        if (sender) {
+          peer.removeTrack(sender);
+          await peer.setLocalDescription(peer.createOffer());
+        }
         return peer;
       })
     );
@@ -27,31 +29,39 @@ export class SFU {
     return peers;
   }
 
-  subscribe(
+  subscribeAV(
     subscriberId: string,
     peer: RTCPeerConnection,
-    sender: RTCRtpTransceiver,
-    type: SubscriberType
+    sender?: RTCRtpTransceiver,
+    type?: SubscriberType
   ) {
     const subscriber = (this.subscribers[subscriberId] = new Subscriber(
-      sender,
       peer,
-      this.media.tracks
+      this.media,
+      sender
     ));
     switch (type) {
       case "single":
-        subscriber.single();
+        subscriber.listenSingle();
         break;
       case "high":
-        subscriber.high();
+        subscriber.listenHigh();
         break;
       case "low":
-        subscriber.low();
+        subscriber.listenLow();
         break;
       case "auto":
-        subscriber.auto();
+        subscriber.listenAuto();
         break;
     }
+  }
+
+  subscribeData(subscriberId: string, peer: RTCPeerConnection) {
+    const subscriber = (this.subscribers[subscriberId] = new Subscriber(
+      peer,
+      this.media
+    ));
+    return subscriber.listenDataChannel();
   }
 
   unsubscribe(subscriberId: string) {

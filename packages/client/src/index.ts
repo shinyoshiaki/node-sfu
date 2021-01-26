@@ -17,7 +17,7 @@ export type {
   RemoveMixedAudioTrack,
   UnPublish,
   HandleSubscribe,
-  MidPair,
+  MediaIdPair,
   HandleJoin,
   HandleLeave,
   HandlePublish,

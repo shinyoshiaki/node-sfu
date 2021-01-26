@@ -1,21 +1,36 @@
 import { v4 } from "uuid";
 import {
   Kind,
+  RTCDataChannel,
   RTCRtpTransceiver,
   RtpTrack,
 } from "../../../../werift/webrtc/src";
 import { Track } from "./track";
+import { Event } from "rx.mini";
 
 export class Media {
   readonly mediaId = "m_" + v4();
-  readonly kind = this.transceiver.kind;
+  readonly onMessage = new Event<[Buffer | string]>();
   tracks: Track[] = [];
+  transceiver: RTCRtpTransceiver;
+  simulcast: boolean;
+  datachannel: RTCDataChannel;
 
-  constructor(
-    readonly publisherId: string,
-    readonly transceiver: RTCRtpTransceiver,
-    readonly simulcast: boolean
-  ) {}
+  constructor(readonly kind: Kind, readonly publisherId: string) {}
+
+  initAV(transceiver: RTCRtpTransceiver, simulcast: boolean) {
+    this.transceiver = transceiver;
+    this.simulcast = simulcast;
+    return this;
+  }
+
+  initData(datachannel: RTCDataChannel) {
+    this.datachannel = datachannel;
+    datachannel.message.subscribe((msg) => {
+      this.onMessage.execute(msg);
+    });
+    return this;
+  }
 
   addTrack(rtpTrack: RtpTrack) {
     if (this.kind !== rtpTrack.kind) throw new Error();
@@ -45,4 +60,4 @@ export type MediaInfo = {
   simulcast: boolean;
 };
 
-type MediaInfoKind = Kind | "mixer";
+export type MediaInfoKind = Kind | "mixer";

@@ -1,4 +1,5 @@
 import { MediaInfo, SubscriberType } from "../";
+import { Kind } from "../../../core/src";
 import { listenMixedAudio } from "../actions/mcu";
 import { subscribe, unsubscribe } from "../actions/sfu";
 import { join, publish, unPublish } from "../actions/user";
@@ -51,8 +52,17 @@ export class ClientSDK {
     return { answer, candidates, user };
   }
 
-  async publish(request: { track: MediaStreamTrack; simulcast?: boolean }) {
-    return await publish(this.connection, this.user, this.events)(request);
+  async publish(request: {
+    track?: MediaStreamTrack;
+    simulcast?: boolean;
+    kind: Kind;
+  }) {
+    return await publish(
+      this.connection,
+      this.user,
+      this.events,
+      this.sfu
+    )(request);
   }
 
   async unPublish(info: MediaInfo) {

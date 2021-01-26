@@ -7,7 +7,7 @@ import {
   RTCPeerConnection,
   RTCRtpTransceiver,
 } from "../../../../werift/webrtc/src";
-import { Track } from "../media/track";
+import { Media } from "../media/media";
 
 const log = debug("werift:sfu:subscriber");
 
@@ -19,27 +19,27 @@ export class Subscriber {
   state: SubscriberType = "single";
 
   constructor(
-    public sender: RTCRtpTransceiver,
     readonly peer: RTCPeerConnection,
-    private tracks: Track[]
+    private media: Media,
+    public sender?: RTCRtpTransceiver
   ) {}
 
-  single() {
+  listenSingle() {
     this.state = "single";
     this.subscribe(this.state);
   }
 
-  high() {
+  listenHigh() {
     this.state = "high";
     this.subscribe(this.state);
   }
 
-  low() {
+  listenLow() {
     this.state = "low";
     this.subscribe(this.state);
   }
 
-  auto() {
+  listenAuto() {
     this.state = "auto";
     this.subscribe("high");
     this.watchREMB();
@@ -95,13 +95,27 @@ export class Subscriber {
     this.subscribe(this.state);
   }
 
+  listenDataChannel() {
+    const label = `__messaging:${this.media.mediaId}`;
+    const sender = this.peer.sctpTransport.channelByLabel(label);
+    if (!sender) {
+      this.peer.createDataChannel(label);
+    }
+    this.media.onMessage.subscribe((msg) => {
+      const sender = this.peer.sctpTransport.channelByLabel(label);
+      if (sender) sender.send(msg);
+    });
+    return label;
+  }
+
   private async subscribe(state: SubscriberType) {
     log("on subscribe", this.sender.uuid, state);
 
     const track =
       state === "single"
-        ? this.tracks[0].track
-        : this.tracks.find(({ track }) => track.rid.includes(state)).track;
+        ? this.media.tracks[0].track
+        : this.media.tracks.find(({ track }) => track.rid.includes(state))
+            .track;
 
     const [rtp] = await track.onRtp.asPromise();
     this.sender.replaceRtp(rtp.header);

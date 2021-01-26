@@ -3,8 +3,9 @@ import { FC, useContext, useEffect, useRef, useState } from "react";
 import { ClientContext } from "../..";
 import { MediaInfo, SubscriberType } from "../../../../../packages/client/src";
 
-export const Media: FC<{ info: MediaInfo }> = ({ info }) => {
+export const RemoteMedia: FC<{ info: MediaInfo }> = ({ info }) => {
   const [stream, setStream] = useState<MediaStream>();
+  const [data, setData] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const client = useContext(ClientContext);
 
@@ -24,6 +25,13 @@ export const Media: FC<{ info: MediaInfo }> = ({ info }) => {
     client.changeQuality(info, type);
   };
 
+  const subscribe = async () => {
+    await client.subscribe([info]);
+    client.sfu
+      .getConsumer(info.mediaId)
+      .onMessage.subscribe((data) => setData(data));
+  };
+
   return (
     <Box borderWidth="1px" padding={1}>
       {Object.entries(info).map(([k, v]) => (
@@ -32,7 +40,7 @@ export const Media: FC<{ info: MediaInfo }> = ({ info }) => {
         </Text>
       ))}
       <Stack direction="row" p={1}>
-        <Button onClick={() => client.subscribe([info])} disabled={!!stream}>
+        <Button onClick={subscribe} disabled={!!stream}>
           subscribe
         </Button>
         <Button onClick={() => client.unsubscribe(info)} disabled={!stream}>
@@ -47,15 +55,21 @@ export const Media: FC<{ info: MediaInfo }> = ({ info }) => {
         </Stack>
       )}
       <Center p={1}>
-        <video
-          ref={videoRef}
-          autoPlay
-          style={{
-            background: "black",
-            maxWidth: 400,
-            height: stream ? "auto" : 0,
-          }}
-        />
+        {info.kind !== "application" ? (
+          <video
+            ref={videoRef}
+            autoPlay
+            style={{
+              background: "black",
+              maxWidth: 400,
+              height: stream ? "auto" : 0,
+            }}
+          />
+        ) : (
+          <Box>
+            <Text>{data}</Text>
+          </Box>
+        )}
       </Center>
     </Box>
   );

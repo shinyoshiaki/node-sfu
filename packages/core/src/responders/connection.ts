@@ -119,14 +119,24 @@ export class Connection {
       });
     });
 
-    await this.createOffer(publisherId);
-    this.sendRPC<HandlePublishDone>(
-      {
-        type: "handlePublishDone",
-        payload: [peer.localDescription, media.info],
-      },
-      peer
-    );
+    if (media.kind === "application") {
+      this.sendRPC<HandlePublishDone>(
+        {
+          type: "handlePublishDone",
+          payload: [media.info, undefined],
+        },
+        peer
+      );
+    } else {
+      await this.createOffer(publisherId);
+      this.sendRPC<HandlePublishDone>(
+        {
+          type: "handlePublishDone",
+          payload: [media.info, peer.localDescription],
+        },
+        peer
+      );
+    }
   };
 
   unPublish = async (...args: UnPublish["payload"]) => {
@@ -162,14 +172,28 @@ export class Connection {
     subscriberId: Subscribe["payload"][0],
     requests: Subscribe["payload"][1]
   ) => {
-    const { peer, meta } = await subscribe(requests, subscriberId, this.room);
-    this.sendRPC<HandleSubscribe>(
-      {
-        type: "handleSubscribe",
-        payload: [peer.localDescription, meta],
-      },
-      peer
+    const { peer, mediaIdPairs } = await subscribe(
+      requests,
+      subscriberId,
+      this.room
     );
+    if (mediaIdPairs.find((v) => v.mid)) {
+      this.sendRPC<HandleSubscribe>(
+        {
+          type: "handleSubscribe",
+          payload: [mediaIdPairs, peer.localDescription],
+        },
+        peer
+      );
+    } else {
+      this.sendRPC<HandleSubscribe>(
+        {
+          type: "handleSubscribe",
+          payload: [mediaIdPairs, undefined],
+        },
+        peer
+      );
+    }
   };
 
   unsubscribe = async (...args: UnSubscribe["payload"]) => {
@@ -214,9 +238,9 @@ export class Connection {
     changeQuality(subscriberId, info, type, this.room);
   };
 
-  private sendRPC<T extends RPC>(msg: T, peer: RTCPeerConnection) {
-    const channel = peer.sctpTransport.channelByLabel("sfu");
+  private async sendRPC<T extends RPC>(msg: T, peer: RTCPeerConnection) {
+    const channel = peer.sctpTransport.channelByLabel("__sfu");
     if (!channel) return;
-    channel.send(JSON.stringify(msg));
+    await channel.send(JSON.stringify(msg));
   }
 }

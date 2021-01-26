@@ -1,10 +1,12 @@
-import { MidPair, MediaInfo } from "../../";
+import { MediaIdPair, MediaInfo } from "../../";
 import { Events } from "../../context/events";
 import { Connection } from "../../responder/connection";
-import { SFU } from "./sfu";
+import { Consumer } from "./consumer";
+import { Producer } from "./producer";
 
 export class SFUManager {
-  sfu: { [mediaId: string]: SFU } = {};
+  private consumers: { [mediaId: string]: Consumer } = {};
+  private producers: { [mediaId: string]: Producer } = {};
   subscribed: MediaInfo[] = [];
 
   constructor(private events: Events, private connection: Connection) {}
@@ -16,18 +18,51 @@ export class SFUManager {
     return check;
   }
 
-  subscribe(pairs: MidPair[], infos: MediaInfo[]) {
+  publish(
+    info: MediaInfo,
+    { datachannel }: Partial<{ datachannel: RTCDataChannel }>
+  ) {
+    const producer = new Producer(info);
+    if (datachannel) {
+      producer.datachannel = datachannel;
+    }
+    this.producers[info.mediaId] = producer;
+  }
+
+  subscribe(
+    infos: MediaInfo[],
+    mediaMap: {
+      [mediaId: string]: Partial<{ dc: RTCDataChannel; mid: string }>;
+    }
+  ) {
     this.subscribed = [...this.subscribed, ...infos];
-    infos.forEach((info) => {
-      const mid = pairs.find(({ mediaId }) => info.mediaId === mediaId)?.mid;
-      this.sfu[info.mediaId] = new SFU(this.connection, this.events, info, mid);
+    return infos.map((info) => {
+      const consumer = (this.consumers[info.mediaId] = new Consumer(
+        this.connection,
+        this.events,
+        info
+      ));
+      if (mediaMap[info.mediaId].dc) {
+        consumer.initData(mediaMap[info.mediaId].dc);
+      } else {
+        consumer.initAV(mediaMap[info.mediaId].mid);
+      }
+      return consumer;
     });
   }
 
   unsubscribe(info: MediaInfo) {
-    const sfu = this.sfu[info.mediaId];
+    const consumer = this.consumers[info.mediaId];
     this.subscribed = this.subscribed.filter((v) => v.mediaId !== info.mediaId);
-    delete this.sfu[info.mediaId];
-    sfu.stop();
+    delete this.consumers[info.mediaId];
+    consumer.stop();
+  }
+
+  getConsumer(mediaId: string) {
+    return this.consumers[mediaId];
+  }
+
+  getProducer(mediaId: string) {
+    return this.producers[mediaId];
   }
 }

@@ -2,8 +2,8 @@ import { FC, useContext, useEffect, useState } from "react";
 import { ClientContext } from ".";
 import { Box, Stack, Text } from "@chakra-ui/react";
 import { Control } from "./containers/control";
-import { Medias } from "./containers/remote/medias";
-import { Published } from "./containers/local/published";
+import { RemoteMedias } from "./containers/remote/medias";
+import { LocalMedias } from "./containers/local/medias";
 import { Mixers } from "./containers/mcu/mixers";
 
 const App: FC = () => {
@@ -32,8 +32,8 @@ const App: FC = () => {
       <Text>peerId : {peerId}</Text>
       <Stack p={2}>
         <Control />
-        <Published />
-        <Medias />
+        <LocalMedias />
+        <RemoteMedias />
         <Mixers />
       </Stack>
     </Box>

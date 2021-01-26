@@ -45,7 +45,7 @@ export interface HandlePublish extends RPC {
 
 export interface HandlePublishDone extends RPC {
   type: "handlePublishDone";
-  payload: [RTCSessionDescription, MediaInfo];
+  payload: [MediaInfo, RTCSessionDescription | undefined];
 }
 
 export interface HandleUnPublish extends RPC {
@@ -68,20 +68,21 @@ export interface HandleMedias extends RPC {
   payload: [MediaInfo[]];
 }
 
-export type RequestSubscribe = { info: MediaInfo; type: SubscriberType };
+export type RequestSubscribe = { info: MediaInfo; type?: SubscriberType };
 export interface Subscribe extends RPC {
   type: "subscribe";
   payload: [string, RequestSubscribe[]];
 }
 
-export type MidPair = {
+export type MediaIdPair = {
   mediaId: string;
-  mid: string;
+  mid?: string;
+  label?: string;
 };
 
 export interface HandleSubscribe extends RPC {
   type: "handleSubscribe";
-  payload: [RTCSessionDescription, MidPair[]];
+  payload: [MediaIdPair[], RTCSessionDescription | undefined];
 }
 
 export interface UnSubscribe extends RPC {

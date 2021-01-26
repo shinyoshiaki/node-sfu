@@ -4,6 +4,7 @@ import { ClientContext } from "..";
 import { Selector } from "../components/selector";
 import { FilePicker } from "../components/input";
 import { getAudioStream } from "../util";
+import { Kind } from "../../../../packages/core/src";
 
 export const Control: FC = () => {
   const client = useContext(ClientContext);
@@ -12,18 +13,27 @@ export const Control: FC = () => {
     simulcast: boolean,
     constraints: MediaStreamConstraints
   ) => {
-    const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-    await client.publish({ track: mediaStream.getTracks()[0], simulcast });
+    const [track] = (
+      await navigator.mediaDevices.getUserMedia(constraints)
+    ).getTracks();
+    await client.publish({ track, simulcast, kind: track.kind as Kind });
   };
 
   const publishDisplay = async (simulcast: boolean) => {
-    const mediaStream = await (navigator.mediaDevices as any).getDisplayMedia();
-    await client.publish({ track: mediaStream.getTracks()[0], simulcast });
+    const [track] = (
+      await (navigator.mediaDevices as any).getDisplayMedia()
+    ).getTracks();
+    await client.publish({ track, simulcast, kind: track.kind as Kind });
   };
 
   const publishFile = async (file: File) => {
     const stream = await getAudioStream(await file.arrayBuffer(), 0.1);
-    await client.publish({ track: stream.getTracks()[0] });
+    const [track] = stream.getTracks();
+    await client.publish({ track, kind: track.kind as Kind });
+  };
+
+  const publishDataChannel = async () => {
+    await client.publish({ kind: "application" });
   };
 
   const createMixer = () => {
@@ -31,7 +41,7 @@ export const Control: FC = () => {
   };
 
   return (
-    <Stack direction="row">
+    <Stack direction="row" flexWrap="wrap">
       <Selector
         button="publish camera"
         onClick={(res) => publishMedia(res, { video: true })}
@@ -45,6 +55,9 @@ export const Control: FC = () => {
       </FilePicker>
       <Button onClick={() => publishMedia(false, { audio: true })} top={1}>
         publish audio
+      </Button>
+      <Button onClick={publishDataChannel} top={1}>
+        publish datachannel
       </Button>
       <Button onClick={createMixer} top={1}>
         create Mixer

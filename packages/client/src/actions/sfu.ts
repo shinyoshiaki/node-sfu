@@ -8,18 +8,53 @@ export const subscribe = (connection: Connection, sfu: SFUManager) => async (
   if (sfu.isSubscribed(infos)) return;
 
   const requests: RequestSubscribe[] = infos.map((info) => {
-    return {
-      info,
-      type: info.simulcast ? "high" : "single",
-    };
+    if (info.kind === "application") {
+      return { info };
+    } else {
+      const type = info.simulcast ? "high" : "single";
+      return { info, type };
+    }
   });
-  const [offer, pairs] = await connection.subscribe([
+  const [mediaIdPairs, offer] = await connection.subscribe([
     connection.peerId,
     requests,
   ]);
-  sfu.subscribe(pairs, infos);
-  const answer = await connection.setOffer(offer as any);
-  await connection.sendAnswer(answer);
+
+  const mediaMap = (
+    await Promise.all(
+      mediaIdPairs.map(async ({ label, mediaId, mid }) => {
+        if (label) {
+          const [dc] =
+            [connection.datachannels[label]] ||
+            (await connection.ondatachannel.watch((dc) => dc.label === label));
+          return { dc, mediaId };
+        } else {
+          return { mid, mediaId };
+        }
+      })
+    )
+  ).reduce(
+    (
+      acc: {
+        [mediaId: string]: Partial<{ dc: RTCDataChannel; mid: string }>;
+      },
+      cur
+    ) => {
+      if (cur.dc) acc[cur.mediaId] = { dc: cur.dc };
+      else acc[cur.mediaId] = { mid: cur.mid };
+      return acc;
+    },
+    {}
+  );
+
+  const consumers = sfu.subscribe(infos, mediaMap);
+
+  if (offer) {
+    const answer = await connection.setOffer(offer as any);
+    await connection.sendAnswer(answer);
+  }
+
+  return consumers;
 };
 
 export const unsubscribe = (connection: Connection, sfu: SFUManager) => async (

@@ -2,9 +2,10 @@ import { Kind } from "../../../werift/webrtc/src";
 import { MediaInfo } from "../domains/media/media";
 import { Room } from "../domains/room";
 import { SubscriberType } from "../domains/sfu/subscriber";
+import { RequestSubscribe } from "../typings/rpc";
 
 export async function subscribe(
-  requests: { info: MediaInfo; type: SubscriberType }[],
+  requests: RequestSubscribe[],
   subscriberId: string,
   room: Room
 ) {
@@ -12,21 +13,36 @@ export async function subscribe(
 
   const pairs = requests.map(({ info, type }) => {
     const { mediaId, kind } = info;
-    const transceiver = peer.addTransceiver(kind as Kind, "sendonly");
 
     const sfu = room.getSFU(info);
-    sfu.subscribe(subscriberId, peer, transceiver, type);
-
-    return { mediaId, uuid: transceiver.uuid };
+    if (kind === "application") {
+      const label = sfu.subscribeData(subscriberId, peer);
+      return { mediaId, label };
+    } else {
+      const transceiver = peer.addTransceiver(kind as Kind, "sendonly");
+      sfu.subscribeAV(subscriberId, peer, transceiver, type);
+      return { mediaId, uuid: transceiver.uuid };
+    }
   });
 
-  await peer.setLocalDescription(peer.createOffer());
+  if (requests.find((req) => req.info.kind !== "application")) {
+    await peer.setLocalDescription(peer.createOffer());
+  }
 
-  const meta = pairs.map(({ mediaId, uuid }) => {
-    const transceiver = peer.transceivers.find((t) => t.uuid === uuid);
-    return { mediaId, mid: transceiver.mid };
-  });
-  return { peer, meta };
+  const mediaIdPairs = pairs
+    .map(({ mediaId, uuid, label }) => {
+      if (uuid) {
+        const transceiver = peer.transceivers.find((t) => t.uuid === uuid);
+        return { mediaId, mid: transceiver.mid };
+      }
+      if (label) {
+        return { mediaId, label };
+      }
+      return;
+    })
+    .filter((v) => v);
+
+  return { peer, mediaIdPairs };
 }
 
 export const unsubscribe = (room: Room) => async (

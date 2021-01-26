@@ -473,7 +473,7 @@ export function parsePacket(data: Buffer): [number, number, number, Chunk[]] {
 
   if (checkSum !== expect) throw new Error("SCTP packet has invalid checksum");
 
-  const chunks = [];
+  const chunks: Chunk[] = [];
   let pos = 12;
   while (pos + 4 <= data.length) {
     const [chunkType, chunkFlags, chunkLength] = jspack.Unpack(
