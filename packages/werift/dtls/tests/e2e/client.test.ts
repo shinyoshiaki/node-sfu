@@ -2,6 +2,8 @@ import { spawn } from "child_process";
 import { DtlsClient } from "../../src/client";
 import { createSocket } from "dgram";
 import { createUdpTransport } from "../../src";
+import { certPem, keyPem } from "../fixture";
+import { HashAlgorithm, SignatureAlgorithm } from "../../src/cipher/const";
 
 describe("e2e/client", () => {
   test("openssl", (done) => {
@@ -25,12 +27,16 @@ describe("e2e/client", () => {
           address: "127.0.0.1",
           port: 55555,
         }),
-        cert: "",
-        key: "",
+        cert: certPem,
+        key: keyPem,
+        signatureHash: {
+          hash: HashAlgorithm.sha256,
+          signature: SignatureAlgorithm.rsa,
+        },
       });
-      client.onConnect = () => {
+      client.onConnect.subscribe(() => {
         client.send(Buffer.from("my_dtls"));
-      };
+      });
       client.connect();
       server.stdout.on("data", (data: string) => {
         if (data.includes("my_dtls")) {
@@ -39,5 +45,5 @@ describe("e2e/client", () => {
         }
       });
     }, 100);
-  });
+  }, 10_000);
 });

@@ -3,15 +3,46 @@ import { bufferReader, bufferWriter } from "../../helper";
 import { getBit, BitWriter } from "../../utils";
 import { RtcpHeader } from "../header";
 
+/* RTP Extensions for Transport-wide Congestion Control
+ * draft-holmer-rmcat-transport-wide-cc-extensions-01
+
+   0               1               2               3
+   0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |V=2|P|  FMT=15 |    PT=205     |           length              |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                     SSRC of packet sender                     |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                      SSRC of media source                     |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |      base sequence number     |      packet status count      |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                 reference time                | fb pkt. count |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |          packet chunk         |         packet chunk          |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  .                                                               .
+  .                                                               .
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |         packet chunk          |  recv delta   |  recv delta   |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  .                                                               .
+  .                                                               .
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |           recv delta          |  recv delta   | zero padding  |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+
 export class TransportWideCC {
   static count = 15;
   count = TransportWideCC.count;
   length = 2;
 
   senderSsrc!: number;
-  mediaSsrc!: number;
+  mediaSourceSsrc!: number;
   baseSequenceNumber!: number;
   packetStatusCount!: number;
+  /** 24bit multiples of 64ms */
   referenceTime!: number;
   fbPktCount!: number;
   packetChunks: (RunLengthChunk | StatusVectorChunk)[] = [];
@@ -68,7 +99,7 @@ export class TransportWideCC {
             ) {
               range(packetNumberToProcess).forEach(() => {
                 recvDeltas.push(
-                  new RecvDelta({ type: packetStatus.packetStatus })
+                  new RecvDelta({ type: packetStatus.packetStatus as any })
                 );
               });
             }
@@ -129,7 +160,7 @@ export class TransportWideCC {
 
     return new TransportWideCC({
       senderSsrc,
-      mediaSsrc,
+      mediaSourceSsrc: mediaSsrc,
       baseSequenceNumber,
       packetStatusCount,
       referenceTime,
@@ -145,7 +176,7 @@ export class TransportWideCC {
       [4, 4, 2, 2, 3, 1],
       [
         this.senderSsrc,
-        this.mediaSsrc,
+        this.mediaSourceSsrc,
         this.baseSequenceNumber,
         this.packetStatusCount,
         this.referenceTime,
@@ -184,6 +215,30 @@ export class TransportWideCC {
     this.header.length = Math.floor(buf.length / 4);
     return Buffer.concat([this.header.serialize(), buf]);
   }
+
+  get packetResults(): PacketResult[] {
+    const currentSequenceNumber = this.baseSequenceNumber - 1;
+    const results = this.packetChunks
+      .filter((v) => v instanceof RunLengthChunk)
+      .map((chunk) => (chunk as RunLengthChunk).results(currentSequenceNumber))
+      .flatMap((v) => v);
+
+    let deltaIdx = 0;
+    const referenceTime = BigInt(this.referenceTime) * 64n;
+    let currentReceivedAtMs = referenceTime;
+
+    for (const result of results) {
+      const recvDelta = this.recvDeltas[deltaIdx];
+      if (!result.received || !recvDelta) {
+        continue;
+      }
+      currentReceivedAtMs += BigInt(recvDelta.delta) / 1000n;
+      result.delta = recvDelta.delta;
+      result.receivedAtMs = Number(currentReceivedAtMs);
+      deltaIdx++;
+    }
+    return results;
+  }
 }
 
 //  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
@@ -191,12 +246,14 @@ export class TransportWideCC {
 // |T| S |       Run Length        |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 export class RunLengthChunk {
-  type!: number;
-  packetStatus!: number;
+  type!: PacketChunk.TypeTCCRunLengthChunk;
+  packetStatus!: PacketStatus;
+  /** 13bit */
   runLength!: number;
 
   constructor(props: Partial<RunLengthChunk> = {}) {
     Object.assign(this, props);
+    this.type = PacketChunk.TypeTCCRunLengthChunk;
   }
 
   static deSerialize(data: Buffer) {
@@ -216,6 +273,20 @@ export class RunLengthChunk {
 
     buf.writeUInt16BE(writer.value);
     return buf;
+  }
+
+  results(currentSequenceNumber: number) {
+    const received =
+      this.packetStatus === PacketStatus.TypeTCCPacketReceivedSmallDelta ||
+      this.packetStatus === PacketStatus.TypeTCCPacketReceivedLargeDelta;
+
+    const results: PacketResult[] = [];
+    for (let i = 0; i <= this.runLength; ++i) {
+      results.push(
+        new PacketResult({ sequenceNumber: ++currentSequenceNumber, received })
+      );
+    }
+    return results;
   }
 }
 
@@ -272,7 +343,11 @@ export class StatusVectorChunk {
 }
 
 export class RecvDelta {
-  type!: number;
+  /**optional (If undefined, it will be set automatically.)*/
+  type?:
+    | PacketStatus.TypeTCCPacketReceivedSmallDelta
+    | PacketStatus.TypeTCCPacketReceivedLargeDelta;
+  /**micro sec */
   delta!: number;
 
   constructor(props: Partial<RecvDelta> = {}) {
@@ -301,29 +376,33 @@ export class RecvDelta {
     this.delta = res.delta;
   }
 
+  parsed = false; // todo refactor
+  parseDelta() {
+    this.delta = Math.floor(this.delta / 250);
+
+    if (this.delta < 0 || this.delta > 255) {
+      if (this.delta > 32767) this.delta = 32767; // maxInt16
+      if (this.delta < -32768) this.delta = -32768; // minInt16
+      if (!this.type) this.type = PacketStatus.TypeTCCPacketReceivedLargeDelta;
+    } else {
+      if (!this.type) this.type = PacketStatus.TypeTCCPacketReceivedSmallDelta;
+    }
+    this.parsed = true;
+  }
+
   serialize() {
-    const delta = Math.floor(this.delta / 250);
-    if (
-      this.type === PacketStatus.TypeTCCPacketReceivedSmallDelta &&
-      delta >= 0 &&
-      delta <= 255
-    ) {
+    if (!this.parsed) this.parseDelta();
+    if (this.type === PacketStatus.TypeTCCPacketReceivedSmallDelta) {
       const buf = Buffer.alloc(1);
-      buf.writeUInt8(delta);
+      buf.writeUInt8(this.delta);
       return buf;
-    }
-
-    if (
-      this.type === PacketStatus.TypeTCCPacketReceivedLargeDelta &&
-      delta >= -32768 &&
-      delta <= 32768
-    ) {
+    } else if (this.type === PacketStatus.TypeTCCPacketReceivedLargeDelta) {
       const buf = Buffer.alloc(2);
-      buf.writeInt16BE(delta);
+      buf.writeInt16BE(this.delta);
       return buf;
     }
 
-    throw new Error("errDeltaExceedLimit " + delta + " " + this.type);
+    throw new Error("errDeltaExceedLimit " + this.delta + " " + this.type);
   }
 }
 
@@ -338,4 +417,14 @@ export enum PacketStatus {
   TypeTCCPacketReceivedSmallDelta,
   TypeTCCPacketReceivedLargeDelta,
   TypeTCCPacketReceivedWithoutDelta,
+}
+
+export class PacketResult {
+  sequenceNumber = 0;
+  delta = 0;
+  received = false;
+  receivedAtMs = 0;
+  constructor(props: Partial<PacketResult>) {
+    Object.assign(this, props);
+  }
 }

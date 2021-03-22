@@ -1,3 +1,5 @@
+import { HashAlgorithms, SignatureAlgorithms } from "../cipher/const";
+import { SessionTypes } from "../cipher/suites/abstract";
 import { FragmentedHandshake } from "../record/message/fragment";
 import { Options } from "../socket";
 import { Handshake } from "../typings/domain";
@@ -17,9 +19,13 @@ export class DtlsContext {
   }[] = [];
   cookie?: Buffer;
   requestedCertificateTypes: number[] = [];
-  requestedSignatureAlgorithms: { hash: number; signature: number }[] = [];
+  requestedSignatureAlgorithms: {
+    hash: HashAlgorithms;
+    signature: SignatureAlgorithms;
+  }[] = [];
+  remoteExtendedMasterSecret = false;
 
-  constructor(public options: Options) {}
+  constructor(public options: Options, public sessionType: SessionTypes) {}
 
   bufferHandshakeCache(
     handshakes: FragmentedHandshake[],

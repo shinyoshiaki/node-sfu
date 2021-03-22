@@ -4,7 +4,6 @@ import { range } from "lodash";
 import { isIPv4 } from "net";
 import { divide } from "./helper";
 import { Kind } from "./typings/domain";
-import { reverseSimulcastDirection } from "./utils";
 import {
   DTLS_ROLE_SETUP,
   DTLS_SETUP_ROLE,
@@ -32,7 +31,7 @@ export class SessionDescription {
   group: GroupDescription[] = [];
   msidSemantic: GroupDescription[] = [];
   media: MediaDescription[] = [];
-  type?: "offer" | "answer";
+  type!: "offer" | "answer";
 
   static parse(sdp: string) {
     const dtlsFingerprints: RTCDtlsFingerprint[] = [];
@@ -94,7 +93,7 @@ export class SessionDescription {
       const target = mediaLines[0];
       const m = target.match(/^m=([^ ]+) ([0-9]+) ([A-Z/]+) (.+)/);
       if (!m) {
-        throw new Error();
+        throw new Error("m line not found");
       }
 
       const kind = m[1] as Kind;
@@ -218,10 +217,6 @@ export class SessionDescription {
             case "sctp-port":
               if (!value) throw new Error();
               currentMedia.sctpPort = parseInt(value);
-              break;
-            case "ssrc-group":
-              // todo fix
-              parseGroup(currentMedia.ssrcGroup, value, parseInt);
               break;
             case "ssrc":
               const [ssrcStr, ssrcDesc] = divide(value, " ");
@@ -484,7 +479,7 @@ export class MediaDescription {
 }
 
 export class GroupDescription {
-  constructor(public semantic: string, public items: (number | string)[]) {}
+  constructor(public semantic: string, public items: string[]) {}
 
   str() {
     return `${this.semantic} ${this.items.join(" ")}`;
@@ -569,21 +564,19 @@ export function candidateFromSdp(sdp: string) {
     bits[7]
   );
 
-  range(bits.length - 1, 8, 2)
-    .reverse()
-    .forEach((i) => {
-      switch (bits[i]) {
-        case "raddr":
-          candidate.relatedAddress = bits[i + 1];
-          break;
-        case "rport":
-          candidate.relatedPort = parseInt(bits[i + 1]);
-          break;
-        case "tcptype":
-          candidate.tcpType = bits[i + 1];
-          break;
-      }
-    });
+  range(8, bits.length - 1, 2).forEach((i) => {
+    switch (bits[i]) {
+      case "raddr":
+        candidate.relatedAddress = bits[i + 1];
+        break;
+      case "rport":
+        candidate.relatedPort = parseInt(bits[i + 1]);
+        break;
+      case "tcptype":
+        candidate.tcpType = bits[i + 1];
+        break;
+    }
+  });
 
   return candidate;
 }

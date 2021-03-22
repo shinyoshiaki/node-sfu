@@ -22,6 +22,9 @@ import { Message, parseMessage } from "./stun/message";
 import { classes, methods } from "./stun/const";
 import dns from "dns";
 import util from "util";
+import debug from "debug";
+
+const log = debug("werift/ice/ice");
 
 const ICE_COMPLETED = 1;
 const ICE_FAILED = 2;
@@ -38,7 +41,7 @@ export enum CandidatePairState {
 
 type IceState = "disconnected" | "closed" | "completed";
 
-export type IceOptions = {
+export interface IceOptions {
   components: number;
   stunServer?: Address;
   turnServer?: Address;
@@ -49,14 +52,12 @@ export type IceOptions = {
   forceTurn?: boolean;
   useIpv4: boolean;
   useIpv6: boolean;
-  log: boolean;
-};
+}
 
 const defaultOptions: IceOptions = {
   components: 1,
   useIpv4: true,
   useIpv6: true,
-  log: false,
 };
 
 export class Connection {
@@ -147,7 +148,7 @@ export class Connection {
       this.protocols.push(protocol);
 
       // # add host candidate
-      const candidateAddress = protocol.getExtraInfo;
+      const candidateAddress: Address = [address, protocol.getExtraInfo[1]];
 
       protocol.localCandidate = new Candidate(
         candidateFoundation("host", "udp", candidateAddress[0]),
@@ -192,7 +193,7 @@ export class Connection {
         ).filter((v) => v) as Candidate[];
         candidates = [...candidates, ...srflxCandidates];
       } catch (error) {
-        this.log("query STUN server", error);
+        log("query STUN server", error);
       }
     }
 
@@ -369,7 +370,7 @@ export class Connection {
           const pair = this.nominated[Number(key)];
           const request = this.buildRequest(pair, false);
           try {
-            await pair.protocol.request(
+            const [msg, addr] = await pair.protocol.request(
               request,
               pair.remoteAddr,
               Buffer.from(this.remotePassword, "utf8"),
@@ -381,7 +382,7 @@ export class Connection {
             this.stateChanged.execute("disconnected");
           }
           if (failures >= CONSENT_FAILURES) {
-            this.log("Consent to send expired");
+            log("Consent to send expired");
             this.queryConsentHandle = undefined;
             // 切断検知
             r(await this.close());
@@ -485,7 +486,7 @@ export class Connection {
     if (activePair) {
       await activePair.protocol.sendData(data, activePair.remoteAddr);
     } else {
-      throw new Error("Cannot send data, not connected");
+      log("Cannot send data, not connected");
     }
   }
 
@@ -568,12 +569,6 @@ export class Connection {
     this.onData.execute(data, component);
   }
 
-  private log(...args: any[]) {
-    if (this.options.log) {
-      console.log("log", ...args);
-    }
-  }
-
   // for test only
   set remoteCandidates(value: Candidate[]) {
     if (this.remoteCandidatesEnd)
@@ -654,7 +649,7 @@ export class Connection {
       // check list is Running:
       if (this.nominatedKeys.length === this._components.size) {
         if (!this.checkListDone) {
-          this.log("ICE completed");
+          log("ICE completed");
           this.checkListState.put(new Promise((r) => r(ICE_COMPLETED)));
           this.checkListDone = true;
         }
@@ -687,7 +682,7 @@ export class Connection {
     }
 
     if (!this.checkListDone) {
-      this.log("ICE failed");
+      log("ICE failed");
       this.checkListState.put(new Promise((r) => r(ICE_FAILED)));
       this.checkListDone = true;
     }
@@ -907,13 +902,10 @@ export class CandidatePair {
 export function validateRemoteCandidate(candidate: Candidate) {
   // """
   // Check the remote candidate is supported.
-
-  // mDNS candidates are not supported yet.
   // """
   if (!["host", "relay", "srflx"].includes(candidate.type))
     throw new Error(`Unexpected candidate type "${candidate.type}"`);
 
-  // TODO check mDNS
   // ipaddress.ip_address(candidate.host)
   return candidate;
 }

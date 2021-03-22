@@ -2,6 +2,7 @@ import { encode, types, decode } from "binary-data";
 import { HandshakeType } from "../../const";
 import { Handshake } from "../../../typings/domain";
 import { FragmentedHandshake } from "../../../record/message/fragment";
+import { SignatureSchemes } from "../../../cipher/const";
 
 export class CertificateVerify implements Handshake {
   msgType = HandshakeType.certificate_verify;
@@ -12,7 +13,7 @@ export class CertificateVerify implements Handshake {
     signature: types.buffer(types.uint16be),
   };
 
-  constructor(public algorithm: number, public signature: Buffer) {}
+  constructor(public algorithm: SignatureSchemes, public signature: Buffer) {}
 
   static createEmpty() {
     return new CertificateVerify(undefined as any, undefined as any);

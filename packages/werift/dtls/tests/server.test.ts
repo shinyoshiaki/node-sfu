@@ -18,8 +18,8 @@ describe("server", () => {
       Buffer.from([]),
       Buffer.from([]),
       [
-        CipherSuite.EcdheRsaWithAes128GcmSha256,
-        CipherSuite.EcdheEcdsaWithAes128GcmSha256,
+        CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
       ],
       [0], // don't compress
       []
@@ -29,7 +29,7 @@ describe("server", () => {
     const last = fragments.pop()!;
     const second = fragments.pop()!;
     fragments.forEach((fragment) => server.handleFragmentHandshake([fragment]));
-    expect(server.handleFragmentHandshake([second])).toBeFalsy();
-    expect(server.handleFragmentHandshake([last])).toBeTruthy();
+    expect(server.handleFragmentHandshake([last]).length).toBeGreaterThan(0);
+    expect(server.handleFragmentHandshake([second]).length).toBe(0);
   });
 });

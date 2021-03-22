@@ -2,23 +2,22 @@ import { createDecode } from "binary-data";
 import { createHash, createHmac } from "crypto";
 import { ec } from "elliptic";
 import * as nacl from "tweetnacl";
-import { NamedCurveAlgorithm } from "./const";
-const elliptic = new ec("secp256k1");
+import { NamedCurveAlgorithm, NamedCurveAlgorithms } from "./const";
 
 export function prfPreMasterSecret(
   publicKey: Buffer,
   privateKey: Buffer,
-  curve: number
+  curve: NamedCurveAlgorithms
 ) {
   switch (curve) {
-    case NamedCurveAlgorithm.namedCurveP256:
+    case NamedCurveAlgorithm.secp256r1:
+      const elliptic = new ec("p256"); // aka secp256r1
       const pub = elliptic.keyFromPublic(publicKey).getPublic();
-      const x = pub.getX();
-      const y = pub.getY();
-      // todo impl
-      throw new Error();
-
-    case NamedCurveAlgorithm.namedCurveX25519:
+      const priv = elliptic.keyFromPrivate(privateKey).getPrivate();
+      const res = pub.mul(priv);
+      const secret = Buffer.from(res.encode("array", false)).slice(1, 33);
+      return secret;
+    case NamedCurveAlgorithm.x25519:
       return Buffer.from(nacl.scalarMult(privateKey, publicKey));
     default:
       throw new Error();
@@ -63,6 +62,19 @@ export function prfMasterSecret(
     serverRandom,
   ]);
   return prfPHash(preMasterSecret, seed, 48);
+}
+
+export function prfExtendedMasterSecret(
+  preMasterSecret: Buffer,
+  handshakes: Buffer
+) {
+  const sessionHash = hash("sha256", handshakes);
+  const label = "extended master secret";
+  return prfPHash(
+    preMasterSecret,
+    Buffer.concat([Buffer.from(label), sessionHash]),
+    48
+  );
 }
 
 export function exportKeyingMaterial(

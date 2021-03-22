@@ -3,6 +3,7 @@ import { createSocket } from "dgram";
 import { DtlsRandom } from "../src/handshake/random";
 import { CipherContext } from "../src/context/cipher";
 import { SessionType } from "../src/cipher/suites/abstract";
+import { certPem, keyPem } from "./fixture";
 
 describe("socket", () => {
   test("TestExportKeyingMaterial", () => {
@@ -35,10 +36,9 @@ describe("socket", () => {
     const rand = Buffer.alloc(28);
 
     const socket = new DtlsSocket(
-      { transport: createSocket("udp4"), key: "", cert: "" },
-      false
+      { transport: createSocket("udp4"), key: keyPem, cert: certPem },
+      SessionType.SERVER
     );
-    socket.cipher = new CipherContext("", "", SessionType.CLIENT);
     socket.cipher.localRandom = new DtlsRandom(500, rand);
     socket.cipher.remoteRandom = new DtlsRandom(1000, rand);
     socket.cipher.masterSecret = Buffer.from([]);
@@ -48,7 +48,7 @@ describe("socket", () => {
       expectedServerKey
     );
 
-    socket.isClient = true;
+    socket.sessionType = SessionType.CLIENT;
     expect(socket.exportKeyingMaterial(exportLabel, 10)).toEqual(
       expectedClientKey
     );

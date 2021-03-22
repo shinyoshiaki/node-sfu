@@ -8,6 +8,7 @@ import {
   RtcpTransportLayerFeedback,
   RtpPacket,
 } from "../../../rtp/src";
+import { bufferReader } from "../../../rtp/src/helper";
 import { RTP_EXTENSION_URI } from "../extension/rtpExtension";
 import {
   RTCRtpReceiveParameters,
@@ -16,7 +17,7 @@ import {
 import { RTCRtpReceiver } from "./rtpReceiver";
 import { RTCRtpSender } from "./rtpSender";
 import { RTCRtpTransceiver } from "./rtpTransceiver";
-import { RtpTrack } from "./track";
+import { MediaStreamTrack } from "./track";
 
 export type Extensions = { [uri: string]: number | string };
 
@@ -35,10 +36,11 @@ export class RtpRouter {
     ssrcs.forEach((ssrc) => {
       this.ssrcTable[ssrc] = transceiver.receiver;
       transceiver.addTrack(
-        new RtpTrack({
+        new MediaStreamTrack({
           ssrc,
           kind: transceiver.kind,
           id: transceiver.sender.streamId,
+          role: "read",
         })
       );
     });
@@ -53,10 +55,11 @@ export class RtpRouter {
     param: RTCRtpSimulcastParameters
   ) {
     transceiver.addTrack(
-      new RtpTrack({
+      new MediaStreamTrack({
         rid: param.rid,
         kind: transceiver.kind,
         id: transceiver.sender.streamId,
+        role: "read",
       })
     );
     this.ridTable[param.rid] = transceiver.receiver;
@@ -73,13 +76,16 @@ export class RtpRouter {
           case RTP_EXTENSION_URI.transportWideCC:
             return { uri, value: extension.payload.readUInt16BE() };
           case RTP_EXTENSION_URI.absSendTime:
-            return { uri, value: extension.payload.readUIntBE(0, 3) };
+            return {
+              uri,
+              value: bufferReader(extension.payload, [3])[0],
+            };
         }
       })
-      .reduce((acc, cur) => {
+      .reduce((acc: { [uri: string]: any }, cur) => {
         if (cur) acc[cur.uri] = cur.value;
         return acc;
-      }, {} as { [uri: string]: any });
+      }, {});
 
     let ssrcReceiver = this.ssrcTable[packet.header.ssrc] as RTCRtpReceiver;
     const rid = extensions[RTP_EXTENSION_URI.sdesRTPStreamID] as string;
@@ -126,7 +132,7 @@ export class RtpRouter {
         {
           const rtpfb = packet as RtcpTransportLayerFeedback;
           if (rtpfb.feedback) {
-            recipients.push(this.ssrcTable[rtpfb.feedback.mediaSsrc]);
+            recipients.push(this.ssrcTable[rtpfb.feedback.mediaSourceSsrc]);
           }
         }
         break;

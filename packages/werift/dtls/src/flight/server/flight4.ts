@@ -1,20 +1,26 @@
-import { createFragments, createPlaintext } from "../../record/builder";
 import { TransportContext } from "../../context/transport";
 import { DtlsContext } from "../../context/dtls";
 import { CipherContext } from "../../context/cipher";
 import { ServerHello } from "../../handshake/message/server/hello";
 import { Certificate } from "../../handshake/message/certificate";
-import { generateKeySignature, parseX509 } from "../../cipher/x509";
 import { ServerKeyExchange } from "../../handshake/message/server/keyExchange";
 import { ServerHelloDone } from "../../handshake/message/server/helloDone";
-import { SignatureAlgorithm, HashAlgorithm } from "../../cipher/const";
-import { ContentType } from "../../record/const";
-import { Extension, Handshake } from "../../typings/domain";
+import {
+  SignatureAlgorithm,
+  HashAlgorithm,
+  CurveType,
+} from "../../cipher/const";
+import { Extension } from "../../typings/domain";
 import { ServerCertificateRequest } from "../../handshake/message/server/certificateRequest";
 import { SrtpContext } from "../../context/srtp";
 import { UseSRTP } from "../../handshake/extensions/useSrtp";
 import { Flight } from "../flight";
 import { FragmentedHandshake } from "../../record/message/fragment";
+import debug from "debug";
+import { ExtendedMasterSecret } from "../../handshake/extensions/extendedMasterSecret";
+import { RenegotiationIndication } from "../../handshake/extensions/renegotiationIndication";
+
+const log = debug("werift/dtls/flight4");
 
 export class Flight4 extends Flight {
   constructor(
@@ -23,12 +29,12 @@ export class Flight4 extends Flight {
     private cipher: CipherContext,
     private srtp: SrtpContext
   ) {
-    super(udp, dtls, 6);
+    super(udp, dtls, 4, 6);
   }
 
   exec(assemble: FragmentedHandshake, certificateRequest: boolean = false) {
     if (this.dtls.flight === 4) {
-      console.log("flight4 twice");
+      log("flight4 twice");
       this.send(this.dtls.lastMessage);
       return;
     }
@@ -48,30 +54,22 @@ export class Flight4 extends Flight {
     this.transmit(messages);
   }
 
-  private createPacket(handshakes: Handshake[]) {
-    const fragments = createFragments(this.dtls)(handshakes);
-    this.dtls.bufferHandshakeCache(fragments, true, 4);
-    const packets = createPlaintext(this.dtls)(
-      fragments.map((fragment) => ({
-        type: ContentType.handshake,
-        fragment: fragment.serialize(),
-      })),
-      ++this.dtls.recordSequenceNumber
-    );
-    const buf = Buffer.concat(packets.map((v) => v.serialize()));
-    return buf;
-  }
-
   private sendServerHello() {
-    if (!this.cipher.localRandom || !this.cipher.cipherSuite)
-      throw new Error("");
-
+    // todo fix; should use socket.extensions
     const extensions: Extension[] = [];
     if (this.srtp.srtpProfile) {
       extensions.push(
         UseSRTP.create([this.srtp.srtpProfile], Buffer.from([0x00])).extension
       );
     }
+    if (this.dtls.options.extendedMasterSecret) {
+      extensions.push({
+        type: ExtendedMasterSecret.type,
+        data: Buffer.alloc(0),
+      });
+    }
+    const renegotiationIndication = RenegotiationIndication.createEmpty();
+    extensions.push(renegotiationIndication.extension);
 
     const serverHello = new ServerHello(
       this.dtls.version,
@@ -81,56 +79,36 @@ export class Flight4 extends Flight {
       0, // do not compression
       extensions
     );
-    const buf = this.createPacket([serverHello]);
-    return buf;
+    const packets = this.createPacket([serverHello]);
+    return Buffer.concat(packets.map((v) => v.serialize()));
   }
 
+  // 7.4.2 Server Certificate
   private sendCertificate() {
-    if (!this.cipher.certPem || !this.cipher.keyPem) throw new Error();
+    const certificate = new Certificate([Buffer.from(this.cipher.localCert)]);
 
-    const sign = parseX509(this.cipher.certPem, this.cipher.keyPem);
-    this.cipher.localPrivateKey = sign.key;
-    const certificate = new Certificate([Buffer.from(sign.cert)]);
-
-    const buf = this.createPacket([certificate]);
-    return buf;
+    const packets = this.createPacket([certificate]);
+    return Buffer.concat(packets.map((v) => v.serialize()));
   }
 
   private sendServerKeyExchange() {
-    if (
-      !this.cipher.localRandom ||
-      !this.cipher.remoteRandom ||
-      !this.cipher.localKeyPair ||
-      !this.cipher.namedCurve ||
-      !this.cipher.localPrivateKey
-    )
-      throw new Error("");
-
-    const serverRandom = this.cipher.localRandom.serialize();
-    const clientRandom = this.cipher.remoteRandom.serialize();
-    const signature = generateKeySignature(
-      clientRandom,
-      serverRandom,
-      this.cipher.localKeyPair.publicKey,
-      this.cipher.namedCurve,
-      this.cipher.localPrivateKey,
-      "sha256"
-    );
+    const signature = this.cipher.generateKeySignature("sha256");
     const keyExchange = new ServerKeyExchange(
-      3, // ec curve type
+      CurveType.named_curve,
       this.cipher.namedCurve,
       this.cipher.localKeyPair.publicKey.length,
       this.cipher.localKeyPair.publicKey,
-      HashAlgorithm.sha256, // hash algorithm
-      SignatureAlgorithm.rsa, // signature algorithm
+      this.cipher.signatureHashAlgorithm!.hash,
+      this.cipher.signatureHashAlgorithm!.signature,
       signature.length,
       signature
     );
 
-    const buf = this.createPacket([keyExchange]);
-    return buf;
+    const packets = this.createPacket([keyExchange]);
+    return Buffer.concat(packets.map((v) => v.serialize()));
   }
 
+  // 7.4.4.  Certificate Request
   private sendCertificateRequest() {
     const handshake = new ServerCertificateRequest(
       [
@@ -143,14 +121,15 @@ export class Flight4 extends Flight {
       ],
       []
     );
-    const buf = this.createPacket([handshake]);
-    return buf;
+    log("sendCertificateRequest", handshake);
+    const packets = this.createPacket([handshake]);
+    return Buffer.concat(packets.map((v) => v.serialize()));
   }
 
   private sendServerHelloDone() {
     const handshake = new ServerHelloDone();
 
-    const buf = this.createPacket([handshake]);
-    return buf;
+    const packets = this.createPacket([handshake]);
+    return Buffer.concat(packets.map((v) => v.serialize()));
   }
 }

@@ -1,12 +1,11 @@
-import { isEqual } from "lodash";
+import { isEqual, cloneDeep } from "lodash";
 import Event from "rx.mini";
 import * as uuid from "uuid";
 import { enumerate } from "./helper";
-import { Kind, SignalingState } from "./typings/domain";
+import { ConnectionState, Kind, SignalingState } from "./typings/domain";
 import { IceOptions } from "../../ice/src";
 import { DISCARD_HOST, DISCARD_PORT, SRTP_PROFILE } from "./const";
 import { RTCDataChannel, RTCDataChannelParameters } from "./dataChannel";
-import { CODECS } from "./media/const";
 import {
   RTCRtpCodecParameters,
   RTCRtpCodingParameters,
@@ -37,7 +36,8 @@ import {
   RTCDtlsTransport,
 } from "./transport/dtls";
 import {
-  IceState,
+  IceGathererState,
+  IceTransportState,
   RTCIceCandidate,
   RTCIceCandidateJSON,
   RTCIceGatherer,
@@ -46,35 +46,32 @@ import {
 } from "./transport/ice";
 import { RTCSctpTransport } from "./transport/sctp";
 import { reverseSimulcastDirection } from "./utils";
+import debug from "debug";
+import { MediaStreamTrack } from "./media/track";
 
-export type PeerConfig = {
-  privateKey: string;
-  certificate: string;
-  codecs: Partial<{
-    audio: RTCRtpCodecParameters[];
-    video: RTCRtpCodecParameters[];
-  }>;
-  headerExtensions: Partial<{
-    audio: RTCRtpHeaderExtensionParameters[];
-    video: RTCRtpHeaderExtensionParameters[];
-  }>;
-} & IceOptions;
+const log = debug("werift/webrtc/peerConnection");
 
 export class RTCPeerConnection {
   readonly cname = uuid.v4();
-  masterTransport?: RTCDtlsTransport;
+  dtlsTransport?: RTCDtlsTransport;
   sctpTransport?: RTCSctpTransport;
   masterTransportEstablished = false;
+  configuration: Required<PeerConfig> = cloneDeep(defaultPeerConfig) as any;
+  connectionState: ConnectionState = "new";
+  iceConnectionState: IceTransportState = "new";
+  iceGatheringState: IceGathererState = "new";
+  signalingState: SignalingState = "stable";
   readonly transceivers: RTCRtpTransceiver[] = [];
+  readonly iceGatheringStateChange = new Event<[IceGathererState]>();
+  readonly iceConnectionStateChange = new Event<[IceTransportState]>();
+  readonly signalingStateChange = new Event<[SignalingState]>();
+  readonly connectionStateChange = new Event<[ConnectionState]>();
   readonly onDataChannel = new Event<[RTCDataChannel]>();
-  readonly iceGatheringStateChange = new Event<[IceState]>();
-  readonly iceConnectionStateChange = new Event<[IceState]>();
-  readonly signalingStateChange = new Event<[string]>();
   readonly onTransceiver = new Event<[RTCRtpTransceiver]>();
   readonly onIceCandidate = new Event<[RTCIceCandidate]>();
 
   private readonly router = new RtpRouter();
-  private certificates = [RTCCertificate.unsafe_useDefaultCertificate()];
+  private readonly certificates: RTCCertificate[] = [];
   private sctpRemotePort?: number;
   private remoteDtls?: RTCDtlsParameters;
   private remoteIce?: RTCIceParameters;
@@ -83,54 +80,63 @@ export class RTCPeerConnection {
   private currentRemoteDescription?: SessionDescription;
   private pendingLocalDescription?: SessionDescription;
   private pendingRemoteDescription?: SessionDescription;
-  private _iceConnectionState: IceState = "new";
-  private _iceGatheringState: IceState = "new";
-  private _signalingState: SignalingState = "stable";
   private isClosed = false;
 
-  constructor(private configuration: Partial<PeerConfig> = {}) {
-    if (configuration.certificate && configuration.privateKey) {
-      this.certificates = [
-        new RTCCertificate(configuration.privateKey, configuration.certificate),
-      ];
+  constructor({
+    codecs,
+    headerExtensions,
+    iceConfig,
+  }: Partial<PeerConfig> = {}) {
+    if (iceConfig) this.configuration.iceConfig = iceConfig;
+    if (codecs?.audio) {
+      this.configuration.codecs.audio = codecs.audio;
     }
-    if (!configuration.codecs) {
-      configuration.codecs = CODECS;
+    if (codecs?.video) {
+      this.configuration.codecs.video = codecs.video;
     }
-    if (!configuration.headerExtensions) {
-      configuration.headerExtensions = { audio: [], video: [] };
+    [
+      ...(this.configuration.codecs.audio || []),
+      ...(this.configuration.codecs.video || []),
+    ].forEach((v, i) => {
+      v.payloadType = 96 + i;
+    });
+    if (headerExtensions?.audio) {
+      this.configuration.headerExtensions.audio = headerExtensions.audio;
     }
+    if (headerExtensions?.video) {
+      this.configuration.headerExtensions.video = headerExtensions.video;
+    }
+    [
+      ...(this.configuration.headerExtensions.audio || []),
+      ...(this.configuration.headerExtensions.video || []),
+    ].forEach((v, i) => {
+      v.id = 1 + i;
+    });
 
     this.iceConnectionStateChange.subscribe((state) => {
-      if (state === "closed") {
-        console.log("closed!!!!!!!!!");
-        this.close();
+      switch (state) {
+        case "disconnected":
+          this.setConnectionState("disconnected");
+          break;
+        case "closed":
+          this.close();
+          break;
       }
     });
   }
 
-  get iceConnectionState() {
-    return this._iceConnectionState;
-  }
-
-  get iceGatheringState() {
-    return this._iceGatheringState;
-  }
-
-  get signalingState() {
-    return this._signalingState;
-  }
-
   get localDescription() {
-    return wrapSessionDescription(this._localDescription)!;
+    if (!this._localDescription) return;
+    return wrapSessionDescription(this._localDescription);
   }
 
   get remoteDescription() {
+    if (!this._remoteDescription) return;
     return wrapSessionDescription(this._remoteDescription);
   }
 
   private get _localDescription() {
-    return this.pendingLocalDescription! || this.currentLocalDescription!;
+    return this.pendingLocalDescription || this.currentLocalDescription;
   }
 
   private get _remoteDescription() {
@@ -147,15 +153,22 @@ export class RTCPeerConnection {
     );
   }
 
-  createOffer() {
-    if (!this.sctpTransport && this.transceivers.length === 0)
+  async createOffer() {
+    if (
+      (!this.sctpTransport && this.transceivers.length === 0) ||
+      !this.dtlsTransport
+    )
       throw new Error(
         "Cannot create an offer with no media and no data channels"
       );
 
+    if (this.certificates.length === 0) {
+      await this.dtlsTransport.setupCertificate();
+    }
+
     this.transceivers.forEach((transceiver) => {
-      transceiver.codecs = this.configuration.codecs![transceiver.kind];
-      transceiver.headerExtensions = this.configuration.headerExtensions![
+      transceiver.codecs = this.configuration.codecs[transceiver.kind];
+      transceiver.headerExtensions = this.configuration.headerExtensions[
         transceiver.kind
       ];
     });
@@ -170,13 +183,21 @@ export class RTCPeerConnection {
       : [];
 
     currentMedia.forEach((m, i) => {
-      const mid = m.rtp.muxId!;
+      const mid = m.rtp.muxId;
+      if (!mid) {
+        log("mid missing", m);
+        return;
+      }
       if (m.kind === "application") {
         description.media.push(
           createMediaDescriptionForSctp(this.sctpTransport!, mid)
         );
       } else {
-        const transceiver = this.getTransceiverByMid(mid)!;
+        const transceiver = this.getTransceiverByMid(mid);
+        if (!transceiver) {
+          log("transceiver by mid not found", mid);
+          return;
+        }
         transceiver.mLineIndex = i;
         description.media.push(
           createMediaDescriptionForTransceiver(
@@ -216,13 +237,13 @@ export class RTCPeerConnection {
       );
     }
 
-    const bundle = new GroupDescription(
-      "BUNDLE",
-      description.media.map((m) => m.rtp.muxId!)
-    );
+    const mids = description.media
+      .map((m) => m.rtp.muxId)
+      .filter((v) => v) as string[];
+    const bundle = new GroupDescription("BUNDLE", mids);
     description.group.push(bundle);
 
-    return wrapSessionDescription(description)!;
+    return wrapSessionDescription(description);
   }
 
   createDataChannel(
@@ -277,39 +298,20 @@ export class RTCPeerConnection {
     }
   }
 
-  private updateIceGatheringState() {
-    const state = this.masterTransport!.iceTransport.state;
-
-    if (state !== this._iceGatheringState) {
-      this._iceGatheringState = state;
-      this.iceGatheringStateChange.execute(state);
-    }
-  }
-
-  private updateIceConnectionState() {
-    const state = this.masterTransport!.iceTransport.state;
-
-    if (state !== this._iceConnectionState) {
-      this._iceConnectionState = state;
-      this.iceConnectionStateChange.execute(state);
-    }
-  }
-
   private createDtlsTransport(srtpProfiles: number[] = []) {
-    if (this.masterTransport) return this.masterTransport;
+    if (this.dtlsTransport) return this.dtlsTransport;
 
-    const iceGatherer = new RTCIceGatherer(this.configuration);
-    iceGatherer.subject.subscribe((state) => {
-      if (state === "stateChange") {
-        this.updateIceGatheringState();
-      }
+    const iceGatherer = new RTCIceGatherer(this.configuration.iceConfig);
+    iceGatherer.onGatheringStateChange.subscribe((state) => {
+      this.updateIceGatheringState(state);
     });
+    this.updateIceGatheringState(iceGatherer.gatheringState);
     const iceTransport = new RTCIceTransport(iceGatherer);
-    iceTransport.iceState.subscribe((state) => {
-      if (state === "stateChange") {
-        this.updateIceConnectionState();
-      }
+    iceTransport.onStateChange.subscribe((state) => {
+      this.updateIceConnectionState(state);
     });
+    this.updateIceConnectionState(iceTransport.state);
+
     iceTransport.iceGather.onIceCandidate = (candidate) => {
       if (!this.localDescription) return;
       const sdp = SessionDescription.parse(this.localDescription.sdp);
@@ -325,10 +327,7 @@ export class RTCPeerConnection {
       this.certificates,
       srtpProfiles
     );
-    this.masterTransport = dtls;
-
-    this.updateIceGatheringState();
-    this.updateIceConnectionState();
+    this.dtlsTransport = dtls;
 
     return dtls;
   }
@@ -347,6 +346,9 @@ export class RTCPeerConnection {
   }
 
   async setLocalDescription(sessionDescription: RTCSessionDescription) {
+    const { dtlsTransport } = this;
+    if (!dtlsTransport) throw new Error("seems no media");
+
     // # parse and validate description
     const description = SessionDescription.parse(sessionDescription.sdp);
     description.type = sessionDescription.type;
@@ -361,19 +363,23 @@ export class RTCPeerConnection {
 
     // # assign MID
     description.media.forEach((media, i) => {
-      const mid = media.rtp.muxId!;
+      const mid = media.rtp.muxId;
+      if (!mid) {
+        log("mid missing");
+        return;
+      }
       this.seenMid.add(mid);
       if (["audio", "video"].includes(media.kind)) {
-        const transceiver = this.getTransceiverByMLineIndex(i)!;
-        transceiver.mid = mid;
+        const transceiver = this.getTransceiverByMLineIndex(i);
+        if (transceiver) transceiver.mid = mid;
       }
-      if (media.kind === "application") {
-        this.sctpTransport!.mid = mid;
+      if (media.kind === "application" && this.sctpTransport) {
+        this.sctpTransport.mid = mid;
       }
     });
 
     // # set ICE role
-    const iceTransport = this.masterTransport!.iceTransport;
+    const iceTransport = dtlsTransport.iceTransport;
     if (description.type === "offer") {
       iceTransport.connection.iceControlling = true;
       iceTransport.roleSet = true;
@@ -388,7 +394,7 @@ export class RTCPeerConnection {
     await this.gather();
 
     description.media.map((media) => {
-      addTransportDescription(media, this.masterTransport!);
+      addTransportDescription(media, dtlsTransport);
     });
 
     this.setLocal(description);
@@ -406,26 +412,28 @@ export class RTCPeerConnection {
   }
 
   async addIceCandidate(candidateMessage: RTCIceCandidateJSON) {
-    if (!this.masterTransport) throw new Error();
+    if (!this.dtlsTransport) throw new Error();
 
     const candidate = RTCIceCandidate.fromJSON(candidateMessage);
 
-    const iceTransport = this.masterTransport.iceTransport;
+    const iceTransport = this.dtlsTransport.iceTransport;
     await iceTransport.addRemoteCandidate(candidate);
   }
 
   private async gather() {
     if (this.masterTransportEstablished) return;
-    await this.masterTransport!.iceTransport.iceGather.gather();
+    await this.dtlsTransport!.iceTransport.iceGather.gather();
   }
 
   private async connect() {
-    if (this.masterTransportEstablished || !this.masterTransport) return;
+    if (this.masterTransportEstablished || !this.dtlsTransport) return;
 
-    const dtlsTransport = this.masterTransport;
+    const dtlsTransport = this.dtlsTransport;
     const iceTransport = dtlsTransport.iceTransport;
 
     if (this.remoteIce && this.remoteDtls) {
+      this.setConnectionState("connecting");
+
       await iceTransport.start(this.remoteIce);
       await dtlsTransport.start(this.remoteDtls);
 
@@ -435,6 +443,8 @@ export class RTCPeerConnection {
       }
 
       this.masterTransportEstablished = true;
+
+      this.setConnectionState("connected");
     }
   }
 
@@ -465,18 +475,13 @@ export class RTCPeerConnection {
     return receiveParameters;
   }
 
-  private setSignalingState(state: SignalingState) {
-    this._signalingState = state;
-    this.signalingStateChange.execute(state);
-  }
-
   private validateDescription(
     description: SessionDescription,
     isLocal: boolean
   ) {
     if (isLocal) {
       if (description.type === "offer") {
-        if (!["stable", "have-local-offer"].includes(this._signalingState))
+        if (!["stable", "have-local-offer"].includes(this.signalingState))
           throw new Error("Cannot handle offer in signaling state");
       } else if (description.type === "answer") {
         if (
@@ -504,6 +509,7 @@ export class RTCPeerConnection {
     }
 
     description.media.forEach((media) => {
+      if (media.direction === "inactive") return;
       if (
         !media.iceParams ||
         !media.iceParams.usernameFragment ||
@@ -563,16 +569,24 @@ export class RTCPeerConnection {
 
         // # negotiate codecs
         transceiver.codecs = media.rtp.codecs.filter((remoteCodec) =>
-          this.configuration.codecs![media.kind as "audio" | "video"]!.find(
-            (localCodec) => localCodec.mimeType === remoteCodec.mimeType
-          )
+          (
+            this.configuration.codecs[media.kind as "audio" | "video"] || []
+          ).find((localCodec) => localCodec.mimeType === remoteCodec.mimeType)
         );
+        log("negotiated codecs", transceiver.codecs);
+        if (transceiver.codecs.length === 0) {
+          throw new Error("negotiate codecs failed.");
+        }
         transceiver.headerExtensions = media.rtp.headerExtensions.filter(
           (extension) =>
-            this.configuration.headerExtensions![
-              media.kind as "video" | "audio"
-            ]!.find((v) => v.uri === extension.uri)
+            (
+              this.configuration.headerExtensions[
+                media.kind as "video" | "audio"
+              ] || []
+            ).find((v) => v.uri === extension.uri)
         );
+
+        transceiver.receiver.setupTWCC(media.ssrc[0]?.ssrc);
 
         if (media.dtlsParams && media.iceParams) {
           this.remoteDtls = media.dtlsParams;
@@ -616,7 +630,7 @@ export class RTCPeerConnection {
 
         if (description.type === "answer") {
           dtlsTransport.role =
-            media.dtlsParams!.role === "client" ? "server" : "client";
+            media.dtlsParams?.role === "client" ? "server" : "client";
         }
       }
     }
@@ -639,7 +653,7 @@ export class RTCPeerConnection {
 
     this.transceivers.forEach((transceiver) => {
       if (["sendonly", "sendrecv"].includes(transceiver.direction)) {
-        transceiver.senderParams = this.localRtp(transceiver);
+        transceiver.sender.parameters = this.localRtp(transceiver);
       }
       if (["recvonly", "sendrecv"].includes(transceiver.direction)) {
         const params = this.remoteRtp(transceiver);
@@ -649,7 +663,7 @@ export class RTCPeerConnection {
   }
 
   addTransceiver(
-    kind: Kind,
+    trackOrKind: Kind | MediaStreamTrack,
     direction: Direction,
     options: Partial<TransceiverOptions> = {}
   ) {
@@ -657,14 +671,18 @@ export class RTCPeerConnection {
       SRTP_PROFILE.SRTP_AES128_CM_HMAC_SHA1_80,
     ]);
 
+    const kind =
+      typeof trackOrKind === "string" ? trackOrKind : trackOrKind.kind;
+
+    const sender = new RTCRtpSender(trackOrKind, dtlsTransport);
+    const receiver = new RTCRtpReceiver(kind, dtlsTransport, sender.ssrc);
     const transceiver = new RTCRtpTransceiver(
       kind,
-      new RTCRtpReceiver(kind, dtlsTransport),
-      new RTCRtpSender(kind, dtlsTransport),
-      direction
+      receiver,
+      sender,
+      direction,
+      dtlsTransport
     );
-    transceiver.receiver.rtcpSsrc = transceiver.sender.ssrc;
-    transceiver.dtlsTransport = dtlsTransport;
     transceiver.options = options;
     this.router.ssrcTable[transceiver.sender.ssrc] = transceiver.sender;
 
@@ -673,14 +691,19 @@ export class RTCPeerConnection {
     return transceiver;
   }
 
-  createAnswer() {
+  async createAnswer() {
     this.assertNotClosed();
     if (
       !["have-remote-offer", "have-local-pranswer"].includes(
         this.signalingState
-      )
+      ) ||
+      !this.dtlsTransport
     )
-      throw new Error();
+      throw new Error("createAnswer failed");
+
+    if (this.certificates.length === 0) {
+      await this.dtlsTransport.setupCertificate();
+    }
 
     const description = new SessionDescription();
     addSDPHeader("answer", description);
@@ -729,7 +752,7 @@ export class RTCPeerConnection {
     });
     description.group.push(bundle);
 
-    return wrapSessionDescription(description)!;
+    return wrapSessionDescription(description);
   }
 
   async close() {
@@ -737,6 +760,7 @@ export class RTCPeerConnection {
 
     this.isClosed = true;
     this.setSignalingState("closed");
+    this.setConnectionState("closed");
 
     this.transceivers.forEach((transceiver) => {
       transceiver.receiver.stop();
@@ -749,12 +773,35 @@ export class RTCPeerConnection {
       await this.sctpTransport.dtlsTransport.iceTransport.stop();
     }
 
-    this.updateIceConnectionState();
     this.removeAllListeners();
   }
 
   private assertNotClosed() {
     if (this.isClosed) throw new Error("RTCPeerConnection is closed");
+  }
+
+  private updateIceGatheringState(state: IceGathererState) {
+    log("iceGatheringStateChange", state);
+    this.iceGatheringState = state;
+    this.iceGatheringStateChange.execute(state);
+  }
+
+  private updateIceConnectionState(state: IceTransportState) {
+    log("iceConnectionStateChange", state);
+    this.iceConnectionState = state;
+    this.iceConnectionStateChange.execute(state);
+  }
+
+  private setSignalingState(state: SignalingState) {
+    log("signalingStateChange", state);
+    this.signalingState = state;
+    this.signalingStateChange.execute(state);
+  }
+
+  private setConnectionState(state: ConnectionState) {
+    log("connectionStateChange", state);
+    this.connectionState = state;
+    this.connectionStateChange.execute(state);
   }
 
   private removeAllListeners() {
@@ -777,7 +824,7 @@ export function createMediaDescriptionForTransceiver(
     transceiver.kind,
     9,
     "UDP/TLS/RTP/SAVPF",
-    transceiver.codecs.map((c) => c.payloadType!)
+    transceiver.codecs.map((c) => c.payloadType)
   );
   media.direction = direction;
   media.msid = transceiver.msid;
@@ -828,7 +875,7 @@ export function addTransportDescription(
   const iceGatherer = iceTransport.iceGather;
 
   media.iceCandidates = iceGatherer.localCandidates;
-  media.iceCandidatesComplete = iceGatherer.state === "completed";
+  media.iceCandidatesComplete = iceGatherer.gatheringState === "complete";
   media.iceParams = iceGatherer.localParameters;
 
   if (media.iceCandidates.length > 0) {
@@ -863,13 +910,52 @@ export function allocateMid(mids: Set<string>) {
   return mid;
 }
 
-export function wrapSessionDescription(
-  sessionDescription?: SessionDescription
-) {
-  if (sessionDescription) {
-    return new RTCSessionDescription(
-      sessionDescription.toString(),
-      sessionDescription.type!
-    );
-  }
+export function wrapSessionDescription(sessionDescription: SessionDescription) {
+  return new RTCSessionDescription(
+    sessionDescription.toString(),
+    sessionDescription.type
+  );
 }
+
+export type PeerConfig = {
+  codecs: Partial<{
+    audio: RTCRtpCodecParameters[];
+    video: RTCRtpCodecParameters[];
+  }>;
+  headerExtensions: Partial<{
+    audio: RTCRtpHeaderExtensionParameters[];
+    video: RTCRtpHeaderExtensionParameters[];
+  }>;
+  iceConfig: Partial<IceOptions>;
+};
+
+export const defaultPeerConfig: PeerConfig = {
+  codecs: {
+    audio: [
+      new RTCRtpCodecParameters({
+        mimeType: "audio/opus",
+        clockRate: 48000,
+        channels: 2,
+      }),
+      new RTCRtpCodecParameters({
+        mimeType: "audio/PCMU",
+        clockRate: 8000,
+        channels: 1,
+      }),
+    ],
+    video: [
+      new RTCRtpCodecParameters({
+        mimeType: "video/VP8",
+        clockRate: 90000,
+        rtcpFeedback: [
+          { type: "ccm", parameter: "fir" },
+          { type: "nack" },
+          { type: "nack", parameter: "pli" },
+          { type: "goog-remb" },
+        ],
+      }),
+    ],
+  },
+  headerExtensions: { audio: [], video: [] },
+  iceConfig: { stunServer: ["stun.l.google.com", 19302] },
+};

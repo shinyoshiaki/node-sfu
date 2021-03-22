@@ -13,7 +13,7 @@ import {
   WEBRTC_STRING_EMPTY,
 } from "../const";
 import { RTCDataChannel, RTCDataChannelParameters } from "../dataChannel";
-import { DtlsState, RTCDtlsTransport } from "./dtls";
+import { RTCDtlsTransport } from "./dtls";
 
 export class RTCSctpTransport {
   readonly onDataChannel = new Event<[RTCDataChannel]>();
@@ -59,8 +59,8 @@ export class RTCSctpTransport {
       });
       this.dataChannels = {};
     });
-    this.dtlsTransport.stateChanged.subscribe((state) => {
-      if (state === DtlsState.CLOSED) {
+    this.dtlsTransport.onStateChange.subscribe((state) => {
+      if (state === "closed") {
         this.sctp.setState(SCTP_STATE.CLOSED);
       }
     });

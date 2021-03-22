@@ -1,3 +1,4 @@
+import debug from "debug";
 import { CipherContext } from "../context/cipher";
 import { DtlsContext } from "../context/dtls";
 import { Alert } from "../handshake/message/alert";
@@ -5,9 +6,9 @@ import { ContentType } from "./const";
 import { FragmentedHandshake } from "./message/fragment";
 import { DtlsPlaintext } from "./message/plaintext";
 
-export const parsePacket = (dtls: DtlsContext, cipher: CipherContext) => (
-  data: Buffer
-) => {
+const log = debug("werift/dtls/record/receive");
+
+export const parsePacket = (data: Buffer) => {
   let start = 0;
   const packets: DtlsPlaintext[] = [];
   while (data.length > start) {
@@ -19,43 +20,46 @@ export const parsePacket = (dtls: DtlsContext, cipher: CipherContext) => (
     start += 13 + fragmentLength;
   }
 
-  let changeCipherSpec = false;
+  return packets;
+};
 
-  const results = packets.map((p) => {
-    switch (p.recordLayerHeader.contentType) {
-      case ContentType.changeCipherSpec: {
-        changeCipherSpec = true;
-        return { type: ContentType.changeCipherSpec, data: undefined };
-      }
-      case ContentType.handshake: {
-        let raw = p.fragment;
-        if (p.recordLayerHeader.epoch > 0) {
-          if (changeCipherSpec && dtls.flight < 5) {
-            return { type: -1, data: p }; // expect client finished
-          }
-          raw = cipher.decryptPacket(p);
-        }
-        return {
-          type: ContentType.handshake,
-          data: FragmentedHandshake.deSerialize(raw),
-        };
-      }
-      case ContentType.applicationData: {
-        return {
-          type: ContentType.applicationData,
-          data: cipher.decryptPacket(p),
-        };
-      }
-      case ContentType.alert: {
-        const alert = Alert.deSerialize(p.fragment);
-        console.log("ContentType.alert", alert);
-        if (alert.level > 1) throw new Error("alert fatal error");
-      }
-      default: {
-        return { type: ContentType.alert, data: undefined };
-      }
+export const parsePlainText = (dtls: DtlsContext, cipher: CipherContext) => (
+  plain: DtlsPlaintext
+) => {
+  const contentType = plain.recordLayerHeader.contentType;
+
+  switch (contentType) {
+    case ContentType.changeCipherSpec: {
+      log("change cipher spec");
+      return {
+        type: ContentType.changeCipherSpec,
+        data: undefined,
+      };
     }
-  });
-
-  return results;
+    case ContentType.handshake: {
+      let raw = plain.fragment;
+      if (plain.recordLayerHeader.epoch > 0) {
+        log("decrypt handshake");
+        raw = cipher.decryptPacket(plain);
+      }
+      return {
+        type: ContentType.handshake,
+        data: FragmentedHandshake.deSerialize(raw),
+      };
+    }
+    case ContentType.applicationData: {
+      return {
+        type: ContentType.applicationData,
+        data: cipher.decryptPacket(plain),
+      };
+    }
+    case ContentType.alert: {
+      const alert = Alert.deSerialize(plain.fragment);
+      log("ContentType.alert", alert, dtls.flight, dtls.lastFlight);
+      if (alert.level > 1) throw new Error("alert fatal error");
+    }
+    default: {
+      return { type: ContentType.alert, data: undefined };
+    }
+  }
 };

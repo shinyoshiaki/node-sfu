@@ -18,11 +18,15 @@ import {
   SourceDescriptionItem,
   TransportWideCC,
 } from "../../../rtp/src";
+import { bufferWriter } from "../../../rtp/src/helper";
 import { RTP_EXTENSION_URI } from "../extension/rtpExtension";
 import { sleep } from "../helper";
-import { DtlsState, RTCDtlsTransport } from "../transport/dtls";
-import { ntpTime, uint16Add, uint32Add } from "../utils";
+import { RTCDtlsTransport } from "../transport/dtls";
+import { Kind } from "../typings/domain";
+import { milliTime, ntpTime, uint16Add, uint32Add } from "../utils";
 import { RTCRtpParameters } from "./parameters";
+import { SenderBandwidthEstimator, SentInfo } from "./senderBWE/senderBWE";
+import { MediaStreamTrack } from "./track";
 
 const log = debug("werift:webrtc:rtpSender");
 
@@ -31,13 +35,19 @@ const RTT_ALPHA = 0.85;
 
 export class RTCRtpSender {
   readonly type = "sender";
+  readonly kind =
+    typeof this.trackOrKind === "string"
+      ? this.trackOrKind
+      : this.trackOrKind.kind;
   readonly ssrc = jspack.Unpack("!L", randomBytes(4))[0];
   readonly streamId = uuid.v4();
   readonly trackId = uuid.v4();
   readonly onReady = new Event();
   readonly onRtcp = new Event<[RtcpPacket]>();
+  readonly senderBWE = new SenderBandwidthEstimator();
 
   private cname?: string;
+  private disposeTrack?: () => void;
 
   // # stats
   private lsr?: bigint;
@@ -55,16 +65,34 @@ export class RTCRtpSender {
   private seqOffset = 0;
   private rtpCache: RtpPacket[] = [];
 
-  constructor(public kind: string, public dtlsTransport: RTCDtlsTransport) {
-    dtlsTransport.stateChanged.subscribe((state) => {
-      if (state === DtlsState.CONNECTED) {
+  parameters?: RTCRtpParameters;
+
+  constructor(
+    public trackOrKind: Kind | MediaStreamTrack,
+    public dtlsTransport: RTCDtlsTransport
+  ) {
+    dtlsTransport.onStateChange.subscribe((state) => {
+      if (state === "connected") {
         this.onReady.execute();
       }
     });
+    if (trackOrKind instanceof MediaStreamTrack) {
+      this.registerTrack(trackOrKind);
+    }
+  }
+
+  private registerTrack(track: MediaStreamTrack) {
+    if (track.stopped) throw new Error("track is ended");
+
+    if (this.disposeTrack) this.disposeTrack();
+    const { unSubscribe } = track.onReceiveRtp.subscribe((rtp) => {
+      if (this.parameters) this.sendRtp(rtp);
+    });
+    this.disposeTrack = unSubscribe;
   }
 
   get ready() {
-    return this.dtlsTransport.state === DtlsState.CONNECTED;
+    return this.dtlsTransport.state === "connected";
   }
 
   stop() {
@@ -115,34 +143,40 @@ export class RTCRtpSender {
     }
   }
 
-  replaceRTP({ sequenceNumber, ssrc, timestamp }: RtpHeader) {
-    if (this.sequenceNumber) {
+  async replaceTrack(track: MediaStreamTrack) {
+    if (track.stopped) throw new Error("track is ended");
+
+    if (this.sequenceNumber != undefined) {
+      const header =
+        track.header || (await track.onReceiveRtp.asPromise())[0].header;
+
+      this.replaceRTP(header);
+    }
+
+    this.registerTrack(track);
+  }
+
+  private replaceRTP({ sequenceNumber, timestamp }: RtpHeader) {
+    if (this.sequenceNumber != undefined) {
       this.seqOffset = uint16Add(this.sequenceNumber, -sequenceNumber);
     }
-    if (this.timestamp) {
+    if (this.timestamp != undefined) {
       this.timestampOffset = Number(
         uint32Add(BigInt(this.timestamp), BigInt(-timestamp))
       );
     }
     this.rtpCache = [];
-    log(
-      "replaceRTP",
-      this.ssrc,
-      ssrc,
-      this.sequenceNumber,
-      sequenceNumber,
-      this.seqOffset
-    );
+    log("replaceRTP", this.sequenceNumber, sequenceNumber, this.seqOffset);
   }
 
-  sendRtp(rtp: Buffer | RtpPacket, parameters: RTCRtpParameters) {
-    if (!this.ready) return;
+  sendRtp(rtp: Buffer | RtpPacket) {
+    if (!this.ready || !this.parameters) return;
 
     rtp = Buffer.isBuffer(rtp) ? RtpPacket.deSerialize(rtp) : rtp;
 
     const header = rtp.header;
     header.ssrc = this.ssrc;
-
+    // todo : header.payloadType=parameters.codecs
     header.timestamp = Number(
       uint32Add(BigInt(header.timestamp), BigInt(this.timestampOffset))
     );
@@ -150,23 +184,30 @@ export class RTCRtpSender {
     this.timestamp = header.timestamp;
     this.sequenceNumber = header.sequenceNumber;
 
-    this.cname = parameters.rtcp.cname;
+    this.cname = this.parameters.rtcp.cname;
 
-    header.extensions = parameters.headerExtensions
+    header.extensions = this.parameters.headerExtensions
       .map((extension) => {
         let payload: Buffer | undefined;
         switch (extension.uri) {
           case RTP_EXTENSION_URI.sdesMid:
-            if (parameters.muxId) payload = Buffer.from(parameters.muxId);
+            if (this.parameters?.muxId)
+              payload = Buffer.from(this.parameters.muxId);
             break;
           case RTP_EXTENSION_URI.sdesRTPStreamID:
-            if (parameters.rid) payload = Buffer.from(parameters.rid);
+            if (this.parameters?.rid)
+              payload = Buffer.from(this.parameters.rid);
             break;
           case RTP_EXTENSION_URI.transportWideCC:
             {
-              const buf = Buffer.alloc(2);
-              buf.writeUInt16BE(this.dtlsTransport.transportSequenceNumber++);
-              payload = buf;
+              this.dtlsTransport.transportSequenceNumber = uint16Add(
+                this.dtlsTransport.transportSequenceNumber,
+                1
+              );
+              payload = bufferWriter(
+                [2],
+                [this.dtlsTransport.transportSequenceNumber]
+              );
             }
             break;
           case RTP_EXTENSION_URI.absSendTime:
@@ -183,14 +224,22 @@ export class RTCRtpSender {
     this.ntpTimestamp = ntpTime();
     this.rtpTimestamp = rtp.header.timestamp;
     this.octetCount += rtp.payload.length;
-    this.packetCount++;
+    this.packetCount = Number(uint32Add(BigInt(this.packetCount), 1n));
 
     rtp.header = header;
     this.rtpCache.push(rtp);
     this.rtpCache = this.rtpCache.slice(-RTP_HISTORY_SIZE);
 
-    this.dtlsTransport.sendRtp(rtp.payload, header);
+    const size = this.dtlsTransport.sendRtp(rtp.payload, header);
+
     this.runRtcp();
+    const sentInfo: SentInfo = {
+      wideSeq: this.dtlsTransport.transportSequenceNumber,
+      size,
+      sendingAtMs: milliTime(),
+      sentAtMs: milliTime(),
+    };
+    this.senderBWE.rtpPacketSent(sentInfo);
   }
 
   handleRtcpPacket(rtcpPacket: RtcpPacket) {
@@ -221,6 +270,7 @@ export class RTCRtpSender {
             case TransportWideCC.count:
               {
                 const feedback = packet.feedback as TransportWideCC;
+                this.senderBWE.receiveTWCC(feedback);
               }
               break;
             case GenericNack.count:
