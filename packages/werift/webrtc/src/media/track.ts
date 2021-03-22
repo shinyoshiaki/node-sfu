@@ -24,10 +24,10 @@ export class MediaStreamTrack {
     });
   }
 
-  stop() {
+  stop = () => {
     this.stopped = true;
     this.onReceiveRtp.complete();
-  }
+  };
 
   writeRtp(rtp: RtpPacket | Buffer) {
     if (this.role === "read") throw new Error("wrong role");

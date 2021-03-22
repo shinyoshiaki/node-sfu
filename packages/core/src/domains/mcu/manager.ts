@@ -1,4 +1,4 @@
-import { RTCRtpTransceiver } from "../../../../werift/webrtc/src";
+import { MediaStreamTrack } from "../../../../werift/webrtc/src";
 import { Media } from "../media/media";
 import { MCU } from "./mcu";
 
@@ -9,8 +9,8 @@ export class MCUManager {
     return this.mcu[mcuId];
   }
 
-  createMCU(medias: Media[], subscriber: RTCRtpTransceiver) {
-    const mcu = new MCU(medias, subscriber);
+  createMCU(medias: Media[], track: MediaStreamTrack) {
+    const mcu = new MCU(medias, track);
     this.mcu[mcu.id] = mcu;
     return mcu;
   }

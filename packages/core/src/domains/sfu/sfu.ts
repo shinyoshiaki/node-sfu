@@ -20,7 +20,7 @@ export class SFU {
       Object.values(this.subscribers).map(async ({ peer, sender }) => {
         if (sender) {
           peer.removeTrack(sender);
-          await peer.setLocalDescription(peer.createOffer());
+          await peer.setLocalDescription(await peer.createOffer());
         }
         return peer;
       })

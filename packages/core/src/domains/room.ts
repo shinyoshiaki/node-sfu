@@ -2,7 +2,7 @@ import debug from "debug";
 import { v4 } from "uuid";
 import {
   Kind,
-  RTCRtpTransceiver,
+  MediaStreamTrack,
   useAbsSendTime,
   useSdesMid,
   useSdesRTPStreamID,
@@ -15,7 +15,7 @@ import { PeerConnection } from "./peer";
 import { SFUManager } from "./sfu/manager";
 import { SFU } from "./sfu/sfu";
 
-const log = debug("werift:sfu:room");
+const log = debug("sfu:room");
 
 export class Room {
   readonly connection = new Connection(this);
@@ -27,10 +27,10 @@ export class Room {
   async join() {
     const peerId = "p_" + v4();
     const peer = new PeerConnection({
-      stunServer: ["stun.l.google.com", 19302],
+      iceConfig: { stunServer: ["stun.l.google.com", 19302] },
       headerExtensions: {
-        video: [useSdesMid(1), useAbsSendTime(2), useSdesRTPStreamID(3)],
-        audio: [useSdesMid(1), useAbsSendTime(2)],
+        video: [useSdesMid(), useAbsSendTime(), useSdesRTPStreamID()],
+        audio: [useSdesMid(), useAbsSendTime()],
       },
     });
     this.peers[peerId] = peer;
@@ -38,7 +38,7 @@ export class Room {
     const channel = peer.createDataChannel("__sfu");
     this.connection.listen(channel, peer, peerId);
 
-    await peer.setLocalDescription(peer.createOffer());
+    await peer.setLocalDescription(await peer.createOffer());
     return [peerId, peer.localDescription];
   }
 
@@ -124,7 +124,7 @@ export class Room {
     if (media.tracks.length > 0) {
       peer.removeTrack(media.tracks[0].receiver);
     }
-    await peer.setLocalDescription(peer.createOffer());
+    await peer.setLocalDescription(await peer.createOffer());
 
     return peer;
   }
@@ -146,9 +146,9 @@ export class Room {
     return this.sfuManager.createSFU(media);
   }
 
-  createMCU(infos: MediaInfo[], subscriber: RTCRtpTransceiver) {
+  createMCU(infos: MediaInfo[], track: MediaStreamTrack) {
     const medias = infos.map((info) => this.medias[info.mediaId]);
-    return this.mcuManager.createMCU(medias, subscriber);
+    return this.mcuManager.createMCU(medias, track);
   }
 
   getMCU(mcuId: string) {

@@ -9,13 +9,11 @@ import {
 } from "../../../../werift/webrtc/src";
 import { Media } from "../media/media";
 
-const log = debug("werift:sfu:subscriber");
+const log = debug("sfu:subscriber");
 
 export type SubscriberType = "high" | "low" | "single" | "auto";
 
 export class Subscriber {
-  private stopRTP: () => void = () => {};
-
   state: SubscriberType = "single";
 
   constructor(
@@ -60,7 +58,7 @@ export class Subscriber {
             if (this.state !== "low" && this.count >= this.threshold) {
               console.log("low");
               this.state = "low";
-              this.stopRTP();
+
               this.subscribeAV(this.state);
               this.count = 0;
             }
@@ -69,7 +67,7 @@ export class Subscriber {
             if (this.state !== "high" && this.count <= -this.threshold) {
               console.log("high");
               this.state = "high";
-              this.stopRTP();
+
               this.subscribeAV(this.state);
               this.count = 0;
             }
@@ -83,7 +81,6 @@ export class Subscriber {
   }
 
   changeQuality(state: SubscriberType) {
-    this.stopRTP();
     this.stopWatchREMB();
 
     this.state = state;
@@ -118,21 +115,19 @@ export class Subscriber {
     const track =
       state === "single"
         ? this.media.tracks[0].track
-        : this.media.tracks.find(({ track }) => track.rid!.includes(state))!
-            .track;
+        : this.media.tracks.find(({ track }) => track.rid?.includes(state))
+            ?.track;
 
-    const [rtp] = await track.onRtp.asPromise();
-    sender.replaceRtp(rtp.header);
-    log("replace track", sender.uuid, rtp.header.ssrc);
+    if (!track) {
+      log("track unExist");
+      return;
+    }
 
-    const { unSubscribe } = track.onRtp.subscribe((rtp) => {
-      sender.sendRtp(rtp);
-    });
-    this.stopRTP = unSubscribe;
+    await sender.sender.replaceTrack(track);
+    log("replace track", sender.uuid, track.header?.ssrc);
   }
 
   unsubscribe() {
-    this.stopRTP();
     this.stopWatchREMB();
   }
 }

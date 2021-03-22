@@ -3,15 +3,15 @@ import {
   Kind,
   RTCDataChannel,
   RTCRtpTransceiver,
-  RtpTrack,
+  MediaStreamTrack,
 } from "../../../../werift/webrtc/src";
-import { Track } from "./track";
+import { ReceiverTrack } from "./track";
 import { Event } from "rx.mini";
 
 export class Media {
   readonly mediaId = "m_" + v4();
   readonly onMessage = new Event<[Buffer | string]>();
-  tracks: Track[] = [];
+  tracks: ReceiverTrack[] = [];
   transceiver?: RTCRtpTransceiver;
   simulcast!: boolean;
   datachannel?: RTCDataChannel;
@@ -32,10 +32,10 @@ export class Media {
     return this;
   }
 
-  addTrack(rtpTrack: RtpTrack) {
-    if (this.kind !== rtpTrack.kind) throw new Error();
+  addTrack(msTrack: MediaStreamTrack) {
+    if (this.kind !== msTrack.kind) throw new Error();
 
-    const track = new Track(rtpTrack, this.transceiver!);
+    const track = new ReceiverTrack(msTrack, this.transceiver!);
     this.tracks.push(track);
   }
 

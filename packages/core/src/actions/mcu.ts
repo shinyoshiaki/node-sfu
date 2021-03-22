@@ -1,3 +1,4 @@
+import { MediaStreamTrack } from "../../../werift/webrtc/src";
 import { MediaInfo } from "../domains/media/media";
 import { Room } from "../domains/room";
 import { MixIdPair } from "../typings/rpc";
@@ -7,10 +8,11 @@ export const listenMixedAudio = (room: Room) => async (
   infos: MediaInfo[]
 ) => {
   const peer = room.peers[subscriberId];
-  const transceiver = peer.addTransceiver("audio", "sendonly");
-  await peer.setLocalDescription(peer.createOffer());
+  const track = new MediaStreamTrack({ kind: "audio", role: "write" });
+  const transceiver = peer.addTransceiver(track, "sendonly");
+  await peer.setLocalDescription(await peer.createOffer());
 
-  const mcu = room.createMCU(infos, transceiver);
+  const mcu = room.createMCU(infos, track);
   const meta: MixIdPair = { mid: transceiver.mid, mixId: mcu.id };
 
   return { peer, meta };

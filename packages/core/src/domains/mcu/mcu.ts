@@ -1,6 +1,6 @@
 import { OpusEncoder } from "@discordjs/opus";
 import { v4 } from "uuid";
-import { RTCRtpTransceiver } from "../../../../werift/webrtc/src";
+import { MediaStreamTrack } from "../../../../werift/webrtc/src";
 import { random16, uint16Add } from "../../../../werift/webrtc/src/utils";
 import { RtpHeader, RtpPacket } from "../../../../werift/rtp/src";
 import { Media } from "../media/media";
@@ -17,22 +17,24 @@ export class MCU {
   } = {};
   private header!: RtpHeader;
 
-  constructor(medias: Media[], private sender: RTCRtpTransceiver) {
+  constructor(medias: Media[], private track: MediaStreamTrack) {
     medias.forEach((media) => this.inputMedia(media));
     this.listen();
   }
 
   inputMedia(media: Media) {
     const input = this.mixer.input();
-    const { unSubscribe } = media.tracks[0].track.onRtp.subscribe((packet) => {
-      const disposer = Object.values(this.disposer)[0];
-      if (!disposer) return;
-      if (disposer.id === media.mediaId) {
-        this.header = packet.header;
+    const { unSubscribe } = media.tracks[0].track.onReceiveRtp.subscribe(
+      (packet) => {
+        const disposer = Object.values(this.disposer)[0];
+        if (!disposer) return;
+        if (disposer.id === media.mediaId) {
+          this.header = packet.header;
+        }
+        const decoded = this.encoder.decode(packet.payload);
+        input.write(decoded);
       }
-      const decoded = this.encoder.decode(packet.payload);
-      input.write(decoded);
-    });
+    );
     this.disposer[media.mediaId] = {
       stop: unSubscribe,
       input,
@@ -64,7 +66,7 @@ export class MCU {
         padding: false,
       });
       const rtp = new RtpPacket(header, encoded);
-      this.sender.sendRtp(rtp);
+      this.track.writeRtp(rtp);
     };
   }
 

@@ -111,11 +111,13 @@ export class CipherContext {
       notBefore: new Date(),
       notAfter: addYears(Date.now(), 10),
       signingAlgorithm: alg,
+      //@ts-ignore
       keys,
     });
 
     const certPem = cert.toString("pem");
     const keyPem = x509.PemConverter.encode(
+      //@ts-ignore
       await crypto.subtle.exportKey("pkcs8", keys.privateKey),
       "private key"
     );

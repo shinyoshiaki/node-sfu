@@ -26,7 +26,7 @@ export async function subscribe(
   });
 
   if (requests.find((req) => req.info.kind !== "application")) {
-    await peer.setLocalDescription(peer.createOffer());
+    await peer.setLocalDescription(await peer.createOffer());
   }
 
   const mediaIdPairs = pairs
@@ -54,7 +54,7 @@ export const unsubscribe = (room: Room) => async (
   const sender = room.getSFU(info).unsubscribe(subscriberId);
   if (sender) {
     peer.removeTrack(sender);
-    await peer.setLocalDescription(peer.createOffer());
+    await peer.setLocalDescription(await peer.createOffer());
   }
   return peer;
 };

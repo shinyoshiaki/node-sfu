@@ -33,7 +33,7 @@
     {
       "name": "server",
       "type": "node",
-      "env": { "DEBUG": "werift:webrtc:*" },
+      "env": { "DEBUG": "sfu:*" },
       "request": "launch",
       "program": "${workspaceRoot}/node_modules/ts-node-dev/lib/bin.js",
       "protocol": "inspector",
