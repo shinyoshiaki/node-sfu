@@ -1,0 +1,15 @@
+node_modules
+yarn-error.log
+lib
+build
+coverage
+.parcel-cache
+dist
+*.webm
+*.log
+*.key
+*.mpd
+*.mp3
+*.mp4
+*.m4a
+credential.env
