@@ -1,7 +1,7 @@
 {
   "name": "sfu",
   "version": "0.0.1",
-  "description": "Pure node.js WebRTC SFU   100％ written in TypeScript",
+  "description": "Pure node.js WebRTC SFU 100％ written in TypeScript",
   "keywords": [],
   "homepage": "https://github.com/shinyoshiaki/node-sfu#readme",
   "bugs": {
@@ -19,18 +19,21 @@
   ],
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "upgrade-interactive": "npx npm-check-updates -i --deep",
+    "submodule": "git submodule update --init --recursive"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
-    "@types/node": "^22.13.4",
-    "knip": "^5.44.1",
-    "npm-run-all2": "^7.0.2",
-    "tsx": "^4.19.2",
-    "typescript": "5.7.3",
-    "vitest": "3.0.5"
+    "@types/node": "^22.15.29",
+    "knip": "^5.60.0",
+    "npm-check-updates": "^18.0.1",
+    "npm-run-all2": "^8.0.4",
+    "tsx": "^4.19.4",
+    "typescript": "5.8.3",
+    "vitest": "3.2.1"
   },
-  "packageManager": "npm@11.1.0",
+  "packageManager": "npm@11.4.1",
   "engines": {
     "node": ">=18"
   }
