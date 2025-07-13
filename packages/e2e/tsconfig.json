@@ -3,7 +3,9 @@
     "target": "ESNext",
     "module": "nodenext",
     "lib": [
-      "esnext"
+      "esnext",
+      "DOM",
+      "DOM.Iterable"
     ],
     "declaration": true,
     "outDir": "lib",

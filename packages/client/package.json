@@ -1,10 +1,12 @@
 {
-  "name": "core",
+  "name": "client",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "type": "tsc --noEmit",
-    "lint": "biome check --write src tests"
+    "lint": "biome check --write src tests",
+    "test": "vitest run --config test/vitest.config.ts",
+    "test:watch": "vitest watch --config test/vitest.config.ts"
   },
   "dependencies": {
     "express": "^4.21.2",
@@ -14,7 +16,7 @@
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
-    "@types/uuid": "^10.0.0",
+    "@types/uuid": "^9.0.7",
     "@vitest/browser": "^3.0.5",
     "playwright": "1.53.1",
     "tsx": "^4.19.2",

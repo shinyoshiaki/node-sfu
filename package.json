@@ -13,15 +13,23 @@
   },
   "license": "ISC",
   "author": "",
+  "main": "index.js",
   "workspaces": [
     "packages/*",
     "examples/*"
   ],
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "init": "npm install && npm run submodule",
+    "conference": "cd packages/conference && npm run dev",
+    "e2e": "npm run test:e2e --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "server": "cd packages/reference-server && npm run dev",
+    "submodule": "git submodule update --init --recursive",
+    "test": "npm run test --workspaces --if-present",
+    "test-all": "run-s e2e test",
+    "type": "npm run type --workspaces --if-present",
     "upgrade-interactive": "npx npm-check-updates -i --deep",
-    "submodule": "git submodule update --init --recursive"
+    "clean": "rm -rf node_modules && rm -rf packages/*/node_modules"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
@@ -31,6 +39,7 @@
     "npm-run-all2": "^8.0.4",
     "tsx": "^4.19.4",
     "typescript": "5.8.3",
+    "vite-plugin-node-polyfills": "^0.23.0",
     "vitest": "3.2.1"
   },
   "packageManager": "npm@11.4.1",
