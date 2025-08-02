@@ -1,6 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { Client } from "../../client/src/index.js";
-import { SERVER_URL, setupTrickleIce } from "./fixture.js";
+import type { Client } from "../../client/src/index.js";
+import {
+  type ClientSetup,
+  cleanupClients,
+  createAndSetupClient,
+  createRoom,
+  setupMultipleClients,
+  waitForConnections,
+} from "./fixture.js";
 
 describe("DataChannel Pub-Sub - Cross-client data communication", () => {
   let publisher: Client;
@@ -10,116 +17,50 @@ describe("DataChannel Pub-Sub - Cross-client data communication", () => {
   let subscriberMemberId: string;
 
   beforeAll(async () => {
-    // Create a room
-    const createResponse = await fetch(`${SERVER_URL}/rooms`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-    const createResult = await createResponse.json();
-    roomId = createResult.roomId;
-
-    // Join the room with publisher
-    const publisherJoinResponse = await fetch(
-      `${SERVER_URL}/rooms/${roomId}/join`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      },
+    roomId = await createRoom();
+    const [publisherSetup, subscriberSetup] = await setupMultipleClients(
+      roomId,
+      2,
     );
-    const publisherJoinResult = await publisherJoinResponse.json();
-    publisherMemberId = publisherJoinResult.memberId;
-    const publisherOffer = publisherJoinResult.offer;
 
-    // Create publisher client
-    publisher = await Client.create(publisherOffer, publisherMemberId);
-    setupTrickleIce(publisher, publisherMemberId);
-    const publisherAnswer = await publisher.createAndSetAnswer();
-    await fetch(`${SERVER_URL}/members/${publisherMemberId}/answer`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answer: publisherAnswer }),
-    });
-
-    // Join the room with subscriber
-    const subscriberJoinResponse = await fetch(
-      `${SERVER_URL}/rooms/${roomId}/join`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-    const subscriberJoinResult = await subscriberJoinResponse.json();
-    subscriberMemberId = subscriberJoinResult.memberId;
-    const subscriberOffer = subscriberJoinResult.offer;
-
-    // Create subscriber client
-    subscriber = await Client.create(subscriberOffer, subscriberMemberId);
-    setupTrickleIce(subscriber, subscriberMemberId);
-    const subscriberAnswer = await subscriber.createAndSetAnswer();
-    await fetch(`${SERVER_URL}/members/${subscriberMemberId}/answer`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answer: subscriberAnswer }),
-    });
-
-    // Wait for both clients to connect
-    await Promise.all([
-      publisher.onConnected.asPromise(10000),
-      subscriber.onConnected.asPromise(10000),
-    ]);
-
-    // Wait for control channels to be ready
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    publisher = publisherSetup.client;
+    publisherMemberId = publisherSetup.memberId;
+    subscriber = subscriberSetup.client;
+    subscriberMemberId = subscriberSetup.memberId;
   });
 
   afterAll(async () => {
-    if (publisherMemberId) {
-      await fetch(`${SERVER_URL}/members/${publisherMemberId}/leave`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    if (subscriberMemberId) {
-      await fetch(`${SERVER_URL}/members/${subscriberMemberId}/leave`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    if (publisher) {
-      publisher.close();
-    }
-    if (subscriber) {
-      subscriber.close();
-    }
+    cleanupClients([publisher, subscriber]);
   });
 
   it("should notify all participants when publication is created", async () => {
-    const publication = await publisher.publish();
+    const publicationPromise = publisher.publishData();
 
     // Subscriber should receive publication ready notification
-    await subscriber.onPublicationReady.watch(
-      (publicationId) => publicationId === publication.publicationId,
-      10000,
-    );
+    const [remotePublication] = await subscriber.onPublicationReady.asPromise();
+    const publication = await publicationPromise;
 
-    expect(publication.publicationId).toBeTruthy();
+    expect(publication.publicationId).toBe(remotePublication.id);
+    expect(remotePublication.type).toBe("data");
+    expect(remotePublication.publisher).toBe(publisherMemberId);
   });
 
   it("should allow subscription to published data", async () => {
-    const publication = await publisher.publish();
+    const publication = await publisher.publishData();
 
-    await subscriber.subscribe(publication.publicationId);
+    const subscription = await subscriber.subscribeData(
+      publication.publicationId,
+    );
 
-    const subscription = subscriber.getSubscription(publication.publicationId);
     expect(subscription).toBeTruthy();
-    expect(subscription!.publicationId).toBe(publication.publicationId);
+    expect(subscription.publicationId).toBe(publication.publicationId);
   });
 
   it("should relay messages between publisher and subscriber", async () => {
-    const publication = await publisher.publish();
-    await subscriber.subscribe(publication.publicationId);
-
-    const subscription = subscriber.getSubscription(publication.publicationId)!;
+    const publication = await publisher.publishData();
+    const subscription = await subscriber.subscribeData(
+      publication.publicationId,
+    );
 
     const receivedMessages: string[] = [];
     subscription.onMessage.subscribe((data) => {
@@ -141,49 +82,28 @@ describe("DataChannel Pub-Sub - Cross-client data communication", () => {
   });
 
   it("should support multiple subscribers for same publication", async () => {
-    // Create second subscriber
-    const subscriber2JoinResponse = await fetch(
-      `${SERVER_URL}/rooms/${roomId}/join`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-    const { memberId: subscriber2MemberId, offer: subscriber2Offer } =
-      await subscriber2JoinResponse.json();
-
-    const subscriber2 = await Client.create(
-      subscriber2Offer,
-      subscriber2MemberId,
-    );
-    setupTrickleIce(subscriber2, subscriber2MemberId);
-    const subscriber2Answer = await subscriber2.createAndSetAnswer();
-    await fetch(`${SERVER_URL}/members/${subscriber2MemberId}/answer`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answer: subscriber2Answer }),
-    });
+    const { client: subscriber2 } = await createAndSetupClient(roomId);
 
     try {
-      const publication = await publisher.publish();
+      const publication = await publisher.publishData();
 
-      await subscriber.subscribe(publication.publicationId);
-      await subscriber2.subscribe(publication.publicationId);
+      const subscription1 = await subscriber.subscribeData(
+        publication.publicationId,
+      );
+      const subscription2 = await subscriber2.subscribeData(
+        publication.publicationId,
+      );
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const receivedMessages1: string[] = [];
       const receivedMessages2: string[] = [];
 
-      subscriber
-        .getSubscription(publication.publicationId)!
-        .onMessage.subscribe((data) => {
-          receivedMessages1.push(data as string);
-        });
-      subscriber2
-        .getSubscription(publication.publicationId)!
-        .onMessage.subscribe((data) => {
-          receivedMessages2.push(data as string);
-        });
+      subscription1.onMessage.subscribe((data) => {
+        receivedMessages1.push(data as string);
+      });
+      subscription2.onMessage.subscribe((data) => {
+        receivedMessages2.push(data as string);
+      });
 
       const testMessage = "Broadcast message";
       publication.send(testMessage);
@@ -192,11 +112,32 @@ describe("DataChannel Pub-Sub - Cross-client data communication", () => {
       expect(receivedMessages1).toContain(testMessage);
       expect(receivedMessages2).toContain(testMessage);
     } finally {
-      await fetch(`${SERVER_URL}/members/${subscriber2MemberId}/leave`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      subscriber2.close();
+      cleanupClients([subscriber2]);
     }
+  });
+
+  it("should prevent duplicate subscriptions to same publication", async () => {
+    const publication = await publisher.publishData();
+
+    // First subscription should succeed
+    const subscription = await subscriber.subscribeData(
+      publication.publicationId,
+    );
+    expect(subscription).toBeTruthy();
+
+    // Second subscription attempt should fail
+    try {
+      await subscriber.subscribeData(publication.publicationId);
+      expect.fail("Second subscription should have failed");
+    } catch (error: any) {
+      expect(error.message).toContain("Already subscribed to");
+    }
+
+    // Verify only one subscription exists
+    const subscriptions = subscriber.getSubscriptions();
+    const publicationSubscriptions = subscriptions.filter(
+      (sub) => sub.publicationId === publication.publicationId,
+    );
+    expect(publicationSubscriptions.length).toBe(1);
   });
 });

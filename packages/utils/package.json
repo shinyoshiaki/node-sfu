@@ -1,0 +1,28 @@
+{
+  "name": "@node-sfu/utils",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "type": "tsc --noEmit",
+    "lint": "biome check --write src"
+  },
+  "dependencies": {
+    "cbor2": "^1.6.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "description": "Shared utilities for node-sfu packages",
+  "keywords": ["webrtc", "sfu", "utilities"],
+  "author": "",
+  "license": "ISC"
+}

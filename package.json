@@ -15,18 +15,18 @@
   "author": "",
   "main": "index.js",
   "workspaces": [
-    "packages/*",
-    "examples/*"
+    "packages/*"
   ],
   "scripts": {
     "init": "npm install && npm run submodule",
     "conference": "cd packages/conference && npm run dev",
-    "e2e": "npm run test:e2e --workspaces --if-present",
+    "test:large": "npm run test:large --workspaces --if-present",
+    "test:middle": "npm run test:middle --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "server": "cd packages/reference-server && npm run dev",
     "submodule": "git submodule update --init --recursive",
     "test": "npm run test --workspaces --if-present",
-    "test-all": "run-s e2e test",
+    "test-all": "run-s test:middle test:large test",
     "type": "npm run type --workspaces --if-present",
     "upgrade-interactive": "npx npm-check-updates -i --deep",
     "clean": "rm -rf node_modules && rm -rf packages/*/node_modules"

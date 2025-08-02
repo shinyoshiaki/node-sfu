@@ -5,10 +5,11 @@
   "scripts": {
     "type": "tsc --noEmit",
     "lint": "biome check --write src tests",
-    "test": "vitest run --config test/vitest.config.ts",
-    "test:watch": "vitest watch --config test/vitest.config.ts"
+    "test": "vitest run --config tests/vitest.config.ts",
+    "test:watch": "vitest watch --config tests/vitest.config.ts"
   },
   "dependencies": {
+    "cbor2": "^2.0.1",
     "express": "^4.21.2",
     "uuid": "^9.0.1",
     "werift": "^0.22.1"

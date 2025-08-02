@@ -7,6 +7,7 @@
     "lint": "biome check --write src tests"
   },
   "dependencies": {
+    "cbor2": "^2.0.1",
     "express": "^4.21.2",
     "uuid": "^9.0.1",
     "werift": "^0.22.1"

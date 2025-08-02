@@ -1,6 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { Client } from "../../client/src/index.js";
-import { SERVER_URL, setupTrickleIce } from "./fixture.js";
+import type { Client } from "../../client/src/index.js";
+import {
+  cleanupClients,
+  createAndSetupClient,
+  createRoom,
+  setupMultipleClients,
+  waitForConnections,
+} from "./fixture.js";
 
 describe("Audio Publication - Cross-client media communication", () => {
   let client1: Client;
@@ -10,51 +16,17 @@ describe("Audio Publication - Cross-client media communication", () => {
   let memberId2: string;
 
   beforeAll(async () => {
-    // Create a room
-    const createResponse = await fetch(`${SERVER_URL}/rooms`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-    const createResult = await createResponse.json();
-    roomId = createResult.roomId;
+    roomId = await createRoom();
   });
 
   afterAll(async () => {
-    // Clean up
-    if (client1) client1.close();
-    if (client2) client2.close();
-
-    // Leave room for both members if they exist
-    if (memberId1) {
-      await fetch(`${SERVER_URL}/members/${memberId1}/leave`, {
-        method: "POST",
-      });
-    }
-    if (memberId2) {
-      await fetch(`${SERVER_URL}/members/${memberId2}/leave`, {
-        method: "POST",
-      });
-    }
+    cleanupClients([client1, client2]);
   });
 
   it("should publish audio track successfully", async () => {
-    // Join the room
-    const joinResponse = await fetch(`${SERVER_URL}/rooms/${roomId}/join`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-    const joinResult = await joinResponse.json();
-    memberId1 = joinResult.memberId;
-
-    client1 = await Client.create(joinResult.offer, memberId1);
-    setupTrickleIce(client1, memberId1);
-    const answer = await client1.createAndSetAnswer();
-
-    await fetch(`${SERVER_URL}/members/${memberId1}/answer`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answer }),
-    });
+    const { client, memberId } = await createAndSetupClient(roomId);
+    client1 = client;
+    memberId1 = memberId;
 
     await client1.onConnected.asPromise(10000);
 
@@ -72,49 +44,13 @@ describe("Audio Publication - Cross-client media communication", () => {
   });
 
   it("should support multiple participants publishing audio", async () => {
-    // Setup both clients
-    const [joinResult1, joinResult2] = await Promise.all([
-      fetch(`${SERVER_URL}/rooms/${roomId}/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }).then((res) => res.json()),
-      fetch(`${SERVER_URL}/rooms/${roomId}/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }).then((res) => res.json()),
-    ]);
+    const [client1Setup, client2Setup] = await setupMultipleClients(roomId, 2);
+    client1 = client1Setup.client;
+    memberId1 = client1Setup.memberId;
+    client2 = client2Setup.client;
+    memberId2 = client2Setup.memberId;
 
-    memberId1 = joinResult1.memberId;
-    memberId2 = joinResult2.memberId;
-
-    client1 = await Client.create(joinResult1.offer, memberId1);
-    client2 = await Client.create(joinResult2.offer, memberId2);
-
-    setupTrickleIce(client1, memberId1);
-    setupTrickleIce(client2, memberId2);
-
-    const [answer1, answer2] = await Promise.all([
-      client1.createAndSetAnswer(),
-      client2.createAndSetAnswer(),
-    ]);
-
-    await Promise.all([
-      fetch(`${SERVER_URL}/members/${memberId1}/answer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answer: answer1 }),
-      }),
-      fetch(`${SERVER_URL}/members/${memberId2}/answer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answer: answer2 }),
-      }),
-    ]);
-
-    await Promise.all([
-      client1.onConnected.asPromise(10000),
-      client2.onConnected.asPromise(10000),
-    ]);
+    await waitForConnections([client1, client2]);
 
     const [stream1, stream2] = await Promise.all([
       navigator.mediaDevices.getUserMedia({ audio: true }),
@@ -134,53 +70,18 @@ describe("Audio Publication - Cross-client media communication", () => {
   });
 
   it("should notify other participants when audio is published", async () => {
-    const [joinResult1, joinResult2] = await Promise.all([
-      fetch(`${SERVER_URL}/rooms/${roomId}/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }).then((res) => res.json()),
-      fetch(`${SERVER_URL}/rooms/${roomId}/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }).then((res) => res.json()),
-    ]);
+    const [client1Setup, client2Setup] = await setupMultipleClients(roomId, 2);
+    client1 = client1Setup.client;
+    memberId1 = client1Setup.memberId;
+    client2 = client2Setup.client;
+    memberId2 = client2Setup.memberId;
 
-    memberId1 = joinResult1.memberId;
-    memberId2 = joinResult2.memberId;
+    await waitForConnections([client1, client2]);
 
-    client1 = await Client.create(joinResult1.offer, memberId1);
-    client2 = await Client.create(joinResult2.offer, memberId2);
-
-    setupTrickleIce(client1, memberId1);
-    setupTrickleIce(client2, memberId2);
-
-    const [answer1, answer2] = await Promise.all([
-      client1.createAndSetAnswer(),
-      client2.createAndSetAnswer(),
-    ]);
-
-    await Promise.all([
-      fetch(`${SERVER_URL}/members/${memberId1}/answer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answer: answer1 }),
-      }),
-      fetch(`${SERVER_URL}/members/${memberId2}/answer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answer: answer2 }),
-      }),
-    ]);
-
-    await Promise.all([
-      client1.onConnected.asPromise(10000),
-      client2.onConnected.asPromise(10000),
-    ]);
-
-    let receivedPublicationId: string | null = null;
+    let receivedRemotePublication: any = null;
     const mediaPublicationPromise = new Promise<void>((resolve) => {
-      client1.onMediaPublicationReady.subscribe((publicationId) => {
-        receivedPublicationId = publicationId;
+      client1.onMediaPublicationReady.subscribe((remotePublication) => {
+        receivedRemotePublication = remotePublication;
         resolve();
       });
     });
@@ -190,7 +91,9 @@ describe("Audio Publication - Cross-client media communication", () => {
 
     await mediaPublicationPromise;
 
-    expect(receivedPublicationId).toBe(publication.publicationId);
+    expect(receivedRemotePublication.id).toBe(publication.publicationId);
+    expect(receivedRemotePublication.type).toBe("audio");
+    expect(receivedRemotePublication.publisher).toBe(memberId2);
 
     stream.getTracks().forEach((track) => track.stop());
   });

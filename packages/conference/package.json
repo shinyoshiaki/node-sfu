@@ -8,9 +8,9 @@
     "dev": "vite --port 3001",
     "lint": "biome check --write src tests",
     "preview": "vite preview",
-    "test:e2e": "node e2e/run-tests.js --reporter=list",
-    "test:e2e:dev": "node e2e/run-tests.js",
-    "test:e2e:ui": "node e2e/run-tests.js --ui",
+    "test:large": "node e2e/run-tests.js --reporter=list",
+    "test:large:dev": "node e2e/run-tests.js",
+    "test:large:ui": "node e2e/run-tests.js --ui",
     "type": "tsc --noEmit"
   },
   "dependencies": {

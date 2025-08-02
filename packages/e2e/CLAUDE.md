@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code when working with the E2E testing package of node-sfu.
 
+@../../../CLAUDE.md
+
 ## Package Overview
 
 The `packages/e2e/` directory contains end-to-end tests for the node-sfu WebRTC SFU implementation. These tests verify the complete integration between client and server components using real browsers and WebRTC protocols.
@@ -14,13 +16,13 @@ The `packages/e2e/` directory contains end-to-end tests for the node-sfu WebRTC 
 ## Test Structure
 
 ### Test Suites
-- `room.test.ts` - Room creation and management tests
-- `datachannel-broadcast.test.ts` - Data channel broadcasting tests
-- `datachannel-publish.test.ts` - Data channel publication tests
-- `datachannel-subscribe.test.ts` - Data channel subscription tests
-- `audio-publish.test.ts` - Audio publishing tests
-- `audio-subscribe.test.ts` - Audio subscription tests
-- `audio-publish-subscribe.test.ts` - Audio publish-subscribe integration tests
+- `datachannel-pubsub.test.ts` - Data channel publish-subscribe integration tests
+- `audio-publish.test.ts` - Audio publishing functionality tests
+- `media-unpublish.test.ts` - Media unpublishing functionality tests
+- `data-unpublish.test.ts` - Data unpublishing functionality tests
+- `member-disconnect.test.ts` - Member disconnect detection and cleanup tests
+- `member-metadata.test.ts` - Member metadata and existing members functionality tests
+- `multi-media-publication.test.ts` - Cross-client media publication and RTP statistics verification tests
 
 ### Supporting Files
 - `fixture.ts` - Test fixtures and utilities
@@ -35,13 +37,23 @@ The `packages/e2e/` directory contains end-to-end tests for the node-sfu WebRTC 
 npm run e2e
 
 # Run E2E tests directly
-npm run -w packages/e2e test:e2e
+npm run -w packages/e2e test:middle
 
 # Run E2E tests in watch mode
-npm run -w packages/e2e test:watch
+npm run -w packages/e2e test:middle:watch
 
-# Run individual test files
-npm run -w packages/e2e test -- audio-publish.test.ts
+# Type checking
+npm run -w packages/e2e type
+
+# Linting
+npm run -w packages/e2e lint
+
+# Run from package directory
+cd packages/e2e
+npm run test:middle
+npm run test:middle:watch
+npm run type
+npm run lint
 ```
 
 ## Test Guidelines
@@ -58,9 +70,14 @@ npm run -w packages/e2e test -- audio-publish.test.ts
 - Always run E2E tests before completing implementation
 - Add E2E test cases for new features
 - Follow existing patterns in test files
+- Use RTP statistics verification for media transmission validation
+- Support multi-client testing scenarios for concurrent media streams
 
 ### Architecture Notes
 - Tests use custom test runner with reference server integration
 - Supports focused testing and watch mode
 - Real browser environments ensure authentic WebRTC behavior
 - Dynamic server URLs prevent test interference
+- WebRTC statistics integration for media stream verification
+- Cross-client testing infrastructure for multi-participant scenarios
+- JSON-RPC protocol testing for structured communication validation

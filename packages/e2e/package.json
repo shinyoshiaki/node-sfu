@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "type": "tsc --noEmit",
-    "test:watch": "vitest  --browser.headless",
-    "test:e2e": "node ./run-tests.mjs",
-    "lint": "biome check --write src tests"
+    "lint": "biome check --write src tests",
+    "test:middle": "node ./run-tests.mjs",
+    "test:middle:watch": "vitest  --browser.headless",
+    "type": "tsc --noEmit"
   },
   "dependencies": {
     "express": "^4.21.2",

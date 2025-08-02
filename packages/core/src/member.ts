@@ -1,6 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { v4 as uuidv4 } from "uuid";
 import type { MediaKind } from "werift/nonstandard";
+import { MessageAssemblerTransport } from "./adapters/messageAssemblerTransport.js";
+import { DataPublication, parseDataChannelLabel } from "./dataPublication.js";
+import { DataSubscription } from "./dataSubscription.js";
+import {
+  JsonRpc,
+  JsonRpcErrorCode,
+  JsonRpcException,
+} from "./imports/json-rpc.js";
+import { MessageAssembler } from "./imports/util.js";
 import {
   Event,
   EventDisposer,
@@ -8,17 +17,9 @@ import {
   type RTCDataChannel,
   RTCPeerConnection,
   type RTCSessionDescriptionInit,
-} from "../../../submodules/werift/packages/webrtc/src/index.js";
-import { DataPublication } from "./dataPublication.js";
-import { DataSubscription } from "./dataSubscription.js";
+} from "./imports/werift.js";
 import { MediaPublication } from "./mediaPublication.js";
 import { MediaSubscription } from "./mediaSubscription.js";
-import {
-  MessageAssembler,
-  type MessageEnvelope,
-  decompressMessage,
-  prepareMessagesForSending,
-} from "./utils/compression.js";
 
 export interface ControlMessage {
   type: string;
@@ -31,11 +32,14 @@ export interface ControlMessage {
     mediaKind?: MediaKind;
     offer?: RTCSessionDescriptionInit;
     error?: string;
+    metadata?: Record<string, any>;
   };
 }
 
 export class Member {
   readonly memberId: string;
+  readonly name?: string;
+  readonly metadata?: Record<string, any>;
 
   // Events for dependency injection
   readonly onDataPublicationReady = new Event<
@@ -44,13 +48,26 @@ export class Member {
   readonly onMediaPublicationReady = new Event<
     [publicationId: string, publisherMemberId: string]
   >();
+  readonly onMediaUnpublished = new Event<
+    [publicationId: string, publisherMemberId: string]
+  >();
+  readonly onDataUnpublished = new Event<
+    [publicationId: string, publisherMemberId: string]
+  >();
   readonly onMediaSubscriptionReady = new Event<
     [subscription: MediaSubscription]
   >();
   readonly onSubscriptionForwardingRequest = new Event<
     [publicationId: string, subscription: DataSubscription]
   >();
+  readonly onSubscriptionValidationRequest = new Event<
+    [publicationId: string, resolve: (exists: boolean) => void]
+  >();
+  readonly onMediaSubscriptionValidationRequest = new Event<
+    [publicationId: string, resolve: (exists: boolean) => void]
+  >();
   readonly onExistingPublicationsRequest = new Event<[]>();
+  readonly onExistingMembersRequest = new Event<[]>();
   readonly onMediaSubscriptionRequest = new Event<
     [
       publicationId: string,
@@ -59,6 +76,10 @@ export class Member {
     ]
   >();
   readonly onDisconnected = new Event<[memberId: string]>();
+  readonly onControlChannelReady = new Event();
+
+  // Ping management
+  private hasReceivedFirstPing = false;
 
   // Integrated PeerConnection functionality
   peerConnection: RTCPeerConnection;
@@ -67,10 +88,11 @@ export class Member {
   // Integrated Control Channel functionality
   private controlChannel: RTCDataChannel | null = null;
   private messageAssembler = new MessageAssembler();
+  private jsonRpc: JsonRpc | null = null;
   private readonly disposer = new EventDisposer();
 
   // Integrated Data Channel functionality
-  private dataPublications = new Map<string, DataPublication>();
+  dataPublications = new Map<string, DataPublication>();
   private dataSubscriptions = new Map<string, DataSubscription>();
 
   // Integrated Media functionality
@@ -81,13 +103,26 @@ export class Member {
   // External dependencies injected via constructor - removed to fix dependency direction
 
   constructor(
-    private readonly iceServers = [{ urls: "stun:stun.l.google.com:19302" }],
+    options: {
+      iceServers?: Array<{ urls: string }>;
+      name?: string;
+      metadata?: Record<string, any>;
+    } = {},
   ) {
+    const {
+      iceServers = [{ urls: "stun:stun.l.google.com:19302" }],
+      name,
+      metadata,
+    } = options;
+
     this.memberId = uuidv4();
+    this.name = name;
+    this.metadata = metadata;
 
     // Initialize PeerConnection
     this.peerConnection = new RTCPeerConnection({
-      iceServers: this.iceServers,
+      iceServers,
+      bundlePolicy: "max-bundle",
     });
 
     this.setupPeerConnection();
@@ -116,35 +151,11 @@ export class Member {
   private setControlChannel(channel: RTCDataChannel): void {
     this.controlChannel = channel;
     this.setupControlChannelHandlers();
+    this.setupJsonRpc();
   }
 
   private setupControlChannelHandlers(): void {
     if (!this.controlChannel) return;
-
-    this.controlChannel.onMessage.subscribe(async (message) => {
-      try {
-        let envelopeText: string;
-        if (message instanceof Uint8Array || Buffer.isBuffer(message)) {
-          const uint8Array = Buffer.isBuffer(message)
-            ? new Uint8Array(message)
-            : message;
-          envelopeText = await decompressMessage(uint8Array);
-        } else {
-          envelopeText = message as string;
-        }
-
-        const envelope: MessageEnvelope = JSON.parse(envelopeText);
-        const reconstructedMessage =
-          this.messageAssembler.processMessage(envelope);
-
-        if (reconstructedMessage !== null) {
-          const controlMessage = JSON.parse(reconstructedMessage);
-          this.handleControlMessage(controlMessage);
-        }
-      } catch (error) {
-        console.error("Failed to parse control message:", error);
-      }
-    });
 
     this.controlChannel.onOpen.subscribe(() => {
       console.log(
@@ -153,15 +164,12 @@ export class Member {
       console.log(
         `[Member] Calling onControlChannelOpen callback for member ${this.memberId}`,
       );
-      this.sendExistingPublications();
+
+      // Notify room that control channel is ready for member joined broadcast
+      this.onControlChannelReady.execute();
 
       const interval = setTimeout(() => {
-        this.sendControlMessage({
-          type: "controlChannelReady",
-          payload: {
-            memberId: this.memberId,
-          },
-        }).catch(console.error);
+        this.sendControlChannelReady().catch(console.error);
       }, 1000);
       this.disposer.push(() => {
         clearTimeout(interval);
@@ -172,66 +180,140 @@ export class Member {
       console.log(`Control channel closed for member ${this.memberId}`);
       this.onDisconnected.execute(this.memberId);
       this.messageAssembler.cleanup();
+      if (this.jsonRpc) {
+        this.jsonRpc.close().catch(console.error);
+      }
       this.cleanup();
       this.disposer.dispose();
     });
   }
 
-  private handleControlMessage(envelope: ControlMessage): void {
-    if (envelope.type === "subscribe" && envelope.payload?.publicationId) {
-      this.handleSubscribe(envelope.payload.publicationId);
-    } else if (
-      envelope.type === "publishMedia" &&
-      envelope.payload?.publicationId
-    ) {
-      this.handlePublishMedia(
-        envelope.payload.publicationId,
-        envelope.payload.mediaKind!,
+  private setupJsonRpc(): void {
+    if (!this.controlChannel) return;
+
+    const transport = new MessageAssemblerTransport(this.controlChannel);
+    this.jsonRpc = new JsonRpc(transport);
+
+    // Set up JSON RPC request handler for ping
+    this.jsonRpc.onRequest("ping", async (params) => {
+      await this.handlePing();
+      return {
+        timestamp: params?.timestamp,
+        serverTime: Date.now(),
+      };
+    });
+
+    // Set up JSON RPC request handlers
+    this.jsonRpc.onRequest("subscribe", async (params) => {
+      if (!params?.publicationId) {
+        throw new JsonRpcException(
+          JsonRpcErrorCode.INVALID_PARAMS,
+          "Invalid params: publicationId is required",
+        );
+      }
+      return await this.handleSubscribe(params.publicationId);
+    });
+
+    this.jsonRpc.onRequest("publishMedia", async (params) => {
+      if (!params?.publicationId || !params?.mediaKind) {
+        throw new JsonRpcException(
+          JsonRpcErrorCode.INVALID_PARAMS,
+          "Invalid params: publicationId and mediaKind are required",
+        );
+      }
+      return await this.handlePublishMedia(
+        params.publicationId,
+        params.mediaKind,
+        params.metadata || {},
       );
-    } else if (
-      envelope.type === "answer" &&
-      envelope.payload?.publicationId &&
-      envelope.payload?.answer
-    ) {
-      this.handleMediaPublishAnswer(
-        envelope.payload.publicationId,
-        envelope.payload.answer,
+    });
+
+    this.jsonRpc.onRequest("unpublishMedia", async (params) => {
+      if (!params?.publicationId) {
+        throw new JsonRpcException(
+          JsonRpcErrorCode.INVALID_PARAMS,
+          "Invalid params: publicationId is required",
+        );
+      }
+      return await this.handleUnpublishMedia(params.publicationId);
+    });
+
+    this.jsonRpc.onRequest("unpublishData", async (params) => {
+      if (!params?.publicationId) {
+        throw new JsonRpcException(
+          JsonRpcErrorCode.INVALID_PARAMS,
+          "Invalid params: publicationId is required",
+        );
+      }
+      return await this.handleUnpublishData(params.publicationId);
+    });
+
+    this.jsonRpc.onRequest("answer", async (params) => {
+      if (!params?.publicationId || !params?.answer) {
+        throw new JsonRpcException(
+          JsonRpcErrorCode.INVALID_PARAMS,
+          "Invalid params: publicationId and answer are required",
+        );
+      }
+      return await this.handleMediaPublishAnswer(
+        params.publicationId,
+        params.answer,
       );
-    } else if (
-      envelope.type === "subscribeMedia" &&
-      envelope.payload?.publicationId &&
-      envelope.payload?.subscriptionId
-    ) {
-      this.handleSubscribeMedia(
-        envelope.payload.publicationId,
-        envelope.payload.subscriptionId,
+    });
+
+    this.jsonRpc.onRequest("subscribeMedia", async (params) => {
+      if (!params?.publicationId || !params?.subscriptionId) {
+        throw new JsonRpcException(
+          JsonRpcErrorCode.INVALID_PARAMS,
+          "Invalid params: publicationId and subscriptionId are required",
+        );
+      }
+      return await this.handleSubscribeMedia(
+        params.publicationId,
+        params.subscriptionId,
       );
-    } else if (
-      envelope.type === "subscribeAnswer" &&
-      envelope.payload?.subscriptionId &&
-      envelope.payload?.answer
-    ) {
-      this.handleMediaSubscribeAnswer(
-        envelope.payload.subscriptionId,
-        envelope.payload.answer,
+    });
+
+    this.jsonRpc.onRequest("subscribeAnswer", async (params) => {
+      if (!params?.subscriptionId || !params?.answer) {
+        throw new JsonRpcException(
+          JsonRpcErrorCode.INVALID_PARAMS,
+          "Invalid params: subscriptionId and answer are required",
+        );
+      }
+      return await this.handleMediaSubscribeAnswer(
+        params.subscriptionId,
+        params.answer,
       );
+    });
+  }
+
+  private async handlePing(): Promise<void> {
+    if (!this.hasReceivedFirstPing) {
+      this.hasReceivedFirstPing = true;
+      console.log(`[Member] First ping received from member ${this.memberId}`);
+      // Send existing publications now that client is confirmed ready
+      this.sendExistingPublications();
     }
   }
 
   private handleIncomingDataChannel(channel: RTCDataChannel): void {
     if (channel.label.startsWith("pub_")) {
-      const publicationId = channel.label.substring(4);
+      const { publicationId, metadata } = parseDataChannelLabel(channel.label);
       console.log(
         "Received publication data channel:",
         channel.label,
         "publicationId:",
         publicationId,
+        "metadata:",
+        metadata,
       );
 
       const publication = new DataPublication(
         publicationId,
         this.memberId,
         channel,
+        metadata,
       );
       this.dataPublications.set(publicationId, publication);
 
@@ -262,28 +344,37 @@ export class Member {
   }
 
   async sendControlMessage(message: any): Promise<void> {
-    if (this.controlChannel && this.controlChannel.readyState === "open") {
-      try {
-        const messageText = JSON.stringify(message);
-        const compressedMessages = await prepareMessagesForSending(messageText);
-
-        // Send all fragments
-        for (const compressedData of compressedMessages) {
-          this.controlChannel.send(Buffer.from(compressedData));
-        }
-
-        if (message.type !== "controlChannelReady")
-          console.log(
-            `Sent control message to member ${this.memberId}:`,
-            message,
-          );
-      } catch (error) {
-        console.error("Failed to compress and send control message:", error);
-      }
-    } else {
+    if (!this.jsonRpc) {
       console.warn(
-        `Cannot send control message to member ${this.memberId}: channel not ready`,
+        `JSON RPC not ready for member ${this.memberId}. Message not sent:`,
+        message,
       );
+      return;
+    }
+
+    try {
+      // Convert old message format to JSON RPC notification
+      const method = message.type;
+      const params = message.payload;
+
+      this.jsonRpc.notify(method, params);
+
+      if (message.type !== "controlChannelReady") {
+        console.log(`Sent JSON RPC notification to member ${this.memberId}:`, {
+          method,
+          params,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to send JSON RPC notification:", error);
+    }
+  }
+
+  private async sendControlChannelReady(): Promise<void> {
+    if (this.jsonRpc) {
+      this.jsonRpc.notify("controlChannelReady", {
+        memberId: this.memberId,
+      });
     }
   }
 
@@ -378,38 +469,99 @@ export class Member {
   }
 
   // Data Channel Management Methods
-  private handleSubscribe(publicationId: string): void {
-    const subscriptionLabel = `sub_${publicationId}`;
-    const subscriptionChannel = this.peerConnection.createDataChannel(
-      subscriptionLabel,
-      {
-        ordered: true,
-      },
-    );
+  private async handleSubscribe(
+    publicationId: string,
+  ): Promise<{ success: boolean; subscriptionId?: string; timestamp: number }> {
+    // Check for existing subscription
+    if (this.dataSubscriptions.has(publicationId)) {
+      console.warn(
+        `Member ${this.memberId} already has a subscription to publication ${publicationId}`,
+      );
+      throw new JsonRpcException(
+        JsonRpcErrorCode.SUBSCRIPTION_FAILED,
+        "Already subscribed to this publication",
+        { publicationId },
+      );
+    }
 
-    const subscription = new DataSubscription(
-      subscriptionLabel,
-      publicationId,
-      this.memberId,
-      subscriptionChannel,
-    );
+    // Validate that the publication exists before creating subscription
+    const publicationExists = await new Promise<boolean>((resolve) => {
+      this.onSubscriptionValidationRequest.execute(publicationId, resolve);
+    });
 
-    this.dataSubscriptions.set(publicationId, subscription);
+    if (!publicationExists) {
+      console.warn(
+        `Publication ${publicationId} not found for member ${this.memberId}`,
+      );
+      throw new JsonRpcException(
+        JsonRpcErrorCode.PUBLICATION_NOT_FOUND,
+        "Publication not found",
+        { publicationId },
+      );
+    }
 
-    console.log(
-      `Created subscription for member ${this.memberId} to publication ${publicationId}`,
-    );
+    try {
+      const subscriptionLabel = `sub_${publicationId}`;
+      const subscriptionChannel = this.peerConnection.createDataChannel(
+        subscriptionLabel,
+        {
+          ordered: true,
+        },
+      );
 
-    this.onSubscriptionForwardingRequest.execute(publicationId, subscription);
+      const subscription = new DataSubscription(
+        subscriptionLabel,
+        publicationId,
+        this.memberId,
+        subscriptionChannel,
+      );
+
+      this.dataSubscriptions.set(publicationId, subscription);
+
+      console.log(
+        `Created subscription for member ${this.memberId} to publication ${publicationId}`,
+      );
+
+      this.onSubscriptionForwardingRequest.execute(publicationId, subscription);
+
+      return {
+        success: true,
+        subscriptionId: subscriptionLabel,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.error(
+        `Failed to create subscription for ${publicationId}:`,
+        error,
+      );
+      throw new JsonRpcException(
+        JsonRpcErrorCode.SUBSCRIPTION_FAILED,
+        "Failed to create subscription",
+        {
+          publicationId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+    }
   }
 
   // Media Management Methods
   async handlePublishMedia(
     publicationId: string,
     kind: MediaKind,
-  ): Promise<void> {
+    metadata: Record<string, any> = {},
+  ): Promise<{
+    success: boolean;
+    offer?: RTCSessionDescriptionInit;
+    timestamp: number;
+  }> {
     try {
-      const publication = new MediaPublication(publicationId, this.memberId);
+      const publication = new MediaPublication(
+        publicationId,
+        this.memberId,
+        kind,
+        metadata,
+      );
       const transceiver = this.peerConnection.addTransceiver(kind, {
         direction: "recvonly",
       });
@@ -432,40 +584,224 @@ export class Member {
           offer: offer,
         },
       });
+
+      return {
+        success: true,
+        offer: offer,
+        timestamp: Date.now(),
+      };
     } catch (error) {
       console.error(
         `Failed to handle publishMedia for ${publicationId}:`,
         error,
       );
       this.pendingMediaPublications.delete(publicationId);
+      throw new JsonRpcException(
+        JsonRpcErrorCode.MEDIA_PUBLISH_FAILED,
+        "Failed to publish media",
+        {
+          publicationId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+    }
+  }
+
+  async handleUnpublishMedia(
+    publicationId: string,
+  ): Promise<{ success: boolean; timestamp: number }> {
+    try {
+      let unpublished = false;
+
+      // Remove from media publications
+      const publication = this.mediaPublications.get(publicationId);
+      if (publication) {
+        // Stop the track if it exists
+        if (publication.track) {
+          publication.track.stop();
+        }
+        // Dispose the publication
+        publication.dispose();
+        this.mediaPublications.delete(publicationId);
+        unpublished = true;
+
+        console.log(
+          `Unpublished media ${publicationId} for member ${this.memberId}`,
+        );
+
+        // Notify room about unpublished media
+        this.onMediaUnpublished.execute(publicationId, this.memberId);
+      }
+
+      // Also check pending publications
+      const pendingPublication =
+        this.pendingMediaPublications.get(publicationId);
+      if (pendingPublication) {
+        pendingPublication.dispose();
+        this.pendingMediaPublications.delete(publicationId);
+        unpublished = true;
+      }
+
+      if (!unpublished) {
+        console.warn(`No media publication found for ${publicationId}`);
+        throw new JsonRpcException(
+          JsonRpcErrorCode.PUBLICATION_NOT_FOUND,
+          "Publication not found",
+          { publicationId },
+        );
+      }
+
+      return {
+        success: true,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.error(
+        `Failed to handle unpublishMedia for ${publicationId}:`,
+        error,
+      );
+      if (error && typeof error === "object" && "code" in error) {
+        throw error; // Re-throw JSON-RPC errors
+      }
+      throw new JsonRpcException(
+        JsonRpcErrorCode.MEDIA_PUBLISH_FAILED,
+        "Failed to unpublish media",
+        {
+          publicationId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+    }
+  }
+
+  async handleUnpublishData(
+    publicationId: string,
+  ): Promise<{ success: boolean; timestamp: number }> {
+    try {
+      const publication = this.dataPublications.get(publicationId);
+      if (!publication) {
+        console.warn(`No data publication found for ${publicationId}`);
+        throw new JsonRpcException(
+          JsonRpcErrorCode.PUBLICATION_NOT_FOUND,
+          "Data publication not found",
+          { publicationId },
+        );
+      }
+
+      // Dispose the publication
+      publication.dispose();
+      this.dataPublications.delete(publicationId);
+
+      console.log(
+        `Unpublished data ${publicationId} for member ${this.memberId}`,
+      );
+
+      // Notify room about unpublished data
+      this.onDataUnpublished.execute(publicationId, this.memberId);
+
+      return {
+        success: true,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.error(
+        `Failed to handle unpublishData for ${publicationId}:`,
+        error,
+      );
+      if (error && typeof error === "object" && "code" in error) {
+        throw error; // Re-throw JSON-RPC errors
+      }
+      throw new JsonRpcException(
+        JsonRpcErrorCode.MEDIA_PUBLISH_FAILED,
+        "Failed to unpublish data",
+        {
+          publicationId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
     }
   }
 
   async handleMediaPublishAnswer(
     publicationId: string,
     answer: RTCSessionDescriptionInit,
-  ): Promise<void> {
+  ): Promise<{ success: boolean; timestamp: number }> {
     try {
       const publication = this.pendingMediaPublications.get(publicationId);
       if (!publication) {
-        console.error(
-          `No pending media publication found for ${publicationId}`,
+        throw new JsonRpcException(
+          JsonRpcErrorCode.PUBLICATION_NOT_FOUND,
+          "No pending media publication found",
+          { publicationId },
         );
-        return;
       }
 
       await this.accept(answer);
+
+      return {
+        success: true,
+        timestamp: Date.now(),
+      };
     } catch (error) {
       console.error(`Failed to handle answer for ${publicationId}:`, error);
       this.pendingMediaPublications.delete(publicationId);
+      if (error && typeof error === "object" && "code" in error) {
+        throw error; // Re-throw JSON-RPC errors
+      }
+      throw new JsonRpcException(
+        JsonRpcErrorCode.MEDIA_PUBLISH_FAILED,
+        "Failed to handle media publish answer",
+        {
+          publicationId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
     }
   }
 
   async handleSubscribeMedia(
     publicationId: string,
     subscriptionId: string,
-  ): Promise<void> {
+  ): Promise<{ success: boolean; subscriptionId: string; timestamp: number }> {
+    console.log(
+      `[handleSubscribeMedia] Starting for pub=${publicationId}, sub=${subscriptionId}`,
+    );
     try {
+      // Check for existing media subscription to the same publication
+      const existingSubscription = Array.from(
+        this.mediaSubscriptions.values(),
+      ).find((sub) => sub.publicationId === publicationId);
+
+      if (existingSubscription) {
+        console.warn(
+          `Member ${this.memberId} already has a media subscription to publication ${publicationId}`,
+        );
+        throw new JsonRpcException(
+          JsonRpcErrorCode.SUBSCRIPTION_FAILED,
+          "Already subscribed to this media publication",
+          { publicationId, subscriptionId },
+        );
+      }
+
+      // Validate that the media publication exists before creating subscription
+      const mediaPublicationExists = await new Promise<boolean>((resolve) => {
+        this.onMediaSubscriptionValidationRequest.execute(
+          publicationId,
+          resolve,
+        );
+      });
+
+      if (!mediaPublicationExists) {
+        console.warn(
+          `Media publication ${publicationId} not found for member ${this.memberId}`,
+        );
+        throw new JsonRpcException(
+          JsonRpcErrorCode.PUBLICATION_NOT_FOUND,
+          "Media publication not found",
+          { publicationId, subscriptionId },
+        );
+      }
+
       const subscription = new MediaSubscription(
         subscriptionId,
         publicationId,
@@ -484,30 +820,44 @@ export class Member {
         subscriptionId,
         subscription,
       );
+
+      return {
+        success: true,
+        subscriptionId: subscriptionId,
+        timestamp: Date.now(),
+      };
     } catch (error) {
       console.error(
         `Failed to handle subscribeMedia for ${publicationId}:`,
         error,
       );
-      await this.sendControlMessage({
-        type: "subscribeError",
-        payload: {
-          subscriptionId: subscriptionId,
-          error: (error as Error).message,
+      if (error && typeof error === "object" && "code" in error) {
+        throw error; // Re-throw JSON-RPC errors
+      }
+      throw new JsonRpcException(
+        JsonRpcErrorCode.SUBSCRIPTION_FAILED,
+        "Failed to subscribe to media",
+        {
+          publicationId,
+          subscriptionId,
+          error: error instanceof Error ? error.message : String(error),
         },
-      });
+      );
     }
   }
 
   async handleMediaSubscribeAnswer(
     subscriptionId: string,
     answer: RTCSessionDescriptionInit,
-  ): Promise<void> {
+  ): Promise<{ success: boolean; timestamp: number }> {
     try {
       const subscription = this.mediaSubscriptions.get(subscriptionId);
       if (!subscription) {
-        console.error(`Unknown subscription: ${subscriptionId}`);
-        return;
+        throw new JsonRpcException(
+          JsonRpcErrorCode.SUBSCRIPTION_FAILED,
+          "Unknown subscription",
+          { subscriptionId },
+        );
       }
 
       await this.accept(answer);
@@ -517,21 +867,36 @@ export class Member {
       console.log(
         `Media subscription ${subscriptionId} for publication ${subscription.publicationId} is ready`,
       );
+
+      return {
+        success: true,
+        timestamp: Date.now(),
+      };
     } catch (error) {
       console.error(
         `Failed to handle subscribe answer for ${subscriptionId}:`,
         error,
       );
       this.mediaSubscriptions.delete(subscriptionId);
+      if (error && typeof error === "object" && "code" in error) {
+        throw error; // Re-throw JSON-RPC errors
+      }
+      throw new JsonRpcException(
+        JsonRpcErrorCode.SUBSCRIPTION_FAILED,
+        "Failed to handle media subscribe answer",
+        {
+          subscriptionId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
     }
   }
 
   private sendExistingPublications(): void {
-    // Small delay to ensure the control channel is fully established on both sides
-    setTimeout(() => {
-      // Request existing publications from Room via event
-      this.onExistingPublicationsRequest.execute();
-    }, 100);
+    // Request existing publications from Room via event
+    this.onExistingPublicationsRequest.execute();
+    // Request existing members from Room via event
+    this.onExistingMembersRequest.execute();
   }
 
   // Add dispose method for hierarchical cleanup
@@ -541,10 +906,16 @@ export class Member {
     // Complete all events
     this.onDataPublicationReady.complete();
     this.onMediaPublicationReady.complete();
+    this.onMediaUnpublished.complete();
+    this.onDataUnpublished.complete();
     this.onMediaSubscriptionReady.complete();
     this.onSubscriptionForwardingRequest.complete();
+    this.onSubscriptionValidationRequest.complete();
+    this.onMediaSubscriptionValidationRequest.complete();
     this.onExistingPublicationsRequest.complete();
+    this.onExistingMembersRequest.complete();
     this.onMediaSubscriptionRequest.complete();
     this.onDisconnected.complete();
+    this.onControlChannelReady.complete();
   }
 }

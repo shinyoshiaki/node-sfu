@@ -1,3 +1,4 @@
+import type { MediaKind } from "werift/nonstandard";
 import {
   EventDisposer,
   type MediaStreamTrack,
@@ -12,6 +13,8 @@ export class MediaPublication {
   constructor(
     public readonly publicationId: string,
     public readonly memberId: string,
+    public readonly mediaKind: MediaKind,
+    public readonly metadata: Record<string, any> = {},
   ) {}
 
   setTrack(track: MediaStreamTrack, transceiver: RTCRtpTransceiver): void {

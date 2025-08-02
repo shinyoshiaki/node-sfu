@@ -1,9 +1,11 @@
 import { Event } from "../../../submodules/werift/packages/common/src/event.js";
+import { FragmentationManager } from "./imports/util.js";
 
 export class DataSubscription {
   readonly subscriptionId: string;
   readonly publicationId: string;
-  private channel: RTCDataChannel;
+  channel: RTCDataChannel;
+  private fragmentationManager = new FragmentationManager();
 
   // Events
   readonly onMessage = new Event<[string | ArrayBuffer]>();
@@ -20,6 +22,16 @@ export class DataSubscription {
     this.publicationId = publicationId;
     this.channel = channel;
     this.setupChannelHandlers();
+  }
+
+  async waitForOpen(timeout: number = 5000): Promise<void> {
+    if (this.channel.readyState === "open") {
+      return;
+    }
+    await this.onOpen.asPromise(
+      timeout,
+      "DataSubscription waitForOpen timeout",
+    );
   }
 
   private setupChannelHandlers(): void {
@@ -46,11 +58,17 @@ export class DataSubscription {
     };
 
     this.channel.onmessage = ({ data }) => {
-      this.onMessage.execute(data as string | ArrayBuffer);
+      const reassembledData = this.fragmentationManager.processIncomingFragment(
+        data as ArrayBuffer,
+      );
+      if (reassembledData !== null) {
+        this.onMessage.execute(reassembledData);
+      }
     };
   }
 
   close(): void {
+    this.fragmentationManager.cleanup();
     this.channel.close();
     this.onMessage.complete();
     this.onOpen.complete();

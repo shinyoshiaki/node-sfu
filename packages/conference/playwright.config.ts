@@ -8,14 +8,11 @@ const REFERENCE_SERVER_PORT = Number.parseInt(
 
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: false,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 1,
-  workers: 1,
-  reporter:
-    process.env.CI || process.argv.includes("--reporter=list")
-      ? "list"
-      : "html",
+  // fullyParallel: false,
+  forbidOnly: false,
+  retries: 1,
+  workers: 4,
+  reporter: process.argv.includes("--reporter=list") ? "list" : "html",
   timeout: 60000,
   expect: {
     timeout: 10000,
@@ -42,24 +39,22 @@ export default defineConfig({
       },
     },
   ],
-  webServer: process.env.CI
-    ? undefined
-    : [
-        {
-          command: "npx vite",
-          port: VITE_PORT,
-          env: {
-            VITE_PORT: String(VITE_PORT),
-            VITE_SERVER_URL: `http://localhost:${REFERENCE_SERVER_PORT}`,
-          },
-          reuseExistingServer: false,
-        },
-        {
-          command: "npm run dev",
-          port: REFERENCE_SERVER_PORT,
-          cwd: "../reference-server",
-          env: { PORT: String(REFERENCE_SERVER_PORT) },
-          reuseExistingServer: false,
-        },
-      ],
+  webServer: [
+    {
+      command: "npx vite",
+      port: VITE_PORT,
+      env: {
+        VITE_PORT: String(VITE_PORT),
+        VITE_SERVER_URL: `http://localhost:${REFERENCE_SERVER_PORT}`,
+      },
+      reuseExistingServer: true,
+    },
+    {
+      command: "npm run dev",
+      port: REFERENCE_SERVER_PORT,
+      cwd: "../reference-server",
+      env: { PORT: String(REFERENCE_SERVER_PORT) },
+      reuseExistingServer: true,
+    },
+  ],
 });

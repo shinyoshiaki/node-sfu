@@ -1,11 +1,13 @@
 import { Event } from "../../../submodules/werift/packages/common/src/event.js";
 import type { RTCDataChannel } from "../../../submodules/werift/packages/webrtc/src/index.js";
+import { FragmentationManager } from "./imports/util.js";
 
 export class DataSubscription {
   readonly subscriptionId: string;
   readonly publicationId: string;
   readonly subscriberMemberId: string;
   private channel: RTCDataChannel;
+  private fragmentationManager = new FragmentationManager();
 
   // Events
   readonly onMessage = new Event<[string | ArrayBuffer]>();
@@ -50,13 +52,32 @@ export class DataSubscription {
     });
 
     this.channel.onMessage.subscribe((data) => {
-      this.onMessage.execute(data as string | ArrayBuffer);
+      let fragmentData: ArrayBuffer;
+      if (data instanceof ArrayBuffer) {
+        fragmentData = data;
+      } else {
+        // Handle Buffer or other types from werift
+        const uint8Array = new Uint8Array(data as any);
+        fragmentData = uint8Array.buffer.slice(
+          uint8Array.byteOffset,
+          uint8Array.byteOffset + uint8Array.byteLength,
+        );
+      }
+
+      const reassembledData =
+        this.fragmentationManager.processIncomingFragment(fragmentData);
+      if (reassembledData !== null) {
+        this.onMessage.execute(reassembledData);
+      }
     });
   }
 
   forwardMessage(data: string | ArrayBuffer): void {
     if (this.channel.readyState === "open") {
-      this.channel.send(data as any);
+      const fragments = FragmentationManager.fragmentData(data);
+      for (const fragment of fragments) {
+        this.channel.send(Buffer.from(fragment));
+      }
     } else {
       console.warn(
         `Cannot forward message to subscription ${this.subscriptionId}: channel is ${this.channel.readyState}`,
@@ -65,6 +86,7 @@ export class DataSubscription {
   }
 
   close(): void {
+    this.fragmentationManager.cleanup();
     this.channel.close();
     this.onMessage.complete();
     this.onOpen.complete();

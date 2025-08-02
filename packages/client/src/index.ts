@@ -1,93 +1,67 @@
-import { v4 as uuidv4 } from "uuid";
 import { Event } from "../../../submodules/werift/packages/common/src/event.js";
-import { DataPublication } from "./dataPublication.js";
-import { DataSubscription } from "./dataSubscription.js";
-import { MediaPublication } from "./mediaPublication.js";
-import { MediaSubscription } from "./mediaSubscription.js";
+import { PromiseQueue } from "../../../submodules/werift/packages/common/src/promise.js";
+import { MessageAssemblerTransport } from "./adapters/messageAssemblerTransport.js";
+import { ConnectionManager } from "./connectionManager.js";
+import type { DataPublication } from "./dataPublication.js";
+import type { DataSubscription } from "./dataSubscription.js";
+import { JsonRpc } from "./imports/json-rpc.js";
+import { MessageAssembler } from "./imports/util.js";
+import type { MediaPublication } from "./mediaPublication.js";
+import type { MediaSubscription } from "./mediaSubscription.js";
+import { Publisher } from "./publisher.js";
+import { type RemotePublication, Subscriber } from "./subscriber.js";
 import type { MediaStreamTrackLike } from "./type.js";
-import {
-  MessageAssembler,
-  type MessageEnvelope,
-  decompressMessage,
-  prepareMessagesForSending,
-} from "./utils/compression.js";
 
-export const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+export type { RemotePublication } from "./subscriber.js";
+
+export interface RemoteMember {
+  id: string;
+  name?: string;
+  metadata?: Record<string, any>;
+}
 
 export interface ClientConfig {
   peerConnection?: any;
   iceServers?: RTCIceServer[];
 }
 
-interface ControlMessage {
-  type: string;
-  payload?: {
-    publicationId?: string;
-    subscriptionId?: string;
-    publisherMemberId?: string;
-    memberId?: string;
-    offer?: RTCSessionDescriptionInit;
-    answer?: RTCSessionDescriptionInit;
-    mediaKind?: string;
-    error?: string;
-  };
-}
-
-interface PendingMediaPublication {
-  resolve: (publication: MediaPublication) => void;
-  reject: (error: Error) => void;
-  track: MediaStreamTrackLike;
-}
-
-interface PendingMediaSubscription {
-  resolve: (subscription: MediaSubscription) => void;
-  reject: (error: Error) => void;
-  subscription: MediaSubscription;
-}
-
 export class Client {
-  peerConnection: RTCPeerConnection;
+  id!: string;
 
-  // Integrated Control Channel functionality
+  // Delegate instances
+  private connectionManager: ConnectionManager;
+  private publisher!: Publisher;
+  private subscriber!: Subscriber;
+
+  // Control Channel
   private controlChannel: RTCDataChannel | null = null;
   private messageAssembler = new MessageAssembler();
+  private jsonRpc: JsonRpc | null = null;
   private connected: boolean = false;
+  private pingInterval: NodeJS.Timeout | number | null = null;
+  private publishQueue = new PromiseQueue();
+  private publishMediaQueue = new PromiseQueue();
+  private subscribeQueue = new PromiseQueue();
+  private subscribeMediaQueue = new PromiseQueue();
+  private controlQueue = new PromiseQueue();
 
-  // Integrated Data Channel functionality
-  private dataPublications = new Map<string, DataPublication>();
-  private dataSubscriptions = new Map<string, DataSubscription>();
-  private pendingDataPublications = new Map<
-    string,
-    {
-      resolve: (publication: DataPublication) => void;
-      reject: (error: Error) => void;
-      publication: DataPublication;
-    }
-  >();
-
-  // Integrated Media functionality
-  private mediaPublications = new Map<string, MediaPublication>();
-  private mediaSubscriptions = new Map<string, MediaSubscription>();
-  private pendingMediaPublications = new Map<string, PendingMediaPublication>();
-  private pendingMediaSubscriptions = new Map<
-    string,
-    PendingMediaSubscription
-  >();
+  // Remote members tracking
+  private remoteMembers = new Map<string, RemoteMember>();
 
   // Events
   readonly onControlMessage = new Event<[string]>();
-  readonly onPublicationReady = new Event<[string]>();
-  readonly onMediaPublicationReady = new Event<[string, string]>();
-  readonly onMediaPublishOffer = new Event<
-    [string, RTCSessionDescriptionInit]
-  >();
-  readonly onMediaSubscribeOffer = new Event<
-    [string, string, RTCSessionDescriptionInit]
-  >();
+  readonly onPublicationReady = new Event<[RemotePublication]>();
+  readonly onMediaPublicationReady = new Event<[RemotePublication]>();
+  readonly onMediaUnpublished = new Event<[string]>(); // publicationId
+  readonly onDataUnpublished = new Event<[string]>(); // publicationId
+  readonly onDataUnsubscribed = new Event<[string]>(); // publicationId
   readonly onDataChannelMessage = new Event<[string]>();
   readonly onDataChannelError = new Event<[any]>();
   readonly onSubscriptionReady = new Event<[DataSubscription]>();
   readonly onMemberLeft = new Event<[string]>();
+  readonly onMemberJoined = new Event<
+    [{ memberId: string; name?: string; metadata?: Record<string, any> }]
+  >();
   readonly onIceCandidate = new Event<[RTCIceCandidate]>();
   readonly onConnectionStateChange = new Event<[RTCPeerConnectionState]>();
   readonly _onConnected = new Event<[]>();
@@ -101,18 +75,19 @@ export class Client {
     return this._onConnected;
   }
 
-  private constructor(config: ClientConfig = {}) {
-    if (config.peerConnection) {
-      this.peerConnection = config.peerConnection;
-    } else {
-      const iceServers = config.iceServers || ICE_SERVERS;
-      this.peerConnection = new RTCPeerConnection({
-        iceServers: iceServers,
-      });
-    }
+  // Delegation properties
+  get peerConnection(): RTCPeerConnection {
+    return this.connectionManager.getPeerConnection();
+  }
 
-    this.setupPeerConnectionHandlers();
-    this.setupMediaEventHandlers();
+  private constructor(config: ClientConfig = {}) {
+    // Initialize ConnectionManager
+    this.connectionManager = new ConnectionManager(config);
+
+    // Initialize Publisher (JsonRpc will be set later)
+    this.publisher = new Publisher(this.connectionManager);
+
+    // Note: Subscriber will be initialized after ID is set in init()
   }
 
   static async create(
@@ -129,371 +104,395 @@ export class Client {
     offer: RTCSessionDescriptionInit,
     memberId: string,
   ): Promise<void> {
-    // Check if we're in a browser environment with RTCSessionDescription
-    if (typeof RTCSessionDescription !== "undefined") {
-      this.peerConnection
-        .setRemoteDescription(new RTCSessionDescription(offer))
-        .catch((error) => {
-          console.error("Failed to set remote description:", error);
-        });
-    } else {
-      // For werift or other environments, pass the offer directly
-      this.peerConnection.setRemoteDescription(offer).catch((error) => {
-        console.error("Failed to set remote description:", error);
-      });
-    }
+    this.id = memberId;
+    this.connectionManager.memberId = memberId;
+
+    // Initialize Subscriber now that we have the member ID
+    this.subscriber = new Subscriber(this.connectionManager, this.id);
+
+    // Set up event forwarding
+    this.setupEventForwarding();
+
+    // Set remote description
+    await this.connectionManager.setRemoteDescription(offer);
   }
 
-  private setupPeerConnectionHandlers(): void {
-    this.peerConnection.ondatachannel = ({ channel }) => {
+  private setupEventForwarding(): void {
+    // ConnectionManager events
+    this.connectionManager.onDataChannel.subscribe((channel) => {
       if (channel.label.startsWith("sfu")) {
         this.setControlChannel(channel);
       } else {
-        this.handleDataChannel(channel);
+        this.subscriber.handleDataChannel(channel);
       }
-    };
-
-    this.peerConnection.ontrack = (event) => {
-      this.handleIncomingTrack(event);
-    };
-
-    this.setupIceCandidateHandler();
-    this.setupConnectionStateHandler();
-  }
-
-  private setupMediaEventHandlers(): void {
-    this.onMediaPublishOffer.subscribe((publicationId, offer) => {
-      this.handlePublishOffer(publicationId, offer);
     });
 
-    this.onMediaSubscribeOffer.subscribe(
-      (subscriptionId, publicationId, offer) => {
-        this.handleSubscribeOffer(subscriptionId, publicationId, offer);
-      },
-    );
+    this.connectionManager.onTrack.subscribe((event) => {
+      this.subscriber.handleTrack(event);
+    });
+
+    this.connectionManager.onIceCandidate.subscribe((candidate) => {
+      this.onIceCandidate.execute(candidate);
+    });
+
+    this.connectionManager.onConnectionStateChange.subscribe((state) => {
+      this.onConnectionStateChange.execute(state);
+    });
+
+    this.connectionManager.onConnected.subscribe(() => {
+      this.connected = true;
+      this._onConnected.execute();
+    });
+
+    // Note: Publisher and Subscriber events will be set up in setupPublisherSubscriberEvents
+    // after they are initialized in setupJsonRpc
   }
 
   // Integrated Control Channel Methods
   private setControlChannel(channel: RTCDataChannel): void {
     this.controlChannel = channel;
     this.setupControlChannelHandlers();
+    this.setupJsonRpc();
   }
 
   private setupControlChannelHandlers(): void {
     if (!this.controlChannel) return;
 
-    this.controlChannel.onmessage = async ({ data }) => {
-      try {
-        let envelopeText: string;
-        if (data instanceof Uint8Array || data instanceof ArrayBuffer) {
-          const uint8Array =
-            data instanceof ArrayBuffer ? new Uint8Array(data) : data;
-          envelopeText = await decompressMessage(uint8Array);
-        } else {
-          envelopeText = data as string;
-        }
-
-        const envelope: MessageEnvelope = JSON.parse(envelopeText);
-        const reconstructedMessage =
-          this.messageAssembler.processMessage(envelope);
-
-        if (reconstructedMessage !== null) {
-          this.onControlMessage.execute(reconstructedMessage);
-          this.handleControlMessage(reconstructedMessage);
-        }
-      } catch (error) {
-        console.error("Failed to decompress control message:", error);
-      }
+    this.controlChannel.onopen = () => {
+      console.log("[Client] Control channel opened, starting ping interval");
+      this.startPingInterval();
     };
 
     this.controlChannel.onerror = () => {};
-    this.controlChannel.onclose = () => {};
+    this.controlChannel.onclose = () => {
+      this.stopPingInterval();
+      if (this.jsonRpc) {
+        this.jsonRpc.close().catch(console.error);
+      }
+    };
   }
 
-  private handleControlMessage(data: string): void {
-    try {
-      const envelope: ControlMessage = JSON.parse(data);
-      console.log("Control message received:", envelope);
+  private setupJsonRpc(): void {
+    if (!this.controlChannel) return;
 
-      if (envelope.type === "controlChannelReady") {
+    const transport = new MessageAssemblerTransport(this.controlChannel);
+    this.jsonRpc = new JsonRpc(transport);
+
+    // Set JsonRpc on Publisher and Subscriber now that it's available
+    this.publisher.setJsonRpc(this.jsonRpc);
+    this.subscriber.setJsonRpc(this.jsonRpc);
+
+    // Set up Publisher and Subscriber events
+    this.setupPublisherSubscriberEvents();
+
+    // Set up JSON RPC notification handlers for messages from server
+    this.jsonRpc.onNotification("controlChannelReady", (params) => {
+      this.handleControlChannelReady(params);
+    });
+
+    this.jsonRpc.onNotification("publicationReady", (params) => {
+      this.handlePublicationReady(params);
+    });
+
+    this.jsonRpc.onNotification("mediaPublicationReady", (params) => {
+      this.handleMediaPublicationReady(params);
+    });
+
+    this.jsonRpc.onNotification("mediaUnpublished", (params) => {
+      this.handleMediaUnpublished(params);
+    });
+
+    this.jsonRpc.onNotification("dataUnpublished", (params) => {
+      this.handleDataUnpublished(params);
+    });
+
+    this.jsonRpc.onNotification("memberJoined", (params) => {
+      this.handleMemberJoined(params);
+    });
+
+    this.jsonRpc.onNotification("memberLeft", (params) => {
+      this.handleMemberLeft(params);
+    });
+
+    this.jsonRpc.onNotification("offer", (params) => {
+      this.handleOffer(params);
+    });
+
+    this.jsonRpc.onNotification("subscribeOffer", (params) => {
+      this.handleSubscribeOffer(params);
+    });
+
+    this.jsonRpc.onNotification("subscribeError", (params) => {
+      this.handleSubscribeError(params);
+    });
+  }
+
+  private setupPublisherSubscriberEvents(): void {
+    // Publisher events
+    this.publisher.onPublicationReady.subscribe(() => {
+      // This will be handled by control message processing
+    });
+
+    // Subscriber events
+    this.subscriber.onSubscriptionReady.subscribe((subscription) => {
+      this.onSubscriptionReady.execute(subscription);
+    });
+
+    this.subscriber.onRemotePublicationAdded.subscribe((publication) => {
+      if (publication.type === "data") {
+        this.onPublicationReady.execute(publication);
+      } else {
+        this.onMediaPublicationReady.execute(publication);
+      }
+    });
+
+    this.subscriber.onRemotePublicationRemoved.subscribe((publicationId) => {
+      this.onMediaUnpublished.execute(publicationId);
+    });
+
+    this.subscriber.onDataChannelMessage.subscribe((data) => {
+      this.onDataChannelMessage.execute(data);
+    });
+
+    this.subscriber.onDataChannelError.subscribe((error) => {
+      this.onDataChannelError.execute(error);
+    });
+  }
+
+  // Individual JSON RPC notification handlers
+  private handleControlChannelReady(params: any) {
+    console.log("JSON RPC notification received: controlChannelReady", params);
+    this.controlQueue
+      .push(async () => {
         if (this.connected) {
           return;
         }
-        this.connected = true;
-        this._onConnected.execute();
-      } else if (
-        envelope.type === "publicationReady" &&
-        envelope.payload?.publicationId
-      ) {
-        this.onPublicationReady.execute(envelope.payload.publicationId);
-      } else if (
-        envelope.type === "mediaPublicationReady" &&
-        envelope.payload?.publicationId
-      ) {
-        this.onMediaPublicationReady.execute(
-          envelope.payload.publicationId,
-          envelope.payload.publisherMemberId!,
+        this.connectionManager.setConnected(true);
+      })
+      .catch(console.error);
+  }
+
+  private handlePublicationReady(params: any) {
+    console.log("JSON RPC notification received: publicationReady", params);
+    this.controlQueue
+      .push(async () => {
+        if (!params?.publicationId) return;
+
+        const remotePublication: RemotePublication = {
+          id: params.publicationId,
+          publisher: params.publisherMemberId!,
+          type: params.mediaType || "data",
+          metadata: params.metadata || {},
+        };
+
+        // Handle publication ready for local publications
+        if (params.publisherMemberId === this.id) {
+          this.publisher.handlePublicationReady(params.publicationId);
+        }
+
+        // Handle remote publication
+        this.subscriber.handleRemotePublication(remotePublication);
+      })
+      .catch(console.error);
+  }
+
+  private handleMediaPublicationReady(params: any) {
+    console.log(
+      "JSON RPC notification received: mediaPublicationReady",
+      params,
+    );
+    this.controlQueue
+      .push(async () => {
+        if (!params?.publicationId) return;
+
+        const remotePublication: RemotePublication = {
+          id: params.publicationId,
+          publisher: params.publisherMemberId!,
+          type: params.mediaType || "audio",
+          metadata: params.metadata || {},
+        };
+
+        // Handle remote publication
+        this.subscriber.handleRemotePublication(remotePublication);
+      })
+      .catch(console.error);
+  }
+
+  private handleMediaUnpublished(params: any) {
+    console.log("JSON RPC notification received: mediaUnpublished", params);
+    this.controlQueue
+      .push(async () => {
+        if (!params?.publicationId) return;
+
+        const publicationId = params.publicationId;
+        console.log(`Media unpublished: ${publicationId}`);
+        this.subscriber.handleMediaUnpublished(publicationId);
+      })
+      .catch(console.error);
+  }
+
+  private handleDataUnpublished(params: any) {
+    console.log("JSON RPC notification received: dataUnpublished", params);
+    this.controlQueue
+      .push(async () => {
+        if (!params?.publicationId) return;
+
+        const publicationId = params.publicationId;
+        console.log(`Data unpublished: ${publicationId}`);
+
+        // Remove from local publications if this client was the publisher
+        if (params.publisherMemberId === this.id) {
+          this.publisher.handleDataUnpublished(publicationId);
+        }
+
+        // Remove subscription if we were subscribed to this publication
+        const subscription = this.subscriber.getSubscription(publicationId);
+        if (subscription) {
+          subscription.close();
+          this.subscriber.removeSubscription(publicationId);
+          this.onDataUnsubscribed.execute(publicationId);
+        }
+
+        // Notify listeners
+        this.onDataUnpublished.execute(publicationId);
+      })
+      .catch(console.error);
+  }
+
+  private handleMemberJoined(params: any) {
+    console.log("JSON RPC notification received: memberJoined", params);
+    this.controlQueue
+      .push(async () => {
+        if (!params?.memberId) return;
+
+        const remoteMember: RemoteMember = {
+          id: params.memberId,
+          name: params.name,
+          metadata: params.metadata,
+        };
+        this.remoteMembers.set(params.memberId, remoteMember);
+        this.onMemberJoined.execute({
+          memberId: params.memberId,
+          name: params.name,
+          metadata: params.metadata,
+        });
+      })
+      .catch(console.error);
+  }
+
+  private handleMemberLeft(params: any) {
+    console.log("JSON RPC notification received: memberLeft", params);
+    this.controlQueue
+      .push(async () => {
+        if (!params?.memberId) return;
+
+        const leftMemberId = params.memberId;
+
+        // Delegate to subscriber for publication cleanup
+        this.subscriber.handleMemberLeft(leftMemberId);
+
+        // Remove the member from tracking
+        this.remoteMembers.delete(leftMemberId);
+        this.onMemberLeft.execute(params.memberId);
+      })
+      .catch(console.error);
+  }
+
+  private handleOffer(params: any) {
+    console.log("JSON RPC notification received: offer");
+    this.controlQueue
+      .push(async () => {
+        if (!params?.publicationId || !params?.offer) return;
+
+        await this.publisher.handlePublishOffer(
+          params.publicationId,
+          params.offer,
         );
-      } else if (
-        envelope.type === "offer" &&
-        envelope.payload?.publicationId &&
-        envelope.payload?.offer
-      ) {
-        this.onMediaPublishOffer.execute(
-          envelope.payload.publicationId,
-          envelope.payload.offer,
+      })
+      .catch(console.error);
+  }
+
+  private handleSubscribeOffer(params: any) {
+    console.log("JSON RPC notification received: subscribeOffer");
+    this.controlQueue
+      .push(async () => {
+        if (!params?.subscriptionId || !params?.publicationId || !params?.offer)
+          return;
+
+        await this.subscriber.handleSubscribeOffer(
+          params.subscriptionId,
+          params.publicationId,
+          params.offer,
         );
-      } else if (
-        envelope.type === "subscribeOffer" &&
-        envelope.payload?.subscriptionId &&
-        envelope.payload?.publicationId &&
-        envelope.payload?.offer
-      ) {
-        this.onMediaSubscribeOffer.execute(
-          envelope.payload.subscriptionId,
-          envelope.payload.publicationId,
-          envelope.payload.offer,
-        );
-      } else if (envelope.type === "memberLeft" && envelope.payload?.memberId) {
-        this.onMemberLeft.execute(envelope.payload.memberId);
-      }
+      })
+      .catch(console.error);
+  }
+
+  private handleSubscribeError(params: any) {
+    console.log("JSON RPC notification received: subscribeError", params);
+    this.controlQueue
+      .push(async () => {
+        if (!params?.error) return;
+
+        console.error(`Subscription error: ${params.error}`);
+        // The error will be handled by the pending subscription promise
+      })
+      .catch(console.error);
+  }
+
+  private startPingInterval(): void {
+    if (this.pingInterval) {
+      return; // Already started
+    }
+
+    this.pingInterval = setInterval(() => {
+      this.sendPing().catch(console.error);
+    }, 100);
+  }
+
+  private async sendPing(): Promise<void> {
+    if (!this.jsonRpc) return;
+
+    try {
+      // Use JSON RPC request for ping (only request/response message type)
+      await this.jsonRpc.request("ping", {
+        timestamp: Date.now(),
+      });
     } catch (error) {}
   }
 
-  private async sendControlMessage(message: any): Promise<void> {
-    if (this.controlChannel && this.controlChannel.readyState === "open") {
-      try {
-        const messageText = JSON.stringify(message);
-        const compressedMessages = await prepareMessagesForSending(messageText);
-
-        // Send all fragments
-        for (const compressedData of compressedMessages) {
-          this.controlChannel.send(compressedData);
-        }
-      } catch (error) {
-        console.error("Failed to compress and send control message:", error);
-        throw error;
-      }
-    } else {
-      throw new Error("Control channel is not open");
+  private stopPingInterval(): void {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
     }
-  }
-
-  // Integrated Data Channel Methods
-  private handleDataChannel(channel: RTCDataChannel): void {
-    if (channel.label.startsWith("sub_")) {
-      this.handleSubscriptionDataChannel(channel);
-    } else {
-      this.handleGenericDataChannel(channel);
-    }
-  }
-
-  private handleSubscriptionDataChannel(channel: RTCDataChannel): void {
-    const publicationId = channel.label.substring(4); // Remove "sub_" prefix
-    const subscription = new DataSubscription(
-      channel.label,
-      publicationId,
-      channel,
-    );
-
-    this.dataSubscriptions.set(publicationId, subscription);
-    console.log(`Created subscription for publication ${publicationId}`);
-    this.onSubscriptionReady.execute(subscription);
-  }
-
-  private handleGenericDataChannel(channel: RTCDataChannel): void {
-    channel.onopen = () => channel.send("ping");
-    channel.onmessage = ({ data }) => this.onDataChannelMessage.execute(data);
-    channel.onerror = (error) => this.onDataChannelError.execute(error);
   }
 
   async createAndSetAnswer(): Promise<RTCSessionDescriptionInit> {
-    const answer = await this.peerConnection.createAnswer();
-    await this.peerConnection.setLocalDescription(answer);
-    return {
-      type: this.peerConnection.localDescription!.type,
-      sdp: this.peerConnection.localDescription!.sdp,
-    };
+    return this.connectionManager.createAndSetAnswer();
   }
 
   async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
-    if (typeof RTCIceCandidate !== "undefined") {
-      await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-    } else {
-      await this.peerConnection.addIceCandidate(candidate);
-    }
-  }
-
-  private setupIceCandidateHandler(): void {
-    this.peerConnection.onicecandidate = ({ candidate }) => {
-      if (candidate) {
-        this.onIceCandidate.execute(candidate);
-      }
-    };
-  }
-
-  private setupConnectionStateHandler(): void {
-    this.peerConnection.onconnectionstatechange = () => {
-      this.onConnectionStateChange.execute(this.peerConnection.connectionState);
-    };
-  }
-
-  // Integrated Media Methods
-  private async handlePublishOffer(
-    publicationId: string,
-    offer: RTCSessionDescriptionInit,
-  ): Promise<void> {
-    console.log(`Handling publish offer for ${publicationId}`, offer);
-    const pending = this.pendingMediaPublications.get(publicationId);
-    if (!pending) {
-      console.error(`No pending media publication found for ${publicationId}`);
-      return;
-    }
-
-    try {
-      this.peerConnection.addTrack(pending.track as MediaStreamTrack);
-      // Check if we're in a browser environment with RTCSessionDescription
-      if (typeof RTCSessionDescription !== "undefined") {
-        await this.peerConnection.setRemoteDescription(
-          new RTCSessionDescription(offer),
-        );
-      } else {
-        // For werift or other environments, pass the offer directly
-        await this.peerConnection.setRemoteDescription(offer);
-      }
-
-      const answer = await this.peerConnection.createAnswer();
-      await this.peerConnection.setLocalDescription(answer);
-
-      const message = {
-        type: "answer",
-        payload: {
-          publicationId: publicationId,
-          answer: {
-            type: answer.type,
-            sdp: answer.sdp,
-          },
-        },
-      };
-      await this.sendControlMessage(message);
-
-      const publication = new MediaPublication(publicationId, pending.track);
-      this.mediaPublications.set(publicationId, publication);
-
-      pending.resolve(publication);
-      this.pendingMediaPublications.delete(publicationId);
-    } catch (error) {
-      pending.reject(error as Error);
-      this.pendingMediaPublications.delete(publicationId);
-    }
-  }
-
-  private async handleSubscribeOffer(
-    subscriptionId: string,
-    publicationId: string,
-    offer: RTCSessionDescriptionInit,
-  ): Promise<void> {
-    const pending = this.pendingMediaSubscriptions.get(subscriptionId);
-    if (!pending) {
-      console.error(
-        `No pending media subscription found for ${subscriptionId}`,
-      );
-      return;
-    }
-
-    try {
-      // Check if we're in a browser environment with RTCSessionDescription
-      if (typeof RTCSessionDescription !== "undefined") {
-        await this.peerConnection.setRemoteDescription(
-          new RTCSessionDescription(offer),
-        );
-      } else {
-        // For werift or other environments, pass the offer directly
-        await this.peerConnection.setRemoteDescription(offer);
-      }
-
-      const answer = await this.peerConnection.createAnswer();
-      await this.peerConnection.setLocalDescription(answer);
-
-      const message = {
-        type: "subscribeAnswer",
-        payload: {
-          subscriptionId: subscriptionId,
-          answer: {
-            type: answer.type,
-            sdp: answer.sdp,
-          },
-        },
-      };
-      await this.sendControlMessage(message);
-    } catch (error) {
-      pending.reject(error as Error);
-      this.pendingMediaSubscriptions.delete(subscriptionId);
-    }
-  }
-
-  private handleIncomingTrack(event: RTCTrackEvent): void {
-    let subscriptionId: string | null = null;
-    for (const stream of event.streams) {
-      if (stream.id?.startsWith("sub_")) {
-        subscriptionId = stream.id.substring(4);
-        break;
-      }
-    }
-
-    if (!subscriptionId) {
-      console.error("No subscription ID found in track streams");
-      return;
-    }
-
-    const pending = this.pendingMediaSubscriptions.get(subscriptionId);
-    if (!pending) {
-      console.error(`No pending subscription found for ID: ${subscriptionId}`);
-      return;
-    }
-
-    pending.subscription.setTrack(
-      event.track as MediaStreamTrackLike,
-      event.transceiver,
-    );
-    this.mediaSubscriptions.set(subscriptionId, pending.subscription);
-    this.pendingMediaSubscriptions.delete(subscriptionId);
+    return this.connectionManager.addIceCandidate(candidate);
   }
 
   close(): void {
-    // Close data subscriptions and publications
-    for (const subscription of this.dataSubscriptions.values()) {
-      subscription.close();
-    }
-    this.dataSubscriptions.clear();
+    // Stop ping interval
+    this.stopPingInterval();
 
-    for (const publication of this.dataPublications.values()) {
-      publication.close();
-    }
-    this.dataPublications.clear();
+    // Close delegated components
+    this.publisher.close();
+    this.subscriber.close();
+    this.connectionManager.close();
 
-    for (const pending of this.pendingDataPublications.values()) {
-      pending.reject(new Error("Client closed"));
-    }
-    this.pendingDataPublications.clear();
+    // Clear remote members tracking
+    this.remoteMembers.clear();
 
-    // Close media subscriptions and publications
-    for (const subscription of this.mediaSubscriptions.values()) {
-      subscription.close();
+    // Close JSON RPC
+    if (this.jsonRpc) {
+      this.jsonRpc.close().catch(console.error);
+      this.jsonRpc = null;
     }
-    this.mediaSubscriptions.clear();
-
-    this.mediaPublications.clear();
-
-    for (const pending of this.pendingMediaSubscriptions.values()) {
-      pending.reject(new Error("Client closed"));
-    }
-    this.pendingMediaSubscriptions.clear();
-
-    for (const pending of this.pendingMediaPublications.values()) {
-      pending.reject(new Error("Client closed"));
-    }
-    this.pendingMediaPublications.clear();
 
     // Close control channel
     if (this.controlChannel) {
@@ -501,256 +500,230 @@ export class Client {
     }
     this.messageAssembler.cleanup();
 
-    // Close peer connection
-    if (this.peerConnection) {
-      this.peerConnection.close();
-    }
-
     // Complete all events
     this.onControlMessage.complete();
     this.onPublicationReady.complete();
     this.onMediaPublicationReady.complete();
-    this.onMediaPublishOffer.complete();
-    this.onMediaSubscribeOffer.complete();
+    this.onMediaUnpublished.complete();
+    this.onDataUnpublished.complete();
     this.onDataChannelMessage.complete();
     this.onDataChannelError.complete();
     this.onSubscriptionReady.complete();
     this.onMemberLeft.complete();
+    this.onMemberJoined.complete();
     this.onIceCandidate.complete();
     this.onConnectionStateChange.complete();
     this._onConnected.complete();
   }
 
   isConnected(): boolean {
-    return this.peerConnection.connectionState === "connected";
+    return this.connectionManager.isConnected();
   }
 
-  async publish(): Promise<DataPublication> {
-    // Wait for control channel to be connected before creating publication
-    if (!this.connected) {
-      await this.onConnected.asPromise(10000);
-    }
+  /**
+   * Creates a new data publication channel for sending data to other participants in the room.
+   *
+   * This method establishes a WebRTC data channel that allows sending arbitrary data to other
+   * room participants who subscribe to this publication. The data channel is created with
+   * ordered delivery to ensure message ordering.
+   *
+   * @param {Record<string, any>} metadata - Optional metadata to associate with the publication
+   *
+   * @returns {Promise<DataPublication>} A promise that resolves to a DataPublication instance
+   *   when the publication is ready to send data. The publication can be used to send messages
+   *   via `publication.send(data)`.
+   *
+   * @throws {Error} If the control channel is not connected within 10 seconds
+   * @throws {Error} If the publication is not ready within 10 seconds after creation
+   *
+   * @example
+   * ```typescript
+   * const publication = await client.publish();
+   * publication.send("Hello, room!");
+   *
+   * // With metadata
+   * const publication = await client.publish({ name: "chat", priority: "high" });
+   * ```
+   */
+  async publishData(
+    metadata: Record<string, any> = {},
+  ): Promise<DataPublication> {
+    return this.publishQueue.push(() => this.publisher.publish(metadata));
+  }
 
-    const publicationId = uuidv4();
-    const label = `pub_${publicationId}`;
-
-    const channel = this.peerConnection.createDataChannel(label, {
-      ordered: true,
-    });
-
-    const publication = new DataPublication(publicationId, channel);
-    this.dataPublications.set(publicationId, publication);
-
-    return new Promise((resolve, reject) => {
-      this.pendingDataPublications.set(publicationId, {
-        resolve,
-        reject,
-        publication,
-      });
-
-      const timeout = setTimeout(() => {
-        this.pendingDataPublications.delete(publicationId);
-        reject(new Error(`Publication ready timeout for ${publicationId}`));
-      }, 10000);
-
-      const unsubscribe = this.onPublicationReady.subscribe(
-        (readyPublicationId) => {
-          if (readyPublicationId === publicationId) {
-            clearTimeout(timeout);
-            unsubscribe.unSubscribe();
-            this.pendingDataPublications.delete(publicationId);
-            resolve(publication);
-          }
-        },
-      );
-    });
+  /**
+   * Unpublishes a data publication that was previously created with publishData.
+   *
+   * This method removes the data publication from the room, closing the associated
+   * data channel and notifying other participants that the publication is no longer
+   * available. Subscribers to this publication will be automatically cleaned up.
+   *
+   * @param {string} publicationId - The ID of the publication to unpublish
+   *
+   * @returns {Promise<void>} A promise that resolves when the publication has been
+   *   successfully unpublished and all cleanup operations are complete.
+   *
+   * @throws {Error} If the publication doesn't exist or unpublishing fails
+   *
+   * @example
+   * ```typescript
+   * const publication = await client.publishData({ name: "chat" });
+   * // ... use the publication
+   * await client.unpublishData(publication.publicationId);
+   * ```
+   */
+  async unpublishData(publicationId: string): Promise<void> {
+    return this.publishQueue.push(() =>
+      this.publisher.unpublish(publicationId),
+    );
   }
 
   getPublication(publicationId: string): DataPublication | undefined {
-    return this.dataPublications.get(publicationId);
+    return this.publisher.getPublication(publicationId);
   }
 
-  getPublications(): DataPublication[] {
-    return Array.from(this.dataPublications.values());
+  getPublications(): (DataPublication | RemotePublication)[] {
+    const localPublications = this.publisher.getPublications();
+    const remotePublications = this.subscriber
+      .getRemotePublications()
+      .filter((pub) => pub.type === "data");
+    return [...localPublications, ...remotePublications];
   }
 
-  async subscribe(publicationId: string): Promise<void> {
-    // Wait for control channel to be connected before subscribing
-    if (!this.connected) {
-      await this.onConnected.asPromise(10000);
+  async subscribeData(publicationId: string): Promise<DataSubscription> {
+    if (this.publisher.getPublication(publicationId)) {
+      throw new Error("Cannot subscribe to your own publication");
     }
-
-    const message = {
-      type: "subscribe",
-      payload: {
-        publicationId: publicationId,
-      },
-    };
-    await this.sendControlMessage(message);
-    console.log(`Sent subscribe request for publication ${publicationId}`);
-
-    await this.onSubscriptionReady.watch(
-      (s) => s.publicationId === publicationId,
-      10000,
-      "Subscription ready timeout",
+    return this.subscribeQueue.push(() =>
+      this.subscriber.subscribeData(publicationId),
     );
   }
 
   getSubscription(publicationId: string): DataSubscription | undefined {
-    return Array.from(this.dataSubscriptions.values()).find(
-      (sub) => sub.publicationId === publicationId,
-    );
+    return this.subscriber.getSubscription(publicationId);
   }
 
   getSubscriptions(): DataSubscription[] {
-    return Array.from(this.dataSubscriptions.values());
+    return this.subscriber.getSubscriptions();
   }
 
+  /**
+   * Creates a new media publication for streaming audio or video to other participants in the room.
+   *
+   * This method publishes a MediaStreamTrack (audio or video) that can be received by other
+   * room participants who subscribe to this publication. The track is transmitted via WebRTC
+   * media channels with real-time streaming capabilities.
+   *
+   * @param {MediaStreamTrack | MediaStreamTrackLike} track - The media track to publish.
+   *   Can be an audio track (from microphone) or video track (from camera). The track's
+   *   `kind` property ("audio" or "video") determines the media type.
+   * @param {Record<string, any>} metadata - Optional metadata to associate with the publication
+   *
+   * @returns {Promise<MediaPublication>} A promise that resolves to a MediaPublication instance
+   *   when the media publication is established and ready to stream. Other participants can
+   *   then subscribe to receive this media stream.
+   *
+   * @throws {Error} If the control channel is not connected within 10 seconds
+   * @throws {Error} If the media publication is not ready within 10 seconds after creation
+   * @throws {Error} If sending the publish request fails
+   *
+   * @example
+   * ```typescript
+   * // Publish video from camera
+   * const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+   * const videoTrack = stream.getVideoTracks()[0];
+   * const publication = await client.publishMedia(videoTrack);
+   *
+   * // Publish audio from microphone with metadata
+   * const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+   * const audioTrack = audioStream.getAudioTracks()[0];
+   * const audioPublication = await client.publishMedia(audioTrack, { name: "main-audio" });
+   * ```
+   */
   async publishMedia(
     track: MediaStreamTrack | MediaStreamTrackLike,
+    metadata: Record<string, any> = {},
   ): Promise<MediaPublication> {
-    // Wait for control channel to be connected before creating media publication
-    if (!this.connected) {
-      await this.onConnected.asPromise(10000);
-    }
-    console.log(`Publishing media track: ${track.kind}`);
-
-    const publicationId = uuidv4();
-
-    return new Promise(async (resolve, reject) => {
-      let resolved = false;
-
-      const pendingResolve = (publication: MediaPublication) => {
-        if (!resolved) {
-          resolved = true;
-          clearTimeout(timeout);
-          resolve(publication);
-        }
-      };
-
-      const pendingReject = (error: Error) => {
-        if (!resolved) {
-          resolved = true;
-          clearTimeout(timeout);
-          reject(error);
-        }
-      };
-
-      this.pendingMediaPublications.set(publicationId, {
-        resolve: pendingResolve,
-        reject: pendingReject,
-        track: track as MediaStreamTrackLike,
-      });
-
-      const timeout = setTimeout(() => {
-        if (!resolved) {
-          this.pendingMediaPublications.delete(publicationId);
-          pendingReject(
-            new Error(`Media publication ready timeout for ${publicationId}`),
-          );
-        }
-      }, 10000);
-
-      try {
-        const message = {
-          type: "publishMedia",
-          payload: {
-            publicationId: publicationId,
-            mediaKind: track.kind, // Use track.kind to specify media type
-          },
-        };
-        console.log(
-          `Sending publish request for ${publicationId} with media kind ${track.kind}`,
-        );
-        await this.sendControlMessage(message);
-      } catch (error) {
-        this.pendingMediaPublications.delete(publicationId);
-        pendingReject(error as Error);
-      }
-    });
+    return this.publishMediaQueue.push(() =>
+      this.publisher.publishMedia(track, metadata),
+    );
   }
 
   getMediaPublication(publicationId: string): MediaPublication | undefined {
-    return this.mediaPublications.get(publicationId);
+    return this.publisher.getMediaPublication(publicationId);
   }
 
-  getMediaPublications(): MediaPublication[] {
-    return Array.from(this.mediaPublications.values());
+  getMediaPublications(): (MediaPublication | RemotePublication)[] {
+    const localPublications = this.publisher.getMediaPublications();
+    const remotePublications = this.subscriber
+      .getRemotePublications()
+      .filter((pub) => pub.type !== "data");
+    return [...localPublications, ...remotePublications];
+  }
+
+  /**
+   * Unpublish a media track that was previously published
+   * @param publicationId - The ID of the publication to unpublish
+   * @example
+   * ```typescript
+   * // Unpublish a previously published media track
+   * await client.unpublishMedia(audioPublication.publicationId);
+   * ```
+   */
+  async unpublishMedia(publicationId: string): Promise<void> {
+    return this.publisher.unpublishMedia(publicationId);
   }
 
   async subscribeMedia(publicationId: string): Promise<MediaSubscription> {
-    // Wait for control channel to be connected before creating media subscription
-    if (!this.connected) {
-      await this.onConnected.asPromise(10000);
+    if (this.publisher.getMediaPublication(publicationId)) {
+      throw new Error("Cannot subscribe to your own publication");
     }
-
-    const subscriptionId = uuidv4();
-    const subscription = new MediaSubscription(subscriptionId, publicationId);
-
-    return new Promise(async (resolve, reject) => {
-      let resolved = false;
-
-      const trackReadyUnsubscribe = subscription.onTrackReady.subscribe(() => {
-        if (!resolved) {
-          resolved = true;
-          trackReadyUnsubscribe.unSubscribe();
-          resolve(subscription);
-        }
-      });
-
-      const timeout = setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          trackReadyUnsubscribe.unSubscribe();
-          this.pendingMediaSubscriptions.delete(subscriptionId);
-          reject(
-            new Error(
-              `Media subscription timeout for publication ${publicationId}`,
-            ),
-          );
-        }
-      }, 10000);
-
-      this.pendingMediaSubscriptions.set(subscriptionId, {
-        resolve: () => {
-          clearTimeout(timeout);
-        },
-        reject: (error: Error) => {
-          if (!resolved) {
-            resolved = true;
-            trackReadyUnsubscribe.unSubscribe();
-            clearTimeout(timeout);
-            reject(error);
-          }
-        },
-        subscription,
-      });
-
-      try {
-        const message = {
-          type: "subscribeMedia",
-          payload: {
-            publicationId: publicationId,
-            subscriptionId: subscriptionId,
-          },
-        };
-        await this.sendControlMessage(message);
-      } catch (error) {
-        resolved = true;
-        trackReadyUnsubscribe.unSubscribe();
-        clearTimeout(timeout);
-        this.pendingMediaSubscriptions.delete(subscriptionId);
-        reject(error);
-      }
+    return this.subscribeMediaQueue.push(() => {
+      return this.subscriber.subscribeMedia(publicationId);
     });
   }
 
   getMediaSubscription(subscriptionId: string): MediaSubscription | undefined {
-    return this.mediaSubscriptions.get(subscriptionId);
+    return this.subscriber.getMediaSubscription(subscriptionId);
   }
 
   getMediaSubscriptions(): MediaSubscription[] {
-    return Array.from(this.mediaSubscriptions.values());
+    return this.subscriber.getMediaSubscriptions();
+  }
+
+  async unsubscribeData(publicationId: string): Promise<void> {
+    return this.subscriber.unsubscribeData(publicationId);
+  }
+
+  getDataSubscriptions(): DataSubscription[] {
+    return this.subscriber.getDataSubscriptions();
+  }
+
+  /**
+   * Retrieves the list of remote members currently in the room.
+   *
+   * This method returns an array of RemoteMember objects representing all other
+   * participants in the room (excluding the current client). Each RemoteMember
+   * contains the member's ID, optional name, and optional metadata.
+   *
+   * @returns {RemoteMember[]} An array of remote members currently in the room.
+   *   Returns an empty array if no other members are present.
+   *
+   * @example
+   * ```typescript
+   * const remoteMembers = client.getRemoteMembers();
+   * console.log(`There are ${remoteMembers.length} other members in the room`);
+   *
+   * for (const member of remoteMembers) {
+   *   console.log(`Member: ${member.name || member.id}`);
+   *   if (member.metadata) {
+   *     console.log(`Metadata:`, member.metadata);
+   *   }
+   * }
+   * ```
+   */
+  getRemoteMembers(): RemoteMember[] {
+    return Array.from(this.remoteMembers.values());
   }
 
   // Add dispose method for hierarchical cleanup

@@ -34,6 +34,7 @@ app.post("/rooms", async (_req: Request, res: Response) => {
 app.post("/rooms/:roomId/join", async (req: Request, res: Response) => {
   try {
     const { roomId } = req.params;
+    const { name, metadata } = req.body;
     const room = findRoom(roomId);
 
     if (!room) {
@@ -41,13 +42,15 @@ app.post("/rooms/:roomId/join", async (req: Request, res: Response) => {
       return;
     }
 
-    const { member, offerSdp } = await room.join();
+    const { member, offerSdp } = await room.join({ name, metadata });
 
     // Store member reference for later use
     membersByConnectionId.set(member.memberId, { room, member });
 
     res.json({
       memberId: member.memberId,
+      name: member.name,
+      metadata: member.metadata,
       offer: offerSdp,
     });
     return;
@@ -111,28 +114,6 @@ app.post(
     }
   },
 );
-
-// Leave room (cleanup member)
-app.post("/members/:memberId/leave", async (req: Request, res: Response) => {
-  try {
-    const { memberId } = req.params;
-
-    const memberInfo = membersByConnectionId.get(memberId);
-    if (!memberInfo) {
-      res.status(404).json({ error: "Member not found" });
-      return;
-    }
-
-    memberInfo.room.removeMember(memberId);
-    membersByConnectionId.delete(memberId);
-
-    res.json({ success: true });
-    return;
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
-});
 
 // Health check
 app.get("/health", (_req: Request, res: Response) => {
